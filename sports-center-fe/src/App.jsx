@@ -1,122 +1,78 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { AuthProvider, useAuth } from './auth'
+import AppLayout from './components/Layouts'
+import AuditLogsPage from './pages/AuditLogsPage'
+import { Forbidden, NotFound } from './pages/ErrorPages'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import LoginPage from './pages/LoginPage'
+import ProfilePage from './pages/ProfilePage'
+import RegisterPage from './pages/RegisterPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import UsersPage from './pages/UsersPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import CoachSchedule from './pages/static/CoachSchedule'
+import HomePage from './pages/static/HomePage'
+import ManagerDashboard from './pages/static/ManagerDashboard'
+import MemberSchedule from './pages/static/MemberSchedule'
+import ReceptionCheckIn from './pages/static/ReceptionCheckIn'
+import ReceptionDesk from './pages/static/ReceptionDesk'
+import SellPackages from './pages/static/SellPackages'
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Must be logged in. A temp password has to be changed before anything else (AUTH-03).
+function RequireAuth() {
+  const { auth } = useAuth()
+  const location = useLocation()
+  if (!auth) return <Navigate to="/login" state={{ from: location }} replace />
+  if (auth.mustChangePassword && location.pathname !== '/profile') return <Navigate to="/profile" replace />
+  return <AppLayout />
 }
 
-export default App
+// SYS-01: wrong role -> 403 page (the API enforces the same rule with 403).
+function RequireRole({ roles }) {
+  const { auth } = useAuth()
+  return roles.includes(auth.role) ? <Outlet /> : <Navigate to="/403" replace />
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/403" element={<Forbidden />} />
+
+          <Route element={<RequireAuth />}>
+            <Route path="/profile" element={<ProfilePage />} />
+
+            <Route element={<RequireRole roles={['Manager']} />}>
+              <Route path="/manager" element={<ManagerDashboard />} />
+              <Route path="/manager/users" element={<UsersPage />} />
+              <Route path="/manager/audit-logs" element={<AuditLogsPage />} />
+            </Route>
+
+            <Route element={<RequireRole roles={['Receptionist']} />}>
+              <Route path="/reception" element={<ReceptionDesk />} />
+              <Route path="/reception/check-in" element={<ReceptionCheckIn />} />
+              <Route path="/reception/sell" element={<SellPackages />} />
+            </Route>
+
+            <Route element={<RequireRole roles={['Coach']} />}>
+              <Route path="/coach" element={<CoachSchedule />} />
+            </Route>
+
+            <Route element={<RequireRole roles={['Member']} />}>
+              <Route path="/member/schedule" element={<MemberSchedule />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}
