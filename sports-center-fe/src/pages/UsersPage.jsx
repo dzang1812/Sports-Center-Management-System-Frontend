@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
 import { useAuth } from '../auth'
 import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
-import { ROLE_LABEL, SPORTS } from '../labels'
+import { ROLE_LABEL } from '../labels'
 
 const ROLE_TONE = { Manager: 'amber', Coach: 'indigo', Receptionist: 'slate', Member: 'green' }
 const isStaffAccount = (role) => role === 'Coach' || role === 'Receptionist'
@@ -18,6 +18,11 @@ function UserForm({ user, onClose, onDone }) {
   })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sports, setSports] = useState([])
+
+  useEffect(() => {
+    api('/sports').then((list) => setSports(list.filter((s) => s.status === 'Active').map((s) => s.name))).catch(() => {})
+  }, [])
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const toggle = (s) =>
     setForm({ ...form, specialties: form.specialties.includes(s) ? form.specialties.filter((x) => x !== s) : [...form.specialties, s] })
@@ -64,7 +69,7 @@ function UserForm({ user, onClose, onDone }) {
           <fieldset className="flex flex-col gap-2">
             <legend className="font-label-md text-label-md font-semibold mb-1.5">Chuyên môn</legend>
             <div className="flex flex-wrap gap-4">
-              {SPORTS.map((s) => (
+              {sports.map((s) => (
                 <label key={s} className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 accent-primary-container" checked={form.specialties.includes(s)} onChange={() => toggle(s)} />
                   {s}

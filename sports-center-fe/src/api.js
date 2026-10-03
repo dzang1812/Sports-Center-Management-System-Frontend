@@ -18,9 +18,11 @@ export class ApiError extends Error {
   }
 }
 
-// API errors are either { error } (business rule) or ASP.NET validation { errors: { Field: [msg] } }.
+// Error shapes vary by feature area: Auth/Me/Users/AuditLogs use { error }; the scheduling/catalog/PT/attendance
+// area uses { errorCode, message } (business rule) or { errorCode, message, errors: { Field: [msg] } } (validation,
+// where message is just a generic "invalid input" string — the specific field message is more useful when present).
 const errorMessage = (data, status) =>
-  data?.error ?? Object.values(data?.errors ?? {})[0]?.[0] ?? (status === 403 ? 'Bạn không có quyền thực hiện thao tác này' : 'Có lỗi xảy ra, vui lòng thử lại')
+  data?.error ?? Object.values(data?.errors ?? {})[0]?.[0] ?? data?.message ?? (status === 403 ? 'Bạn không có quyền thực hiện thao tác này' : 'Có lỗi xảy ra, vui lòng thử lại')
 
 export async function api(path, { method = 'GET', body } = {}) {
   const auth = getAuth()

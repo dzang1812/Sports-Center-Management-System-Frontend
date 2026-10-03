@@ -10,16 +10,24 @@ const NAV = {
   Manager: [
     { to: '/manager', label: 'Tổng quan', icon: 'dashboard', end: true },
     { to: '/manager/users', label: 'Quản lý người dùng', icon: 'group' },
+    { to: '/manager/catalog', label: 'Danh mục', icon: 'category' },
+    { to: '/manager/classes', label: 'Lịch & lớp học', icon: 'calendar_month' },
     { to: '/manager/audit-logs', label: 'Nhật ký thao tác', icon: 'history' },
   ],
   Receptionist: [
     { to: '/reception', label: 'Quầy lễ tân', icon: 'support_agent', end: true },
     { to: '/reception/check-in', label: 'Check-in', icon: 'how_to_reg' },
     { to: '/reception/sell', label: 'Bán gói & thu phí', icon: 'point_of_sale' },
+    { to: '/reception/classes', label: 'Đặt lớp cho hội viên', icon: 'event_available' },
+    { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
   ],
-  Coach: [{ to: '/coach', label: 'Lịch dạy', icon: 'calendar_month', end: true }],
+  Coach: [
+    { to: '/coach', label: 'Lịch dạy', icon: 'calendar_month', end: true },
+    { to: '/coach/availability', label: 'Khung giờ nhận PT', icon: 'schedule' },
+  ],
   Member: [
     { to: '/member/schedule', label: 'Lịch lớp học', icon: 'calendar_month' },
+    { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
   ],
 }
 
