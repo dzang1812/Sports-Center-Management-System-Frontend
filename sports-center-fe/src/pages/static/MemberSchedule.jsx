@@ -4,7 +4,7 @@
 // for the equivalent Reception-facing flow and API_MAPPING.md for details.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, query } from '../../api'
-import { addDays, fromDateOnly, fromTimeOnly, toDateOnly, weekRange } from '../../dateUtils'
+import { addDays, fromDateOnly, fromTimeOnly, toDateOnly } from '../../dateUtils'
 import { LEVEL_LABEL } from '../../labels'
 
 const SPORT_COLOR = {
@@ -33,7 +33,9 @@ const dayHeading = (dateStr, today, tomorrow) => {
 export default function MemberSchedule() {
   const today = toDateOnly(new Date())
   const tomorrow = addDays(today, 1)
-  const [week, setWeek] = useState(weekRange())
+  // A rolling 7-day window starting today (not the Mon-Sun calendar week) so the list isn't
+  // mostly empty just because today happens to fall near the end of the calendar week.
+  const [week, setWeek] = useState([today, addDays(today, 6)])
   const [sports, setSports] = useState([])
   const [sessions, setSessions] = useState([])
   const [bookedIds, setBookedIds] = useState(new Set())
@@ -116,11 +118,12 @@ export default function MemberSchedule() {
   }
 
   const shiftWeek = (days) => {
-    const monday = fromDateOnly(week[0])
-    monday.setDate(monday.getDate() + days)
-    setWeek(weekRange(monday))
+    const start = fromDateOnly(week[0])
+    start.setDate(start.getDate() + days)
+    const newStart = toDateOnly(start)
+    setWeek([newStart, addDays(newStart, 6)])
   }
-  const goToday = () => setWeek(weekRange())
+  const goToday = () => setWeek([today, addDays(today, 6)])
 
   return (
     <>
