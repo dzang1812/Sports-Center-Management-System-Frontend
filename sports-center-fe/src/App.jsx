@@ -10,7 +10,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ManagerClassesPage from './pages/ManagerClassesPage'
 import MemberPtPage from './pages/MemberPtPage'
-import MemberSchedulePage from './pages/MemberSchedulePage'
+import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import ProfilePage from './pages/ProfilePage'
 import ReceptionClassBookingPage from './pages/ReceptionClassBookingPage'
 import ReceptionPtBookingPage from './pages/ReceptionPtBookingPage'
@@ -18,8 +18,10 @@ import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import UsersPage from './pages/UsersPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import CoachSchedule from './pages/static/CoachSchedule'
 import HomePage from './pages/static/HomePage'
 import ManagerDashboard from './pages/static/ManagerDashboard'
+import MemberSchedule from './pages/static/MemberSchedule'
 import ReceptionCheckIn from './pages/static/ReceptionCheckIn'
 import ReceptionDesk from './pages/static/ReceptionDesk'
 import SellPackages from './pages/static/SellPackages'
@@ -72,12 +74,14 @@ export default function App() {
             </Route>
 
             <Route element={<RequireRole roles={['Coach']} />}>
-              <Route path="/coach" element={<CoachSessionsPage />} />
+              <Route path="/coach" element={<CoachSchedule />} />
+              <Route path="/coach/sessions" element={<CoachSessionsPage />} />
               <Route path="/coach/availability" element={<CoachAvailabilityPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Member']} />}>
-              <Route path="/member/schedule" element={<MemberSchedulePage />} />
+              <Route path="/member/schedule" element={<MemberSchedule />} />
+              <Route path="/member/my-schedule" element={<MyMemberSchedulePage />} />
               <Route path="/member/pt" element={<MemberPtPage />} />
             </Route>
           </Route>

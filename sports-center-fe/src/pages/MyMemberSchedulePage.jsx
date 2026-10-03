@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
-import { ClassBrowser } from '../components/booking'
 import { Alert, btnOutline, inputCls } from '../components/ui'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
@@ -166,18 +165,18 @@ function AttendanceHistory() {
   )
 }
 
-export default function MemberSchedulePage() {
-  const [tab, setTab] = useState('book')
+export default function MyMemberSchedulePage() {
+  const [tab, setTab] = useState('mine')
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Lịch lớp học</h1>
-        <p className="text-secondary">Đặt lớp mới, xem lịch của bạn và lịch sử điểm danh.</p>
+        <h1 className="font-headline-xl text-headline-xl">Lịch của tôi</h1>
+        <p className="text-secondary">Các lớp và buổi PT đã đặt, cùng lịch sử điểm danh.</p>
       </div>
 
       <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['book', 'Đặt lớp mới'], ['mine', 'Lịch của tôi'], ['attendance', 'Điểm danh']].map(([v, l]) => (
+        {[['mine', 'Lịch của tôi'], ['attendance', 'Điểm danh']].map(([v, l]) => (
           <button
             key={v}
             className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
@@ -188,7 +187,6 @@ export default function MemberSchedulePage() {
         ))}
       </div>
 
-      {tab === 'book' && <ClassBrowser />}
       {tab === 'mine' && <MySchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
     </div>

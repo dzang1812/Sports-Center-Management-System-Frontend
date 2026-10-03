@@ -23,10 +23,12 @@ const NAV = {
   ],
   Coach: [
     { to: '/coach', label: 'Lịch dạy', icon: 'calendar_month', end: true },
+    { to: '/coach/sessions', label: 'Điểm danh buổi học', icon: 'fact_check' },
     { to: '/coach/availability', label: 'Khung giờ nhận PT', icon: 'schedule' },
   ],
   Member: [
     { to: '/member/schedule', label: 'Lịch lớp học', icon: 'calendar_month' },
+    { to: '/member/my-schedule', label: 'Lịch của tôi', icon: 'event_note' },
     { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
   ],
 }
