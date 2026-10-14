@@ -101,9 +101,7 @@ function StaffLayout() {
       >
         <div className="h-16 px-space-md flex items-center justify-between">
           <div className="flex items-center gap-space-sm">
-            <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
-              <Icon name="fitness_center" className="text-on-primary text-[18px]" />
-            </div>
+            <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-headline-sm text-headline-sm font-bold text-white">FitZone</span>
           </div>
           <span className="px-space-xs py-0.5 rounded bg-tertiary-container text-on-tertiary font-label-sm text-label-sm uppercase">
@@ -158,9 +156,7 @@ function MemberLayout() {
       <header className="fixed top-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.06)]">
         <div className="h-16 w-full max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
-              <Icon name="fitness_center" className="text-on-primary text-[18px]" />
-            </div>
+            <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-headline-md text-headline-md font-bold text-on-surface">FitZone</span>
           </Link>
           <nav className="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl">

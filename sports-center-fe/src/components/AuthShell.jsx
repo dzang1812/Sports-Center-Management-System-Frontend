@@ -6,9 +6,7 @@ const HERO =
 
 export const Logo = () => (
   <Link to="/" className="flex items-center gap-3 bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg">
-    <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
-      <Icon name="fitness_center" className="text-2xl" />
-    </div>
+    <img src="/logo.png" alt="FitZone" className="w-10 h-10 rounded-lg object-contain" />
     <div className="flex flex-col leading-tight">
       <span className="font-headline-sm text-headline-sm text-on-surface tracking-wider font-extrabold uppercase">
         Fit<span className="text-primary-container">Zone</span>

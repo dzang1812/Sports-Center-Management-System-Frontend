@@ -9,7 +9,8 @@ export default function HomePage() {
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
 
 <a className="flex items-center gap-3 group" href="#">
-<img alt="FitZone Sports Center" className="h-10 w-auto object-contain transition-transform group-hover:scale-105" src="https://lh3.googleusercontent.com/aida/AEtjO1VP77uk5EvsKWW712iIVmQIT0Rp5U1GyQakVPLNDisWtSfmEFEeWwrMMTJH8rehE2aJeGd2O5W_rUUXMW5IHuLS12HlJmTLot5_IhJ1f5hI5wH-tBZQWdT1d8zALN6J3nzxdbE8324O3Cj6z6i93S081J4UsxcSCeE4SmlnKSB22xAkD5wva0cte9NviBEF2R-TMhQq52ybwwkoNJexIWTQSK4g0QN8zPpwIuXFZ_L5csMEhkautjxZp50" />
+<img alt="FitZone Sports Center" className="h-10 w-auto object-contain transition-transform group-hover:scale-105" src="/logo.png" />
+<span className="font-headline-sm text-headline-sm font-extrabold uppercase text-on-surface tracking-wider">Fit<span className="text-primary-container">Zone</span></span>
 </a>
 
 <nav className="hidden md:flex items-center gap-8 font-label-lg text-body-md text-on-surface-variant">
