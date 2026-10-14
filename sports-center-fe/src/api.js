@@ -12,9 +12,12 @@ export const getAuth = () => {
 export const setAuth = (a) => (a ? localStorage.setItem(KEY, JSON.stringify(a)) : localStorage.removeItem(KEY))
 
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, body) {
     super(message)
     this.status = status
+    this.errorCode = body?.errorCode
+    this.details = body?.details
+    this.errors = body?.errors
   }
 }
 
@@ -39,7 +42,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   if (res.status === 204) return null
 
   const data = await res.json().catch(() => null)
-  if (!res.ok) throw new ApiError(errorMessage(data, res.status), res.status)
+  if (!res.ok) throw new ApiError(errorMessage(data, res.status), res.status, data)
   return data
 }
 
