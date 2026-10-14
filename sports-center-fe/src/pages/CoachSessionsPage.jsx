@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
+import { OpenCheckInCodeButton, SelfCheckInButton } from '../components/classCheckIn'
 import { Alert, Badge, Icon, Modal, btnOutline, btnPrimary } from '../components/ui'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
-import { ATTENDANCE_STATUS_LABEL, SESSION_STATUS_LABEL } from '../labels'
+import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, PT_ATTENDANCE_STATUSES, SESSION_STATUS_LABEL } from '../labels'
 
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
+const CHECK_IN_STATE_TONE = { NotCheckedIn: 'slate', Present: 'green', Late: 'amber', Absent: 'red' }
 
+// Class roster is read-only (self check-in is the only way to mark it — see FE-01 in the handoff doc);
+// PT roster is still manually graded by the Coach, Present/Absent/Late only (no Excused).
 function RosterModal({ item, onClose, onDone }) {
+  const isClass = item.type !== 'PT'
   const [roster, setRoster] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,13 +21,13 @@ function RosterModal({ item, onClose, onDone }) {
     setLoading(true)
     setError('')
     try {
-      const path = item.type === 'PT' ? `/coach/sessions/pt/${item.referenceId}/roster` : `/coach/sessions/class/${item.referenceId}/roster`
+      const path = isClass ? `/coach/sessions/class/${item.referenceId}/roster` : `/coach/sessions/pt/${item.referenceId}/roster`
       setRoster(await api(path))
     } catch (err) {
       setError(err.message)
     }
     setLoading(false)
-  }, [item])
+  }, [item, isClass])
 
   useEffect(() => {
     load()
@@ -34,9 +39,8 @@ function RosterModal({ item, onClose, onDone }) {
     setBusy(true)
     setError('')
     try {
-      const path = item.type === 'PT' ? `/pt/bookings/${item.referenceId}/attendance` : `/sessions/${item.referenceId}/attendance`
       const body = { items: roster.map((r) => ({ memberId: r.memberId, status: r.status })) }
-      await api(path, { method: 'PUT', body })
+      await api(`/pt/bookings/${item.referenceId}/attendance`, { method: 'PUT', body })
       onDone()
     } catch (err) {
       setError(err.message)
@@ -45,7 +49,7 @@ function RosterModal({ item, onClose, onDone }) {
   }
 
   return (
-    <Modal title={`Điểm danh — ${item.title}`} onClose={onClose}>
+    <Modal title={`${isClass ? 'Danh sách điểm danh' : 'Điểm danh'} — ${item.title}`} onClose={onClose}>
       {error && <Alert>{error}</Alert>}
       <div className={`flex flex-col gap-2 ${loading ? 'opacity-50' : ''}`}>
         {roster.map((r) => (
@@ -54,16 +58,25 @@ function RosterModal({ item, onClose, onDone }) {
               <div className="font-semibold">{r.fullName}</div>
               <div className="text-secondary text-body-sm">{r.email}</div>
             </div>
-            <select className="h-9 px-2 rounded-lg border border-outline-variant bg-surface-container-lowest" value={r.status} onChange={(e) => setStatus(r.memberId, e.target.value)}>
-              {Object.entries(ATTENDANCE_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            {isClass ? (
+              <div className="text-right">
+                <Badge tone={CHECK_IN_STATE_TONE[r.checkInState]}>{CHECK_IN_STATE_LABEL[r.checkInState] ?? r.checkInState}</Badge>
+                {r.checkedInAt && <div className="text-body-sm text-secondary mt-0.5">{new Date(r.checkedInAt).toLocaleTimeString('vi-VN')}</div>}
+              </div>
+            ) : (
+              <select className="h-9 px-2 rounded-lg border border-outline-variant bg-surface-container-lowest" value={r.status} onChange={(e) => setStatus(r.memberId, e.target.value)}>
+                {PT_ATTENDANCE_STATUSES.map((v) => <option key={v} value={v}>{ATTENDANCE_STATUS_LABEL[v]}</option>)}
+              </select>
+            )}
           </div>
         ))}
         {!loading && !roster.length && <p className="text-secondary text-center py-6">Không có hội viên trong danh sách.</p>}
       </div>
       <div className="flex justify-end gap-2 pt-4">
         <button type="button" className={btnOutline} onClick={onClose}>Đóng</button>
-        <button type="button" disabled={busy || !roster.length} className={btnPrimary} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu điểm danh'}</button>
+        {!isClass && (
+          <button type="button" disabled={busy || !roster.length} className={btnPrimary} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu điểm danh'}</button>
+        )}
       </div>
     </Modal>
   )
@@ -119,10 +132,18 @@ export default function CoachSessionsPage() {
                 {it.date} • {fromTimeOnly(it.startTime)}-{fromTimeOnly(it.endTime)} • {it.room ?? '—'} • {it.participantCount} học viên
               </div>
             </div>
-            <button className={btnOutline} onClick={() => setRosterItem(it)}>
-              <Icon name="fact_check" className="text-lg" />
-              Điểm danh
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button className={btnOutline} onClick={() => setRosterItem(it)}>
+                <Icon name="fact_check" className="text-lg" />
+                {it.type === 'PT' ? 'Điểm danh' : 'Danh sách'}
+              </button>
+              {it.type !== 'PT' && it.status === 'Scheduled' && (
+                <>
+                  <OpenCheckInCodeButton sessionId={it.referenceId} className={btnOutline + ' !px-2'} />
+                  <SelfCheckInButton sessionId={it.referenceId} as="coach" className={btnOutline + ' !px-2'} onDone={load} />
+                </>
+              )}
+            </div>
           </div>
         ))}
         {!loading && !items.length && <p className="text-secondary text-center py-10">Không có buổi nào trong khoảng thời gian này.</p>}

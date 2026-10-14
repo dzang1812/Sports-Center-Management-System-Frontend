@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
+import { OpenCheckInCodeButton } from './classCheckIn'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { LEVEL_LABEL } from '../labels'
 import { Alert, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
@@ -109,6 +110,7 @@ export function ClassBrowser({ requireMemberId = false }) {
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-body-sm text-secondary">Còn {s.remainingSeats}/{s.capacity} chỗ</span>
+              {requireMemberId && <OpenCheckInCodeButton sessionId={s.id} />}
               <button
                 className={bookedIds.has(s.id) ? btnOutline : btnPrimary}
                 disabled={busyId === s.id || bookedIds.has(s.id) || s.remainingSeats <= 0}

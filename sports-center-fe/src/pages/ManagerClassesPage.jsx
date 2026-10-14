@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
+import { OpenCheckInCodeButton } from '../components/classCheckIn'
 import { toTimeOnly, fromTimeOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { CLASS_STATUS_LABEL, DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, LEVEL_LABEL, SESSION_STATUS_LABEL } from '../labels'
@@ -479,6 +480,7 @@ function SessionsTab({ catalog }) {
                         <button className={btnOutline + ' !h-8 !px-2'} title="Sửa" onClick={() => setEditing(s)}>
                           <Icon name="edit" className="text-base" />
                         </button>
+                        <OpenCheckInCodeButton sessionId={s.id} />
                         <button className={btnOutline + ' !h-8 !px-2'} title="Huỷ buổi học" onClick={() => cancelSession(s)}>
                           <Icon name="event_busy" className="text-base" />
                         </button>

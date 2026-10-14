@@ -17,6 +17,11 @@ export const BOOKING_STATUS_LABEL = { Confirmed: 'Đã xác nhận', Cancelled: 
 export const SPORT_STATUS_LABEL = { Active: 'Hoạt động', Inactive: 'Ngừng hoạt động' }
 export const ROOM_STATUS_LABEL = { Active: 'Hoạt động', Maintenance: 'Đang bảo trì', Inactive: 'Ngừng hoạt động' }
 export const ATTENDANCE_STATUS_LABEL = { Present: 'Có mặt', Absent: 'Vắng', Late: 'Đi muộn', Excused: 'Có phép' }
+// PT attendance only ever accepts these three (no Excused) — see PUT /pt/bookings/{id}/attendance.
+export const PT_ATTENDANCE_STATUSES = ['Present', 'Absent', 'Late']
+// Class roster check-in state (self check-in flow), distinct from the Absent/Present attendance status.
+export const CHECK_IN_STATE_LABEL = { NotCheckedIn: 'Chưa điểm danh', Present: 'Có mặt', Late: 'Đi muộn', Absent: 'Vắng' }
+export const CHECK_IN_SOURCE_LABEL = { MemberSelfCheckIn: 'Tự check-in', LegacyCoachMarked: 'HLV điểm danh' }
 export const SUBSCRIPTION_STATUS_LABEL = { Pending: 'Chờ thanh toán', Active: 'Đang hoạt động', Expired: 'Đã hết hạn', Cancelled: 'Đã huỷ' }
 export const PAYMENT_STATUS_LABEL = { Pending: 'Chờ thanh toán', Paid: 'Đã thanh toán', Failed: 'Thất bại', Refunded: 'Đã hoàn tiền' }
 export const PAYMENT_METHOD_LABEL = { Cash: 'Tiền mặt', BankTransfer: 'Chuyển khoản', Card: 'Thẻ' }

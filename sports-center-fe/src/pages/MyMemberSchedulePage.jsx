@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
+import { SelfCheckInButton } from '../components/classCheckIn'
 import { Alert, btnOutline, inputCls } from '../components/ui'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
@@ -86,8 +87,10 @@ function MySchedule() {
             </div>
             {item.status === 'Confirmed' && (
               <div className="flex gap-2 shrink-0">
-                {item.type === 'PT' && (
+                {item.type === 'PT' ? (
                   <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => reschedule(item)}>Đổi lịch</button>
+                ) : (
+                  <SelfCheckInButton sessionId={item.referenceId} className={btnOutline} onDone={load} />
                 )}
                 <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => cancel(item)}>Huỷ</button>
               </div>
