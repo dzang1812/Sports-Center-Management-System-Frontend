@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
-import { Alert, Badge, Field, btnPrimary, inputCls } from '../components/ui'
+import { Alert, Avatar, Badge, Field, btnPrimary, inputCls } from '../components/ui'
 import { GENDER_LABEL, GOAL_LABEL, LEVEL_LABEL, PASSWORD_HINT, PASSWORD_RULE, ROLE_LABEL } from '../labels'
 
 const card = 'bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm p-6'
@@ -84,7 +84,10 @@ function ProfileForm({ me, onSaved }) {
           <Select options={GENDER_LABEL} value={form.gender} onChange={set('gender')} />
         </Field>
         <Field label="Ảnh đại diện (link)">
-          <input className={inputCls} type="url" placeholder="https://…" value={form.avatarUrl} onChange={set('avatarUrl')} />
+          <div className="flex items-center gap-3">
+            <Avatar src={form.avatarUrl} className="w-11 h-11" />
+            <input className={inputCls} type="url" placeholder="https://…" value={form.avatarUrl} onChange={set('avatarUrl')} />
+          </div>
         </Field>
       </div>
 
@@ -170,12 +173,16 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api('/me').then(setMe, (err) => setError(err.message))
+    api('/me').then((m) => {
+      setMe(m)
+      updateAuth({ avatarUrl: m.avatarUrl })
+    }, (err) => setError(err.message))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const saved = (m) => {
     setMe(m)
-    updateAuth({ fullName: m.fullName })
+    updateAuth({ fullName: m.fullName, avatarUrl: m.avatarUrl })
   }
 
   return (

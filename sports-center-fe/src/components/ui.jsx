@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export const inputCls =
   'w-full h-11 px-3.5 rounded-lg font-body-md text-body-md text-on-surface bg-surface-container-lowest border border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-all disabled:bg-surface-container-low disabled:text-outline'
@@ -10,6 +10,18 @@ export const btnOutline =
   'inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-lg text-label-lg transition-all disabled:opacity-60'
 
 export const Icon = ({ name, className = '' }) => <span className={`material-symbols-outlined ${className}`}>{name}</span>
+
+// Shows the user's avatarUrl when set; falls back to the person icon on a broken/missing link.
+export function Avatar({ src, className = 'w-8 h-8' }) {
+  const [broken, setBroken] = useState(false)
+  return src && !broken ? (
+    <img src={src} alt="" onError={() => setBroken(true)} className={`${className} rounded-full object-cover shrink-0`} />
+  ) : (
+    <div className={`${className} rounded-full bg-primary flex items-center justify-center shrink-0`}>
+      <Icon name="person" className="text-on-primary text-[60%]" />
+    </div>
+  )
+}
 
 export function Field({ label, error, hint, children }) {
   return (

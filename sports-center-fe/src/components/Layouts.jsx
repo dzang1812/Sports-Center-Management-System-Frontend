@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { ROLE_LABEL } from '../labels'
-import { Icon } from './ui'
+import { Avatar, Icon } from './ui'
 
 // Menu per role. Only pages that exist are listed.
 const NAV = {
@@ -40,9 +40,7 @@ function UserChip() {
   return (
     <div className="flex items-center gap-space-sm">
       <Link to="/profile" className="flex items-center gap-space-sm p-1 rounded-lg hover:bg-surface-container-high" title="Hồ sơ cá nhân">
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-          <Icon name="person" className="text-on-primary text-[18px]" />
-        </div>
+        <Avatar src={auth.avatarUrl} />
         <div className="hidden sm:flex flex-col text-left">
           <span className="font-label-md text-label-md text-on-surface leading-tight">{auth.fullName}</span>
           <span className="font-label-sm text-label-sm text-on-surface-variant leading-tight">{ROLE_LABEL[auth.role]}</span>
