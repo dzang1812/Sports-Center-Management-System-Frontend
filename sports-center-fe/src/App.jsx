@@ -26,6 +26,7 @@ import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import UsersPage from './pages/UsersPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import VerifyRequiredPage from './pages/VerifyRequiredPage'
 import HomePage from './pages/static/HomePage'
 import MemberSchedule from './pages/static/MemberSchedule'
 import ReceptionCheckIn from './pages/static/ReceptionCheckIn'
@@ -38,6 +39,7 @@ function RequireAuth() {
   const location = useLocation()
   if (!auth) return <Navigate to="/login" state={{ from: location }} replace />
   if (auth.mustChangePassword && location.pathname !== '/profile') return <Navigate to="/profile" replace />
+  if (!auth.emailVerified) return <VerifyRequiredPage />
   return <AppLayout />
 }
 

@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { api } from '../api'
 import { useAuth } from '../auth'
 import { ROLE_LABEL } from '../labels'
-import { Alert, Icon } from './ui'
+import { Icon } from './ui'
 
 // Menu per role. Only pages that exist are listed.
 const NAV = {
@@ -34,32 +33,6 @@ const NAV = {
     { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
     { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
   ],
-}
-
-function VerifyBanner() {
-  const { auth } = useAuth()
-  const [msg, setMsg] = useState('')
-  if (auth.emailVerified) return null
-
-  const resend = async () => {
-    try {
-      await api('/auth/resend-verification', { method: 'POST' })
-      setMsg('Đã gửi lại email xác thực, vui lòng kiểm tra hộp thư.')
-    } catch (err) {
-      setMsg(err.message)
-    }
-  }
-
-  return (
-    <Alert type="warning" className="mb-4">
-      {msg || 'Email của bạn chưa được xác thực.'}{' '}
-      {!msg && (
-        <button onClick={resend} className="underline font-semibold">
-          Gửi lại email xác thực
-        </button>
-      )}
-    </Alert>
-  )
 }
 
 function UserChip() {
@@ -135,7 +108,6 @@ function StaffLayout() {
         </header>
         <main className="pt-16 px-space-lg py-space-lg min-h-screen">
           <div className="pt-space-lg">
-            <VerifyBanner />
             <Outlet />
           </div>
         </main>
@@ -174,7 +146,6 @@ function MemberLayout() {
       </header>
       <main className="pt-16 w-full max-w-7xl mx-auto px-6 lg:px-12">
         <div className="pt-space-lg">
-          <VerifyBanner />
           <Outlet />
         </div>
       </main>
