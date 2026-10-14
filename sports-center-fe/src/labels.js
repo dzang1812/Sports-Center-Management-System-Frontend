@@ -17,6 +17,9 @@ export const BOOKING_STATUS_LABEL = { Confirmed: 'Đã xác nhận', Cancelled: 
 export const SPORT_STATUS_LABEL = { Active: 'Hoạt động', Inactive: 'Ngừng hoạt động' }
 export const ROOM_STATUS_LABEL = { Active: 'Hoạt động', Maintenance: 'Đang bảo trì', Inactive: 'Ngừng hoạt động' }
 export const ATTENDANCE_STATUS_LABEL = { Present: 'Có mặt', Absent: 'Vắng', Late: 'Đi muộn', Excused: 'Có phép' }
+export const SUBSCRIPTION_STATUS_LABEL = { Pending: 'Chờ thanh toán', Active: 'Đang hoạt động', Expired: 'Đã hết hạn', Cancelled: 'Đã huỷ' }
+export const PAYMENT_STATUS_LABEL = { Pending: 'Chờ thanh toán', Paid: 'Đã thanh toán', Failed: 'Thất bại', Refunded: 'Đã hoàn tiền' }
+export const PAYMENT_METHOD_LABEL = { Cash: 'Tiền mặt', BankTransfer: 'Chuyển khoản', Card: 'Thẻ' }
 
 // .NET DayOfWeek: Sunday = 0 .. Saturday = 6.
 export const DAY_OF_WEEK_LABEL = {

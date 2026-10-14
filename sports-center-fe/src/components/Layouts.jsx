@@ -8,27 +8,30 @@ import { Alert, Icon } from './ui'
 // Menu per role. Only pages that exist are listed.
 const NAV = {
   Manager: [
-    { to: '/manager', label: 'Tổng quan', icon: 'dashboard', end: true },
+    { to: '/manager/dashboard', label: 'Tổng quan', icon: 'dashboard' },
     { to: '/manager/users', label: 'Quản lý người dùng', icon: 'group' },
-    { to: '/manager/catalog', label: 'Danh mục', icon: 'category' },
+    { to: '/manager/sports-rooms', label: 'Bộ môn & phòng tập', icon: 'category' },
     { to: '/manager/classes', label: 'Lịch & lớp học', icon: 'calendar_month' },
+    { to: '/manager/packages', label: 'Gói tập', icon: 'sell' },
+    { to: '/manager/reports', label: 'Báo cáo', icon: 'monitoring' },
     { to: '/manager/audit-logs', label: 'Nhật ký thao tác', icon: 'history' },
   ],
   Receptionist: [
     { to: '/reception', label: 'Quầy lễ tân', icon: 'support_agent', end: true },
     { to: '/reception/check-in', label: 'Check-in', icon: 'how_to_reg' },
+    { to: '/reception/members', label: 'Chi tiết thành viên', icon: 'badge' },
     { to: '/reception/sell', label: 'Bán gói & thu phí', icon: 'point_of_sale' },
     { to: '/reception/classes', label: 'Đặt lớp cho hội viên', icon: 'event_available' },
     { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
   ],
   Coach: [
-    { to: '/coach', label: 'Lịch dạy', icon: 'calendar_month', end: true },
-    { to: '/coach/sessions', label: 'Điểm danh buổi học', icon: 'fact_check' },
+    { to: '/coach/schedule', label: 'Lịch dạy', icon: 'calendar_month' },
     { to: '/coach/availability', label: 'Khung giờ nhận PT', icon: 'schedule' },
   ],
   Member: [
-    { to: '/member/schedule', label: 'Lịch lớp học', icon: 'calendar_month' },
-    { to: '/member/my-schedule', label: 'Lịch của tôi', icon: 'event_note' },
+    { to: '/member/classes', label: 'Đặt lớp mới', icon: 'calendar_month' },
+    { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
+    { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
     { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
   ],
 }

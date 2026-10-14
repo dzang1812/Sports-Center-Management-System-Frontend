@@ -3,24 +3,30 @@ import { AuthProvider, useAuth } from './auth'
 import AppLayout from './components/Layouts'
 import AuditLogsPage from './pages/AuditLogsPage'
 import CatalogPage from './pages/CatalogPage'
+import ClassesPage from './pages/ClassesPage'
 import CoachAvailabilityPage from './pages/CoachAvailabilityPage'
 import CoachSessionsPage from './pages/CoachSessionsPage'
 import { Forbidden, NotFound } from './pages/ErrorPages'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ManagerClassesPage from './pages/ManagerClassesPage'
+import ManagerDashboardPage from './pages/ManagerDashboardPage'
+import ManagerPackagesPage from './pages/ManagerPackagesPage'
+import ManagerReportsPage from './pages/ManagerReportsPage'
 import MemberPtPage from './pages/MemberPtPage'
+import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
+import PackagesPage from './pages/PackagesPage'
+import PaymentResultPage from './pages/PaymentResultPage'
 import ProfilePage from './pages/ProfilePage'
 import ReceptionClassBookingPage from './pages/ReceptionClassBookingPage'
+import ReceptionMemberPage from './pages/ReceptionMemberPage'
 import ReceptionPtBookingPage from './pages/ReceptionPtBookingPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import UsersPage from './pages/UsersPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
-import CoachSchedule from './pages/static/CoachSchedule'
 import HomePage from './pages/static/HomePage'
-import ManagerDashboard from './pages/static/ManagerDashboard'
 import MemberSchedule from './pages/static/MemberSchedule'
 import ReceptionCheckIn from './pages/static/ReceptionCheckIn'
 import ReceptionDesk from './pages/static/ReceptionDesk'
@@ -47,6 +53,8 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/classes" element={<ClassesPage />} />
+          <Route path="/packages" element={<PackagesPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -56,13 +64,20 @@ export default function App() {
 
           <Route element={<RequireAuth />}>
             <Route path="/profile" element={<ProfilePage />} />
+            {/* The two URLs PayOS actually redirects to (hardcoded backend-side), plus /checkout/result as an alias. */}
+            <Route path="/payment/success" element={<PaymentResultPage />} />
+            <Route path="/payment/cancel" element={<PaymentResultPage />} />
+            <Route path="/checkout/result" element={<PaymentResultPage />} />
 
             <Route element={<RequireRole roles={['Manager']} />}>
-              <Route path="/manager" element={<ManagerDashboard />} />
+              <Route path="/manager" element={<Navigate to="/manager/dashboard" replace />} />
+              <Route path="/manager/dashboard" element={<ManagerDashboardPage />} />
               <Route path="/manager/users" element={<UsersPage />} />
               <Route path="/manager/audit-logs" element={<AuditLogsPage />} />
-              <Route path="/manager/catalog" element={<CatalogPage />} />
+              <Route path="/manager/sports-rooms" element={<CatalogPage />} />
               <Route path="/manager/classes" element={<ManagerClassesPage />} />
+              <Route path="/manager/packages" element={<ManagerPackagesPage />} />
+              <Route path="/manager/reports" element={<ManagerReportsPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Receptionist']} />}>
@@ -71,17 +86,20 @@ export default function App() {
               <Route path="/reception/sell" element={<SellPackages />} />
               <Route path="/reception/classes" element={<ReceptionClassBookingPage />} />
               <Route path="/reception/pt" element={<ReceptionPtBookingPage />} />
+              <Route path="/reception/members" element={<ReceptionMemberPage />} />
+              <Route path="/reception/members/:id" element={<ReceptionMemberPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Coach']} />}>
-              <Route path="/coach" element={<CoachSchedule />} />
-              <Route path="/coach/sessions" element={<CoachSessionsPage />} />
+              <Route path="/coach" element={<Navigate to="/coach/schedule" replace />} />
+              <Route path="/coach/schedule" element={<CoachSessionsPage />} />
               <Route path="/coach/availability" element={<CoachAvailabilityPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Member']} />}>
-              <Route path="/member/schedule" element={<MemberSchedule />} />
-              <Route path="/member/my-schedule" element={<MyMemberSchedulePage />} />
+              <Route path="/member/classes" element={<MemberSchedule />} />
+              <Route path="/member/schedule" element={<MyMemberSchedulePage />} />
+              <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
               <Route path="/member/pt" element={<MemberPtPage />} />
             </Route>
           </Route>

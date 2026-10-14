@@ -4,7 +4,7 @@ import { api, getAuth, setAuth } from './api'
 const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
 
-export const ROLE_HOME = { Manager: '/manager', Receptionist: '/reception', Coach: '/coach', Member: '/member/schedule' }
+export const ROLE_HOME = { Manager: '/manager/dashboard', Receptionist: '/reception', Coach: '/coach/schedule', Member: '/member/schedule' }
 
 export function AuthProvider({ children }) {
   const [auth, setState] = useState(getAuth)
