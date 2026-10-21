@@ -1,20 +1,23 @@
-import { Link } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { Logo } from './AuthShell'
 import { Icon } from './ui'
 
+const navLinkCls = ({ isActive }) =>
+  `transition-colors ${isActive ? 'text-primary font-bold' : 'hover:text-primary'}`
+
 // Lightweight header/content wrapper for public pages (/, /classes, /packages) — not gated by RequireAuth,
 // so it can't reuse AppLayout. Shows a "Vào hệ thống" link when already logged in instead of Đăng nhập/Đăng ký.
-export default function PublicShell({ children }) {
+export default function PublicShell({ hero, children }) {
   const { auth } = useAuth()
   return (
     <div className="min-h-screen bg-surface">
-      <header className="sticky top-0 z-50 w-full bg-surface-container-lowest/95 backdrop-blur-md shadow-sm">
+      <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-container/15 via-surface-container-lowest/95 to-tertiary-container/15 backdrop-blur-md shadow-sm border-b-2 border-primary-container/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <Link to="/"><Logo /></Link>
           <nav className="hidden md:flex items-center gap-6 font-label-lg text-body-md text-on-surface-variant">
-            <Link to="/classes" className="hover:text-primary transition-colors">Lớp học</Link>
-            <Link to="/packages" className="hover:text-primary transition-colors">Gói tập</Link>
+            <NavLink to="/classes" className={navLinkCls}>Lớp học</NavLink>
+            <NavLink to="/packages" className={navLinkCls}>Gói tập</NavLink>
           </nav>
           <div className="flex items-center gap-3">
             {auth ? (
@@ -35,6 +38,7 @@ export default function PublicShell({ children }) {
           </div>
         </div>
       </header>
+      {hero}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">{children}</main>
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { ROLE_LABEL } from '../labels'
@@ -57,46 +57,61 @@ function UserChip() {
 function StaffLayout() {
   const { auth } = useAuth()
   const [open, setOpen] = useState(false)
+  // Desktop collapse (icon-only rail), remembered across reloads. Separate from the mobile overlay toggle above.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sc_sidebar_collapsed') === '1')
+  useEffect(() => localStorage.setItem('sc_sidebar_collapsed', collapsed ? '1' : '0'), [collapsed])
+
   const link = ({ isActive }) =>
     `flex items-center gap-3 px-space-md py-2.5 rounded-lg font-label-md text-label-md transition-colors ${
       isActive ? 'bg-primary-container text-on-primary' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-    }`
+    } ${collapsed ? 'lg:justify-center lg:px-0' : ''}`
+  const asideWidth = collapsed ? 'lg:w-20' : 'lg:w-64'
+  const mainOffset = collapsed ? 'lg:pl-20' : 'lg:pl-64'
 
   return (
     <div className="min-h-screen bg-surface">
       {open && <div className="fixed inset-0 z-40 bg-[#0F172A]/40 lg:hidden" onClick={() => setOpen(false)} />}
       <aside
-        className={`fixed left-0 top-0 h-full w-64 bg-[#0F172A] text-slate-100 z-50 flex flex-col transition-transform lg:translate-x-0 ${
+        className={`fixed left-0 top-0 h-full w-64 ${asideWidth} bg-[#0F172A] text-slate-100 z-50 flex flex-col transition-all lg:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="px-space-md pt-5 pb-4 flex flex-col gap-2.5">
-          <div className="flex items-center gap-space-sm">
-            <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain shrink-0" />
-            <span className="font-headline-sm text-headline-sm font-bold text-white">FitZone</span>
+        <div className={`px-space-md pt-5 pb-4 flex flex-col gap-2.5 ${collapsed ? 'lg:items-center lg:px-2' : ''}`}>
+          <div className={`flex items-center gap-space-sm ${collapsed ? 'lg:justify-center' : 'justify-between'}`}>
+            <div className="flex items-center gap-space-sm">
+              <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain shrink-0" />
+              <span className={`font-headline-sm text-headline-sm font-bold text-white ${collapsed ? 'lg:hidden' : ''}`}>FitZone</span>
+            </div>
+            <button
+              className="hidden lg:flex p-1.5 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white shrink-0"
+              onClick={() => setCollapsed((c) => !c)}
+              title={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}
+            >
+              <Icon name={collapsed ? 'chevron_right' : 'chevron_left'} className="text-[20px]" />
+            </button>
           </div>
-          <span className="self-start inline-flex items-center px-2.5 py-1 rounded-full bg-tertiary-container text-on-tertiary font-label-sm text-label-sm whitespace-nowrap">
+          <span className={`self-start inline-flex items-center px-2.5 py-1 rounded-full bg-tertiary-container text-on-tertiary font-label-sm text-label-sm whitespace-nowrap ${collapsed ? 'lg:hidden' : ''}`}>
             {ROLE_LABEL[auth.role]}
           </span>
         </div>
-        <nav className="flex-1 px-space-md py-space-sm space-y-1 overflow-y-auto" onClick={() => setOpen(false)}>
+        <nav className="flex-1 px-space-md py-space-sm space-y-1 overflow-y-auto overflow-x-hidden" onClick={() => setOpen(false)}>
           {NAV[auth.role].map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={link}>
-              <Icon name={n.icon} className="text-[20px]" />
-              {n.label}
+            <NavLink key={n.to} to={n.to} end={n.end} className={link} title={collapsed ? n.label : undefined}>
+              <Icon name={n.icon} className="text-[20px] shrink-0" />
+              <span className={collapsed ? 'lg:hidden' : ''}>{n.label}</span>
             </NavLink>
           ))}
         </nav>
         <div className="p-space-md">
-          <NavLink to="/profile" className={link}>
-            <Icon name="manage_accounts" className="text-[20px]" />
-            Hồ sơ cá nhân
+          <NavLink to="/profile" className={link} title={collapsed ? 'Hồ sơ cá nhân' : undefined}>
+            <Icon name="manage_accounts" className="text-[20px] shrink-0" />
+            <span className={collapsed ? 'lg:hidden' : ''}>Hồ sơ cá nhân</span>
           </NavLink>
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-30 flex items-center justify-between px-space-lg">
+      <div className={mainOffset}>
+        <header className={`fixed top-0 left-0 ${collapsed ? 'lg:left-20' : 'lg:left-64'} right-0 h-16 bg-gradient-to-r from-primary-container/15 via-surface/90 to-tertiary-container/15 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b-2 border-primary-container/40 z-30 flex items-center justify-between px-space-lg transition-all`}>
           <button className="lg:hidden p-2 rounded-lg hover:bg-surface-container-high" onClick={() => setOpen(true)} aria-label="Mở menu">
             <Icon name="menu" />
           </button>
@@ -123,7 +138,7 @@ function MemberLayout() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <header className="fixed top-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.06)]">
+      <header className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-primary-container/15 via-surface/90 to-tertiary-container/15 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b-2 border-primary-container/40">
         <div className="h-16 w-full max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-3">
             <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />

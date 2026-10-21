@@ -1,11 +1,235 @@
 // Static UI exported from Stitch. Data is hardcoded until the real API is wired in.
 import { Link } from 'react-router-dom'
-export default function HomePage() {
+import { useEffect, useState } from 'react'
+import { useAuth } from '../../auth'
+import { api, query } from '../../api'
+import { Avatar, Icon } from '../../components/ui'
+import { addDays, fromTimeOnly, toDateOnly } from '../../dateUtils'
+import { LEVEL_LABEL } from '../../labels'
+
+const HOME_BANNERS = [
+  '/images/banner-home-1.jpg',
+  '/images/banner-home-2.jpg',
+  '/images/banner-home-3.jpg',
+  '/images/banner-home-4.jpg',
+]
+
+function HeroBannerSlider() {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => setIndex((i) => (i + 1) % HOME_BANNERS.length), 4000)
+    return () => clearInterval(timer)
+  }, [])
+
   return (
     <>
-<main className="w-full min-h-screen bg-[#F8FAFC] flex items-center justify-center p-margin-mobile md:p-margin"><div className="flex flex-col w-full">
+      {HOME_BANNERS.map((src, i) => (
+        <img
+          key={src}
+          alt="Không gian phòng tập cao cấp FitZone Sports Center với trang thiết bị hiện đại"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
+          style={{ opacity: i === index ? 1 : 0 }}
+          src={src}
+        />
+      ))}
+      <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5 z-10">
+        {HOME_BANNERS.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            aria-label={`Ảnh ${i + 1}`}
+            onClick={() => setIndex(i)}
+            className={`h-1.5 rounded-full transition-all ${i === index ? 'w-6 bg-surface-container-lowest' : 'w-1.5 bg-surface-container-lowest/50'}`}
+          />
+        ))}
+      </div>
+    </>
+  )
+}
 
-<header className="sticky top-0 z-50 w-full bg-surface-container-lowest/95 backdrop-blur-md shadow-sm transition-all duration-300">
+const SEAT_TONE = (remaining, capacity) =>
+  remaining <= 0 ? 'bg-outline-variant/40 text-on-surface-variant' : remaining <= capacity * 0.3 ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-fixed'
+
+// Real upcoming sessions (next 7 days), same public GET /sessions ClassesPage.jsx uses.
+function ClassesSection() {
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const today = toDateOnly(new Date())
+    api(`/sessions${query({ from: today, to: addDays(today, 7), pageSize: 6 })}`)
+      .then(({ items }) => setSessions(items.filter((s) => s.status === 'Scheduled')))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <section className="py-16 bg-surface" id="classes">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+          <div>
+            <span className="font-label-md text-label-md text-primary-container uppercase tracking-wider block mb-1">LỊCH TẬP SẮP TỚI</span>
+            <h2 className="font-headline-xl text-headline-xl text-on-surface">Lớp học sắp mở trong tuần</h2>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-1">Đăng ký giữ chỗ nhanh chóng trước khi kín lớp</p>
+          </div>
+          <Link className="inline-flex items-center gap-2 font-label-lg text-label-lg text-primary hover:text-primary-container transition-colors" to="/classes">
+            <span>Xem tất cả lịch học</span>
+            <Icon name="arrow_forward" className="text-base" />
+          </Link>
+        </div>
+
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${loading ? 'opacity-50' : ''}`}>
+          {sessions.map((s) => (
+            <div key={s.id} className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-l-primary flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant">{LEVEL_LABEL[s.level] ?? s.level}</span>
+                  <span className={`font-label-sm text-label-sm px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${SEAT_TONE(s.remainingSeats, s.capacity)}`}>
+                    {s.remainingSeats > 0 ? `Còn ${s.remainingSeats}/${s.capacity} chỗ` : 'Đã kín chỗ'}
+                  </span>
+                </div>
+                <h3 className="font-headline-md text-headline-md text-on-surface mb-1">{s.className}</h3>
+                <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-4">
+                  <Icon name="schedule" className="text-sm" />
+                  <span>{s.date} • {fromTimeOnly(s.startTime)}-{fromTimeOnly(s.endTime)} • {s.room}</span>
+                </div>
+              </div>
+              <Link to="/login" className="mt-2 w-full text-center py-2.5 px-4 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg hover:opacity-90 transition-opacity">
+                Đăng nhập để đặt chỗ
+              </Link>
+            </div>
+          ))}
+          {!loading && !sessions.length && (
+            <p className="text-secondary text-center py-10 col-span-full">Hiện chưa có buổi học nào mở trong 7 ngày tới.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// Public coach directory, GET /pt/coaches (no auth required).
+function TrainersSection() {
+  const [coaches, setCoaches] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api('/pt/coaches')
+      .then((list) => setCoaches(list.slice(0, 8)))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <section className="py-16 bg-surface-container-low" id="trainers">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">ĐỘI NGŨ CHUYÊN MÔN</span>
+          <h2 className="font-headline-xl text-headline-xl text-on-surface">Huấn luyện viên giàu kinh nghiệm</h2>
+        </div>
+
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 ${loading ? 'opacity-50' : ''}`}>
+          {coaches.map((c) => (
+            <div key={c.id} className="group bg-surface-container-lowest rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col text-center overflow-hidden">
+              <div className="h-20 bg-gradient-to-br from-primary-container to-tertiary-container relative">
+                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
+                  <Avatar src={c.avatarUrl} className="w-20 h-20 ring-4 ring-surface-container-lowest shadow-md" />
+                </div>
+              </div>
+
+              <div className="pt-12 pb-6 px-5 flex flex-col items-center flex-1">
+                <h3 className="font-headline-sm text-headline-sm text-on-surface">{c.fullName}</h3>
+                {c.certifications && (
+                  <p className="font-label-sm text-label-sm text-primary-container mt-1 flex items-center gap-1">
+                    <Icon name="verified" className="text-sm" />
+                    {c.certifications}
+                  </p>
+                )}
+                {c.bio && <p className="font-body-sm text-body-sm text-on-surface-variant mt-3 line-clamp-3">{c.bio}</p>}
+                {c.sports.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-1.5 mt-4">
+                    {c.sports.map((sp) => (
+                      <span key={sp.id} className="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container font-label-sm text-label-sm">{sp.name}</span>
+                    ))}
+                  </div>
+                )}
+                <Link
+                  to="/login"
+                  className="mt-5 w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary-container text-primary-container font-label-md text-label-md group-hover:bg-primary-container group-hover:text-on-primary transition-colors"
+                >
+                  <Icon name="event_available" className="text-base" />
+                  Đặt lịch PT
+                </Link>
+              </div>
+            </div>
+          ))}
+          {!loading && !coaches.length && (
+            <p className="text-secondary text-center py-10 col-span-full">Chưa có huấn luyện viên nào được công khai.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// Static promo content — no news/promotions API exists yet; same convention as the rest of this
+// Stitch-exported page (hardcoded until a real backend feed is wired in).
+const NEWS_ITEMS = [
+  {
+    banner: '/images/banner-news-1.jpg',
+    tag: 'Khuyến mãi',
+    title: 'Giảm 20% gói năm khi đăng ký theo nhóm từ 3 người',
+    desc: 'Áp dụng cho mọi gói Combo và PT trọn gói, đăng ký trước cuối tháng để nhận ưu đãi.',
+  },
+  {
+    banner: '/images/banner-news-2.jpg',
+    tag: 'Tin tức',
+    title: 'Khai trương chi nhánh FitZone thứ 5 tại Hà Nội',
+    desc: 'Không gian tập luyện 2.000m² với hồ bơi vô cực và phòng xông hơi đá muối Himalaya.',
+  },
+  {
+    banner: '/images/banner-news-3.jpg',
+    tag: 'Sự kiện',
+    title: 'Giải chạy FitZone Run 10K — mở đăng ký miễn phí',
+    desc: 'Dành cho hội viên đang có gói hoạt động, nhận áo và huy chương hoàn thành miễn phí.',
+  },
+]
+
+function NewsSection() {
+  return (
+    <section className="py-16 bg-surface" id="news">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">CẬP NHẬT MỚI NHẤT</span>
+          <h2 className="font-headline-xl text-headline-xl text-on-surface">Tin tức &amp; Khuyến mãi</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {NEWS_ITEMS.map((n) => (
+            <div key={n.title} className="relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden aspect-[3/4] group">
+              <img src={n.banner} alt={n.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/40 to-transparent" />
+              <span className="absolute top-3 left-3 font-label-sm text-label-sm text-on-tertiary-container bg-tertiary-fixed/90 backdrop-blur-sm uppercase tracking-wide px-2.5 py-1 rounded-full">
+                {n.tag}
+              </span>
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                <h3 className="font-headline-md text-headline-md mb-1.5">{n.title}</h3>
+                <p className="font-body-sm text-body-sm text-white/85">{n.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export default function HomePage() {
+  const { auth } = useAuth()
+  return (
+    <>
+<header className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-container/15 via-surface-container-lowest/95 to-tertiary-container/15 backdrop-blur-md shadow-sm border-b-2 border-primary-container/40 transition-all duration-300">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
 
 <a className="flex items-center gap-3 group" href="#">
@@ -22,15 +246,25 @@ export default function HomePage() {
 </nav>
 
 <div className="flex items-center gap-3">
+{auth ? (
+<Link className="inline-flex items-center gap-2 justify-center font-label-lg text-label-lg px-5 py-2.5 rounded-lg bg-primary-container text-on-primary hover:opacity-90 shadow-sm transition-all" to="/profile">
+<Icon name="person" className="text-lg" />
+          Vào hệ thống
+        </Link>
+) : (
+<>
 <Link className="hidden sm:inline-flex items-center justify-center font-label-lg text-label-lg px-4 py-2 rounded-lg text-primary hover:bg-surface-container-low transition-colors" to="/login">
           Đăng nhập
         </Link>
 <Link className="inline-flex items-center justify-center font-label-lg text-label-lg px-5 py-2.5 rounded-lg bg-primary-container text-on-primary hover:opacity-90 shadow-sm transition-all" to="/register">
           Đăng ký ngay
         </Link>
+</>
+)}
 </div>
 </div>
 </header>
+<main className="w-full min-h-screen bg-[#F8FAFC] flex items-center justify-center p-margin-mobile md:p-margin"><div className="flex flex-col w-full">
 
 <section className="relative overflow-hidden py-12 lg:py-20 bg-surface" id="home">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -53,7 +287,7 @@ export default function HomePage() {
 <span>Nhận tư vấn &amp; Tập thử miễn phí</span>
 <span className="material-symbols-outlined text-base">arrow_forward</span>
 </Link>
-<a className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg transition-all" href="#schedule">
+<a className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg transition-all" href="#classes">
 <span className="material-symbols-outlined text-base">calendar_today</span>
 <span>Xem lịch lớp hôm nay</span>
 </a>
@@ -77,18 +311,8 @@ export default function HomePage() {
 
 <div className="lg:col-span-5 relative">
 <div className="relative rounded-2xl overflow-hidden shadow-xl bg-surface-container-low aspect-[4/5] sm:aspect-[4/3] lg:aspect-[4/5]">
-<img alt="Không gian phòng tập cao cấp FitZone Sports Center với trang thiết bị hiện đại" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHU-eyX1hMTIqDr4LUWSUmhCYYO3R88KJ1QGT2hwNpxuBjUHH927NPrc6XBtlOlcfOfHcmwRcnE5KlE6K984ddIq4I1X1TYtljN51Ui4TV_7EsbttqmibflfNH5FV4KvsuTX1C97pjBvC1yMrNGRDUWZZS23bW7nuwcQY2okSxawxTTn4wn4hbLGvrmMH5rGd4adbCaVrr1SmnxW_HifRDMunTtc7BTTNqPqqz7sMhqD5AfMn4IG9i" />
+<HeroBannerSlider />
 <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/60 via-transparent to-transparent"></div>
-
-<div className="absolute top-6 left-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest/90 backdrop-blur-md shadow-md text-on-surface">
-<span className="material-symbols-outlined text-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
-<span className="font-label-md text-label-md">Cơ sở vật chất 5 sao</span>
-</div>
-
-<div className="absolute bottom-6 right-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-tertiary-container text-on-tertiary shadow-lg">
-<span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-<span className="font-label-md text-label-md">Giảm 20% khi đăng ký nhóm</span>
-</div>
 </div>
 </div>
 </div>
@@ -212,96 +436,9 @@ export default function HomePage() {
 </div>
 </section>
 
-<section className="py-16 bg-surface" id="schedule">
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-<div>
-<span className="font-label-md text-label-md text-primary-container uppercase tracking-wider block mb-1">LỊCH TẬP HÔM NAY</span>
-<h2 className="font-headline-xl text-headline-xl text-on-surface">Lớp học sắp tới trong ngày</h2>
-<p className="font-body-md text-body-md text-on-surface-variant mt-1">Đăng ký giữ chỗ nhanh chóng trước khi kín lớp</p>
-</div>
-<a className="inline-flex items-center gap-2 font-label-lg text-label-lg text-primary hover:text-primary-container transition-colors" href="#full-schedule">
-<span>Xem tất cả lịch học tuần này</span>
-<span className="material-symbols-outlined text-base">arrow_forward</span>
-</a>
-</div>
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-l-tertiary-container flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-3">
-<span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant">HIIT / CrossFit</span>
-<span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-semibold">Chỉ còn 3 chỗ trống</span>
-</div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-1">Power HIIT Cardio</h3>
-<div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-4">
-<span className="material-symbols-outlined text-sm">schedule</span>
-<span>07:30 - 08:30 (Sáng nay)</span>
-</div>
-<div className="flex items-center gap-3 pt-3 border-t border-surface-container-high/60">
-<div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-label-md text-primary">TN</div>
-<div>
-<p className="font-label-md text-label-md text-on-surface">Trần Hoàng Nam</p>
-<p className="font-body-sm text-body-sm text-secondary">Master Trainer • Studio A</p>
-</div>
-</div>
-</div>
-<button className="mt-6 w-full py-2.5 px-4 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg hover:opacity-90 transition-opacity">
-            Đặt chỗ ngay
-          </button>
-</div>
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-l-primary flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-3">
-<span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant">Yoga Studio</span>
-<span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-semibold">Còn 7 chỗ trống</span>
-</div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-1">Vinyasa Flow Yoga</h3>
-<div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-4">
-<span className="material-symbols-outlined text-sm">schedule</span>
-<span>09:00 - 10:00 (Sáng nay)</span>
-</div>
-<div className="flex items-center gap-3 pt-3 border-t border-surface-container-high/60">
-<div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-label-md text-primary">LT</div>
-<div>
-<p className="font-label-md text-label-md text-on-surface">Lê Thu Thảo</p>
-<p className="font-body-sm text-body-sm text-secondary">Yoga Master RYT-500 • Studio B</p>
-</div>
-</div>
-</div>
-<button className="mt-6 w-full py-2.5 px-4 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg hover:opacity-90 transition-opacity">
-            Đặt chỗ ngay
-          </button>
-</div>
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-l-surface-tint flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-3">
-<span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant">Pilates Reformer</span>
-<span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-semibold">Còn 2 chỗ trống</span>
-</div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-1">Pilates Core Alignment</h3>
-<div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-4">
-<span className="material-symbols-outlined text-sm">schedule</span>
-<span>17:30 - 18:30 (Chiều nay)</span>
-</div>
-<div className="flex items-center gap-3 pt-3 border-t border-surface-container-high/60">
-<div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-label-md text-primary">NV</div>
-<div>
-<p className="font-label-md text-label-md text-on-surface">Ngô Thanh Vân</p>
-<p className="font-body-sm text-body-sm text-secondary">Senior Instructor • Studio P1</p>
-</div>
-</div>
-</div>
-<button className="mt-6 w-full py-2.5 px-4 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg hover:opacity-90 transition-opacity">
-            Đặt chỗ ngay
-          </button>
-</div>
-</div>
-</div>
-</section>
-
+<ClassesSection />
+<TrainersSection />
+<NewsSection />
 <section className="py-16 bg-surface-container-low" id="pricing">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="text-center max-w-3xl mx-auto mb-16">
@@ -444,8 +581,9 @@ export default function HomePage() {
 </div>
 </div>
 </section>
+</div></main>
 
-<footer className="bg-inverse-surface text-inverse-on-surface pt-16 pb-8">
+<footer className="w-full bg-inverse-surface text-inverse-on-surface pt-16 pb-8">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-surface-variant/20">
 
@@ -516,7 +654,6 @@ export default function HomePage() {
 </div>
 </div>
 </footer>
-</div></main>
     </>
   )
 }

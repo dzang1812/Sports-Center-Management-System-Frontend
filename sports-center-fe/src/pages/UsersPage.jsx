@@ -218,32 +218,55 @@ export default function UsersPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <Icon name="search" className="absolute left-3 top-2.5 text-outline text-xl pointer-events-none" />
-          <input className={`${inputCls} !h-10 pl-10`} placeholder="Tìm theo tên, email, SĐT…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field label="Từ khoá">
+            <div className="relative">
+              <Icon name="search" className="absolute left-3 top-2.5 text-outline text-xl pointer-events-none" />
+              <input className={`${inputCls} pl-10`} placeholder="Tìm theo tên, email, SĐT…" value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+          </Field>
+          <Field label="Vai trò">
+            <select className={inputCls} value={filters.role} onChange={setFilter('role')}>
+              <option value="">— Tất cả —</option>
+              {Object.entries(ROLE_LABEL).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Trạng thái">
+            <select className={inputCls} value={filters.status} onChange={setFilter('status')}>
+              <option value="">— Tất cả —</option>
+              <option value="Active">Đang hoạt động</option>
+              <option value="Locked">Đã khoá</option>
+            </select>
+          </Field>
         </div>
-        <select className={`${inputCls} !h-10 !w-auto`} value={filters.role} onChange={setFilter('role')}>
-          <option value="">Tất cả vai trò</option>
-          {Object.entries(ROLE_LABEL).map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
-        <select className={`${inputCls} !h-10 !w-auto`} value={filters.status} onChange={setFilter('status')}>
-          <option value="">Mọi trạng thái</option>
-          <option value="Active">Đang hoạt động</option>
-          <option value="Locked">Đã khoá</option>
-        </select>
+        <div className="flex justify-end gap-2 pt-4">
+          <button
+            type="button"
+            className={btnOutline}
+            onClick={() => {
+              setQ('')
+              setFilters({ q: '', role: '', status: '' })
+              setPage(1)
+            }}
+          >
+            Đặt lại
+          </button>
+          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
+            <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
+              <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Người dùng</th>
               <th className="px-4 py-3">SĐT</th>
               <th className="px-4 py-3">Vai trò</th>
@@ -255,6 +278,7 @@ export default function UsersPage() {
           <tbody className={loading ? 'opacity-50' : ''}>
             {data.items.map((u) => (
               <tr key={u.id} className="border-t border-surface-container">
+                <td className="px-4 py-3 text-secondary">#{u.id}</td>
                 <td className="px-4 py-3">
                   <div className="font-semibold">{u.fullName}</div>
                   <div className="text-secondary text-body-sm">{u.email}</div>
@@ -287,7 +311,7 @@ export default function UsersPage() {
             ))}
             {!loading && !data.items.length && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-secondary">
+                <td colSpan={7} className="px-4 py-10 text-center text-secondary">
                   Không có người dùng phù hợp.
                 </td>
               </tr>

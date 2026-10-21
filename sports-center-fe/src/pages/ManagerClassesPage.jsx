@@ -364,10 +364,10 @@ function ClassesTab({ catalog }) {
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
+            <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
               <th className="px-4 py-3">Lớp học</th>
               <th className="px-4 py-3">Bộ môn / Phòng</th>
               <th className="px-4 py-3">HLV</th>
@@ -466,29 +466,54 @@ function SessionsTab({ catalog }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-3">
-        <select className={`${inputCls} !h-10 !w-auto`} value={filters.sportId} onChange={setFilter('sportId')}>
-          <option value="">Tất cả bộ môn</option>
-          {catalog.sports.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select className={`${inputCls} !h-10 !w-auto`} value={filters.coachId} onChange={setFilter('coachId')}>
-          <option value="">Tất cả HLV</option>
-          {catalog.coaches.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}
-        </select>
-        <select className={`${inputCls} !h-10 !w-auto`} value={filters.level} onChange={setFilter('level')}>
-          <option value="">Mọi cấp độ</option>
-          {Object.entries(LEVEL_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        <input className={`${inputCls} !h-10 !w-auto`} type="date" value={filters.from} onChange={setFilter('from')} />
-        <input className={`${inputCls} !h-10 !w-auto`} type="date" value={filters.to} onChange={setFilter('to')} />
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Field label="Bộ môn">
+            <select className={inputCls} value={filters.sportId} onChange={setFilter('sportId')}>
+              <option value="">— Tất cả —</option>
+              {catalog.sports.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </Field>
+          <Field label="HLV">
+            <select className={inputCls} value={filters.coachId} onChange={setFilter('coachId')}>
+              <option value="">— Tất cả —</option>
+              {catalog.coaches.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}
+            </select>
+          </Field>
+          <Field label="Cấp độ">
+            <select className={inputCls} value={filters.level} onChange={setFilter('level')}>
+              <option value="">— Tất cả —</option>
+              {Object.entries(LEVEL_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Field>
+          <Field label="Từ ngày">
+            <input className={inputCls} type="date" value={filters.from} onChange={setFilter('from')} />
+          </Field>
+          <Field label="Đến ngày">
+            <input className={inputCls} type="date" value={filters.to} onChange={setFilter('to')} />
+          </Field>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <button
+            type="button"
+            className={btnOutline}
+            onClick={() => {
+              setFilters({ sportId: '', coachId: '', level: '', from: '', to: '' })
+              setPage(1)
+            }}
+          >
+            Đặt lại
+          </button>
+          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
+            <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
               <th className="px-4 py-3">Buổi học</th>
               <th className="px-4 py-3">Ngày / Giờ</th>
               <th className="px-4 py-3">Phòng</th>

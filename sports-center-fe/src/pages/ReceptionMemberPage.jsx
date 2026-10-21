@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { api } from '../api'
-import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { api, query } from '../api'
+import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
@@ -51,10 +51,96 @@ function SellPackageModal({ memberId, onClose, onDone }) {
   )
 }
 
+// Search-only directory: ID / tên / email / SĐT đều khớp qua cùng 1 ô (GET /members?q=), chọn 1 dòng để xem chi tiết.
+function MemberDirectory() {
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [data, setData] = useState({ items: [], total: 0 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setData(await api(`/members${query({ q, page, pageSize })}`))
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }, [q, page, pageSize])
+
+  // Debounce so we don't call the API on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(load, 300)
+    return () => clearTimeout(t)
+  }, [load])
+
+  useEffect(() => {
+    setPage(1)
+  }, [q])
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <Field label="Tìm hội viên">
+          <input className={inputCls} placeholder="Mã hội viên, tên, email hoặc số điện thoại…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </Field>
+      </div>
+
+      {error && <Alert>{error}</Alert>}
+
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
+              <th className="px-4 py-3">Mã</th>
+              <th className="px-4 py-3">Họ tên</th>
+              <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">SĐT</th>
+              <th className="px-4 py-3">Trạng thái</th>
+              <th className="px-4 py-3 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className={loading ? 'opacity-50' : ''}>
+            {data.items.map((m) => (
+              <tr key={m.id} className="border-t border-surface-container cursor-pointer hover:bg-surface-container" onClick={() => navigate(`/reception/members/${m.id}`)}>
+                <td className="px-4 py-3 text-secondary">#{m.id}</td>
+                <td className="px-4 py-3 font-semibold">{m.fullName}</td>
+                <td className="px-4 py-3 text-secondary">{m.email}</td>
+                <td className="px-4 py-3 text-secondary">{m.phone ?? '—'}</td>
+                <td className="px-4 py-3"><Badge tone={m.isActive ? 'green' : 'red'}>{m.isActive ? 'Hoạt động' : 'Đã khoá'}</Badge></td>
+                <td className="px-4 py-3 text-right">
+                  <Link to={`/reception/members/${m.id}`} className={btnOutline + ' !h-8 !px-2'} onClick={(e) => e.stopPropagation()} title="Xem chi tiết">
+                    <Icon name="chevron_right" className="text-base" />
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {!loading && !data.items.length && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Không tìm thấy hội viên phù hợp.</td></tr>
+            )}
+          </tbody>
+        </table>
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data.total}
+          onPage={setPage}
+          onPageSize={(n) => {
+            setPageSize(n)
+            setPage(1)
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function ReceptionMemberPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const [search, setSearch] = useState(id ?? '')
   const [subs, setSubs] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -77,27 +163,21 @@ export default function ReceptionMemberPage() {
     if (id) load(id)
   }, [id])
 
-  const onSearch = (e) => {
-    e.preventDefault()
-    if (search) navigate(`/reception/members/${search}`)
-  }
-
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-headline-xl text-headline-xl">Chi tiết thành viên</h1>
-        <p className="text-secondary">Tra cứu gói tập theo mã hội viên, bán hoặc gia hạn gói tại quầy.</p>
+      <div className="flex items-center gap-2">
+        {id && (
+          <Link to="/reception/members" className="p-2 rounded-lg hover:bg-surface-container-low text-on-surface-variant" title="Quay lại danh sách">
+            <Icon name="arrow_back" className="text-xl" />
+          </Link>
+        )}
+        <div>
+          <h1 className="font-headline-xl text-headline-xl">{id ? 'Chi tiết thành viên' : 'Danh sách hội viên'}</h1>
+          <p className="text-secondary">{id ? 'Gói tập của hội viên, bán hoặc gia hạn tại quầy.' : 'Tìm hội viên theo mã, tên, email hoặc số điện thoại.'}</p>
+        </div>
       </div>
 
-      <Alert type="info">Chưa có tra cứu theo tên/SĐT — hệ thống backend chỉ hỗ trợ tra theo mã hội viên (Member ID).</Alert>
-
-      <form onSubmit={onSearch} className="flex gap-3">
-        <input className={`${inputCls} !w-48`} type="number" min={1} placeholder="Mã hội viên" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button className={btnOutline} type="submit">
-          <Icon name="search" className="text-lg" />
-          Tra cứu
-        </button>
-      </form>
+      {!id && <MemberDirectory />}
 
       {error && <Alert>{error}</Alert>}
       {lastPayment && (
@@ -107,7 +187,7 @@ export default function ReceptionMemberPage() {
       )}
 
       {id && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+        <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
           <div className="flex items-center justify-between px-4 py-3 border-b border-surface-container">
             <h2 className="font-headline-md text-headline-md">Gói của hội viên #{id}</h2>
             <button className={btnPrimary} onClick={() => setModal(true)}>
@@ -117,7 +197,7 @@ export default function ReceptionMemberPage() {
           </div>
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
+              <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
                 <th className="px-4 py-3">Gói</th>
                 <th className="px-4 py-3">Thời hạn</th>
                 <th className="px-4 py-3">Trạng thái</th>

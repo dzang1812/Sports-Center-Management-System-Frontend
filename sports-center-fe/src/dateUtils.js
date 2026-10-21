@@ -34,3 +34,27 @@ export function addDays(dateOnlyStr, days) {
   d.setDate(d.getDate() + days)
   return toDateOnly(d)
 }
+
+// ISO-8601 week <-> Monday date, to match native <input type="week"> ("yyyy-Www").
+const firstThursdayOf = (year) => {
+  const d = new Date(year, 0, 1)
+  while (d.getDay() !== 4) d.setDate(d.getDate() + 1)
+  return d
+}
+
+export function toIsoWeek(mondayDateOnlyStr) {
+  const thursday = fromDateOnly(mondayDateOnlyStr)
+  thursday.setDate(thursday.getDate() + 3)
+  const year = thursday.getFullYear()
+  const week = 1 + Math.round((thursday - firstThursdayOf(year)) / (7 * 86400000))
+  return `${year}-W${String(week).padStart(2, '0')}`
+}
+
+export function fromIsoWeek(value) {
+  const [year, week] = value.split('-W').map(Number)
+  const thursday = firstThursdayOf(year)
+  thursday.setDate(thursday.getDate() + (week - 1) * 7)
+  const monday = new Date(thursday)
+  monday.setDate(thursday.getDate() - 3)
+  return toDateOnly(monday)
+}

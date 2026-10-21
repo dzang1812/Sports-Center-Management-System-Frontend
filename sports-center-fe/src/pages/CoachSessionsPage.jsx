@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
 import { OpenCheckInCodeButton, SelfCheckInButton } from '../components/classCheckIn'
-import { Alert, Badge, Icon, Modal, btnOutline, btnPrimary } from '../components/ui'
-import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
+import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import WeekTimetable from '../components/WeekTimetable'
+import { addDays, fromTimeOnly, toDateOnly, weekRange } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, PT_ATTENDANCE_STATUSES, SESSION_STATUS_LABEL } from '../labels'
 
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
@@ -55,7 +56,7 @@ function RosterModal({ item, onClose, onDone }) {
         {roster.map((r) => (
           <div key={r.memberId} className="flex items-center justify-between gap-3 py-2 border-b border-surface-container last:border-b-0">
             <div>
-              <div className="font-semibold">{r.fullName}</div>
+              <div className="font-semibold">{r.fullName} <span className="text-secondary font-normal">#{r.memberId}</span></div>
               <div className="text-secondary text-body-sm">{r.email}</div>
             </div>
             {isClass ? (
@@ -82,13 +83,12 @@ function RosterModal({ item, onClose, onDone }) {
   )
 }
 
-export default function CoachSessionsPage() {
+function ListView({ setRosterItem }) {
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -7), to: addDays(today, 14) })
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [rosterItem, setRosterItem] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,50 +106,148 @@ export default function CoachSessionsPage() {
   }, [load])
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="font-headline-xl text-headline-xl">Lịch dạy</h1>
-        <p className="text-secondary">Các buổi lớp học và PT bạn phụ trách. Bấm vào một buổi để điểm danh.</p>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <input className="h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-lowest" type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-        <input className="h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-lowest" type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+    <>
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Từ ngày">
+            <input className={inputCls} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+          </Field>
+          <Field label="Đến ngày">
+            <input className={inputCls} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          </Field>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <button type="button" className={btnOutline} onClick={() => setRange({ from: addDays(today, -7), to: addDays(today, 14) })}>Đặt lại</button>
+          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
 
-      <div className={`flex flex-col gap-3 ${loading ? 'opacity-50' : ''}`}>
-        {items.map((it) => (
-          <div key={`${it.type}-${it.referenceId}`} className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{it.type === 'PT' ? 'PT' : 'Lớp học'}</span>
-                <span className="font-semibold">{it.title}</span>
-                <Badge tone={SESSION_STATUS_TONE[it.status]}>{SESSION_STATUS_LABEL[it.status]}</Badge>
-              </div>
-              <div className="text-secondary text-body-sm">
-                {it.date} • {fromTimeOnly(it.startTime)}-{fromTimeOnly(it.endTime)} • {it.room ?? '—'} • {it.participantCount} học viên
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button className={btnOutline} onClick={() => setRosterItem(it)}>
-                <Icon name="fact_check" className="text-lg" />
-                {it.type === 'PT' ? 'Điểm danh' : 'Danh sách'}
-              </button>
-              {it.type !== 'PT' && it.status === 'Scheduled' && (
-                <>
-                  <OpenCheckInCodeButton sessionId={it.referenceId} className={btnOutline + ' !px-2'} />
-                  <SelfCheckInButton sessionId={it.referenceId} as="coach" className={btnOutline + ' !px-2'} onDone={load} />
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-        {!loading && !items.length && <p className="text-secondary text-center py-10">Không có buổi nào trong khoảng thời gian này.</p>}
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
+              <th className="px-4 py-3 w-14">STT</th>
+              <th className="px-4 py-3">Nội dung</th>
+              <th className="px-4 py-3">Thời gian</th>
+              <th className="px-4 py-3">Phòng</th>
+              <th className="px-4 py-3">Học viên</th>
+              <th className="px-4 py-3">Trạng thái</th>
+              <th className="px-4 py-3 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className={loading ? 'opacity-50' : ''}>
+            {items.map((it, i) => (
+              <tr key={`${it.type}-${it.referenceId}`} className="border-t border-surface-container">
+                <td className="px-4 py-3 text-secondary">{i + 1}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{it.type === 'PT' ? 'PT' : 'Lớp học'}</span>
+                    <span className="font-semibold">{it.title}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-secondary">{it.date} • {fromTimeOnly(it.startTime)}-{fromTimeOnly(it.endTime)}</td>
+                <td className="px-4 py-3 text-secondary">{it.room ?? '—'}</td>
+                <td className="px-4 py-3 text-secondary">{it.participantCount}</td>
+                <td className="px-4 py-3"><Badge tone={SESSION_STATUS_TONE[it.status]}>{SESSION_STATUS_LABEL[it.status]}</Badge></td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center gap-2 justify-end">
+                    <button className={btnOutline + ' !h-9'} onClick={() => setRosterItem(it)}>
+                      <Icon name="fact_check" className="text-base" />
+                      {it.type === 'PT' ? 'Điểm danh' : 'Danh sách'}
+                    </button>
+                    {it.type !== 'PT' && it.status === 'Scheduled' && (
+                      <>
+                        <OpenCheckInCodeButton sessionId={it.referenceId} className={btnOutline + ' !h-9 !px-2'} />
+                        <SelfCheckInButton sessionId={it.referenceId} as="coach" className={btnOutline + ' !h-9 !px-2'} onDone={load} />
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!loading && !items.length && (
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-secondary">Không có buổi nào trong khoảng thời gian này.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
+function WeekView({ setRosterItem }) {
+  const [weekStart, setWeekStart] = useState(weekRange()[0])
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setItems(await api(`/coach/sessions${query({ from: weekStart, to: addDays(weekStart, 6) })}`))
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }, [weekStart])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return (
+    <>
+      {error && <Alert>{error}</Alert>}
+      <div className={loading ? 'opacity-50' : ''}>
+        <WeekTimetable
+          weekStart={weekStart}
+          onWeekChange={setWeekStart}
+          items={items}
+          onItemClick={setRosterItem}
+          statusLabel={(it) => SESSION_STATUS_LABEL[it.status]}
+          renderMeta={(it) => (
+            <>
+              <Icon name="group" className="text-sm" />
+              {it.type === 'PT' ? 'PT' : `${it.participantCount} học viên`}
+            </>
+          )}
+        />
+      </div>
+    </>
+  )
+}
+
+export default function CoachSessionsPage() {
+  const [view, setView] = useState('week')
+  const [rosterItem, setRosterItem] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-headline-xl text-headline-xl">Lịch dạy</h1>
+          <p className="text-secondary">Các buổi lớp học và PT bạn phụ trách. Bấm vào một buổi để điểm danh.</p>
+        </div>
+        <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
+          {[['week', 'Thời khóa biểu'], ['list', 'Danh sách']].map(([v, l]) => (
+            <button
+              key={v}
+              className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${view === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+              onClick={() => setView(v)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {rosterItem && <RosterModal item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); load() }} />}
+      {view === 'week' ? <WeekView key={reloadKey} setRosterItem={setRosterItem} /> : <ListView key={reloadKey} setRosterItem={setRosterItem} />}
+
+      {rosterItem && <RosterModal item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} />}
     </div>
   )
 }

@@ -1,14 +1,104 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, query } from '../api'
 import { OpenCheckInCodeButton } from './classCheckIn'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { LEVEL_LABEL } from '../labels'
 import { Alert, Avatar, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
 
+// Search-as-you-type member picker (GET /members?q=, matches ID/tên/email/SĐT). Used wherever
+// Reception books on behalf of a member — sets the numeric memberId via onSelect once chosen.
+function MemberLookupField({ onSelect }) {
+  const [text, setText] = useState('')
+  const [selected, setSelected] = useState(null)
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const blurTimer = useRef(null)
+
+  useEffect(() => {
+    if (selected || !text.trim()) {
+      setResults([])
+      return
+    }
+    const t = setTimeout(async () => {
+      try {
+        const { items } = await api(`/members${query({ q: text, pageSize: 6 })}`)
+        setResults(items)
+        setOpen(true)
+      } catch {
+        setResults([])
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [text, selected])
+
+  const pick = (m) => {
+    setSelected(m)
+    setText('')
+    setOpen(false)
+    onSelect(String(m.id))
+  }
+
+  const clear = () => {
+    setSelected(null)
+    setText('')
+    onSelect('')
+  }
+
+  return (
+    <Field label="Hội viên" hint="Tìm theo mã hội viên, tên, email hoặc số điện thoại">
+      {selected ? (
+        <div className="flex items-center gap-2 h-11 px-3.5 rounded-lg border border-outline-variant bg-surface-container-low">
+          <span className="font-semibold truncate">{selected.fullName}</span>
+          <span className="text-secondary text-body-sm shrink-0">#{selected.id} • {selected.email}</span>
+          <button type="button" onClick={clear} className="ml-auto text-on-surface-variant hover:text-on-surface shrink-0">
+            <Icon name="close" className="text-lg" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <input
+            className={inputCls}
+            placeholder="Nhập để tìm hội viên…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onFocus={() => results.length && setOpen(true)}
+            onBlur={() => {
+              blurTimer.current = setTimeout(() => setOpen(false), 150)
+            }}
+          />
+          {open && results.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/40 max-h-60 overflow-y-auto">
+              {results.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className="w-full text-left px-3.5 py-2 hover:bg-surface-container-low flex flex-col"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    clearTimeout(blurTimer.current)
+                    pick(m)
+                  }}
+                >
+                  <span className="font-semibold">{m.fullName} <span className="text-secondary font-normal">#{m.id}</span></span>
+                  <span className="text-body-sm text-secondary">{m.email}{m.phone ? ` • ${m.phone}` : ''}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {open && text.trim() && !results.length && (
+            <div className="absolute z-10 mt-1 w-full bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/40 px-3.5 py-2 text-secondary text-body-sm">
+              Không tìm thấy hội viên phù hợp.
+            </div>
+          )}
+        </div>
+      )}
+    </Field>
+  )
+}
+
 // Shared by MemberSchedulePage ("Đặt lớp mới" tab) and ReceptionClassBookingPage.
-// When requireMemberId is true (Receptionist acting on behalf of a member), a numeric
-// Member ID field is shown and must be filled before booking — the backend has no
-// member-lookup API, so the receptionist has to already know the member's ID.
+// When requireMemberId is true (Receptionist acting on behalf of a member), a member-lookup
+// field is shown and must be filled before booking.
 export function ClassBrowser({ requireMemberId = false }) {
   const today = toDateOnly(new Date())
   const [filters, setFilters] = useState({ sportId: '', coachId: '', level: '', from: today, to: addDays(today, 14) })
@@ -74,11 +164,7 @@ export function ClassBrowser({ requireMemberId = false }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {requireMemberId && (
-        <Field label="Mã hội viên (Member ID)" hint="Chưa có tra cứu hội viên — cần biết sẵn mã số.">
-          <input className={inputCls} type="number" min={1} value={memberId} onChange={(e) => setMemberId(e.target.value)} />
-        </Field>
-      )}
+      {requireMemberId && <MemberLookupField onSelect={setMemberId} />}
 
       <div className="flex flex-wrap gap-3">
         <select className={`${inputCls} !h-10 !w-auto`} value={filters.sportId} onChange={setFilter('sportId')}>
@@ -199,11 +285,7 @@ export function PtBrowser({ requireMemberId = false }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {requireMemberId && (
-        <Field label="Mã hội viên (Member ID)" hint="Chưa có tra cứu hội viên — cần biết sẵn mã số.">
-          <input className={inputCls} type="number" min={1} value={memberId} onChange={(e) => setMemberId(e.target.value)} />
-        </Field>
-      )}
+      {requireMemberId && <MemberLookupField onSelect={setMemberId} />}
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}

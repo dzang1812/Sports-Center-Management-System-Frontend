@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
-import { Alert, Icon, inputCls } from '../components/ui'
+import { Alert, Field, Icon, btnPrimary, inputCls } from '../components/ui'
 import { addDays, toDateOnly } from '../dateUtils'
 
 const Stat = ({ icon, label, value }) => (
@@ -46,10 +46,18 @@ export default function ManagerReportsPage() {
         <p className="text-secondary">Tổng hợp doanh thu, hội viên mới và đăng ký trong khoảng thời gian chọn.</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-        <span className="text-secondary">đến</span>
-        <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Từ ngày">
+            <input className={inputCls} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+          </Field>
+          <Field label="Đến ngày">
+            <input className={inputCls} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          </Field>
+        </div>
+        <div className="flex justify-end pt-4">
+          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}

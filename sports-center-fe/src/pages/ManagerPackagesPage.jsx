@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api } from '../api'
+import { api, apiUpload } from '../api'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { PLAN_TYPE_LABEL } from '../labels'
 
 function PlanForm({ plan, sports, onClose, onDone }) {
   const editing = !!plan
@@ -13,11 +14,28 @@ function PlanForm({ plan, sports, onClose, onDone }) {
     sportId: plan?.sportId ?? '',
     includesClasses: plan?.includesClasses ?? false,
     ptSessionCredits: plan?.ptSessionCredits ?? 0,
+    imageUrl: plan?.imageUrl ?? '',
   })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const toggle = (k) => () => setForm({ ...form, [k]: !form[k] })
+
+  const uploadImage = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError('')
+    setUploading(true)
+    try {
+      const { url } = await apiUpload(file)
+      setForm((f) => ({ ...f, imageUrl: url }))
+    } catch (err) {
+      setError(err.message)
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -31,6 +49,7 @@ function PlanForm({ plan, sports, onClose, onDone }) {
         price: Number(form.price),
         sportId: form.sportId ? Number(form.sportId) : null,
         ptSessionCredits: Number(form.ptSessionCredits),
+        imageUrl: form.imageUrl || null,
       }
       const result = editing ? await api(`/membership-plans/${plan.id}`, { method: 'PUT', body }) : await api('/membership-plans', { method: 'POST', body })
       onDone(result)
@@ -49,6 +68,21 @@ function PlanForm({ plan, sports, onClose, onDone }) {
         </Field>
         <Field label="Mô tả" hint="Tối đa 500 ký tự">
           <input className={inputCls} maxLength={500} value={form.description} onChange={set('description')} />
+        </Field>
+        <Field label="Ảnh banner">
+          <div className="flex items-center gap-3">
+            {form.imageUrl ? (
+              <img src={form.imageUrl} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-outline-variant" />
+            ) : (
+              <div className="w-20 h-20 rounded-lg bg-surface-container-low flex items-center justify-center shrink-0 border border-outline-variant">
+                <Icon name="image" className="text-outline text-2xl" />
+              </div>
+            )}
+            <label className={`${btnOutline} cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploading ? 'Đang tải lên…' : form.imageUrl ? 'Đổi ảnh' : 'Chọn ảnh'}
+              <input type="file" accept="image/*" className="hidden" onChange={uploadImage} />
+            </label>
+          </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Thời hạn (ngày)">
@@ -115,8 +149,6 @@ export default function ManagerPackagesPage() {
     load()
   }
 
-  const sportName = (id) => sports.find((s) => s.id === id)?.name ?? '—'
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -136,7 +168,9 @@ export default function ManagerPackagesPage() {
         <table className="w-full text-left">
           <thead>
             <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
+              <th className="px-4 py-3">Ảnh</th>
               <th className="px-4 py-3">Tên gói</th>
+              <th className="px-4 py-3">Loại gói</th>
               <th className="px-4 py-3">Bộ môn</th>
               <th className="px-4 py-3">Thời hạn</th>
               <th className="px-4 py-3">Giá</th>
@@ -148,8 +182,18 @@ export default function ManagerPackagesPage() {
           <tbody className={loading ? 'opacity-50' : ''}>
             {plans.map((p) => (
               <tr key={p.id} className="border-t border-surface-container">
+                <td className="px-4 py-3">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center">
+                      <Icon name="image" className="text-outline text-base" />
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-3 font-semibold">{p.name}</td>
-                <td className="px-4 py-3 text-secondary">{p.sportId ? sportName(p.sportId) : 'Mọi bộ môn'}</td>
+                <td className="px-4 py-3 text-secondary">{PLAN_TYPE_LABEL[p.planType] ?? p.planType}</td>
+                <td className="px-4 py-3 text-secondary">{p.sportName ?? 'Mọi bộ môn'}</td>
                 <td className="px-4 py-3">{p.durationDays} ngày</td>
                 <td className="px-4 py-3">{p.price.toLocaleString('vi-VN')}đ</td>
                 <td className="px-4 py-3">{p.ptSessionCredits || '—'}</td>
@@ -164,7 +208,7 @@ export default function ManagerPackagesPage() {
               </tr>
             ))}
             {!loading && !plans.length && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-secondary">Chưa có gói tập nào.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-secondary">Chưa có gói tập nào.</td></tr>
             )}
           </tbody>
         </table>

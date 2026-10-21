@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api'
+import { api, apiUpload } from '../api'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
 import { Alert, Avatar, Badge, Field, btnPrimary, inputCls } from '../components/ui'
-import { GENDER_LABEL, GOAL_LABEL, LEVEL_LABEL, PASSWORD_HINT, PASSWORD_RULE, ROLE_LABEL } from '../labels'
+import { GENDER_LABEL, GOAL_LABEL, LEVEL_LABEL, PASSWORD_HINT, PASSWORD_RULE, PHONE_HINT, PHONE_RULE, ROLE_LABEL } from '../labels'
+
+const MIN_BIRTH_DATE = new Date(new Date().getFullYear() - 120, 0, 1).toISOString().slice(0, 10)
 
 const card = 'bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm p-6'
 
@@ -33,18 +35,37 @@ function ProfileForm({ me, onSaved }) {
   })
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+
+  const uploadAvatar = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setMsg(null)
+    setUploading(true)
+    try {
+      const { url } = await apiUpload(file)
+      setForm((f) => ({ ...f, avatarUrl: url }))
+    } catch (err) {
+      setMsg({ type: 'error', text: err.message })
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
 
   const submit = async (e) => {
     e.preventDefault()
     setMsg(null)
+    if (!form.fullName.trim()) return setMsg({ type: 'error', text: 'Họ và tên là bắt buộc' })
+    if (form.phone && !PHONE_RULE.test(form.phone)) return setMsg({ type: 'error', text: PHONE_HINT })
+
     setBusy(true)
     const num = (v) => (v === '' ? null : Number(v))
     try {
       const saved = await api('/me', {
         method: 'PUT',
         body: {
-          fullName: form.fullName,
+          fullName: form.fullName.trim(),
           phone: form.phone || null,
           dateOfBirth: form.dateOfBirth || null,
           gender: form.gender || null,
@@ -68,6 +89,9 @@ function ProfileForm({ me, onSaved }) {
       <h2 className="font-headline-md text-headline-md">Thông tin cá nhân</h2>
       {msg && <Alert type={msg.type}>{msg.text}</Alert>}
       <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Mã hội viên" hint="Dùng khi liên hệ lễ tân hoặc đặt lớp/PT">
+          <input className={inputCls} value={`#${me.id}`} disabled />
+        </Field>
         <Field label="Email">
           <input className={inputCls} value={me.email} disabled />
         </Field>
@@ -75,18 +99,21 @@ function ProfileForm({ me, onSaved }) {
           <input className={inputCls} required value={form.fullName} onChange={set('fullName')} />
         </Field>
         <Field label="Số điện thoại">
-          <input className={inputCls} type="tel" value={form.phone} onChange={set('phone')} />
+          <input className={inputCls} type="tel" placeholder="0912345678" pattern={PHONE_RULE.source} title={PHONE_HINT} value={form.phone} onChange={set('phone')} />
         </Field>
         <Field label="Ngày sinh">
-          <input className={inputCls} type="date" max={new Date().toISOString().slice(0, 10)} value={form.dateOfBirth} onChange={set('dateOfBirth')} />
+          <input className={inputCls} type="date" min={MIN_BIRTH_DATE} max={new Date().toISOString().slice(0, 10)} value={form.dateOfBirth} onChange={set('dateOfBirth')} />
         </Field>
         <Field label="Giới tính">
           <Select options={GENDER_LABEL} value={form.gender} onChange={set('gender')} />
         </Field>
-        <Field label="Ảnh đại diện (link)">
+        <Field label="Ảnh đại diện">
           <div className="flex items-center gap-3">
             <Avatar src={form.avatarUrl} className="w-11 h-11" />
-            <input className={inputCls} type="url" placeholder="https://…" value={form.avatarUrl} onChange={set('avatarUrl')} />
+            <label className={`${btnPrimary} cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploading ? 'Đang tải lên…' : 'Chọn ảnh'}
+              <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+            </label>
           </div>
         </Field>
       </div>
@@ -153,7 +180,7 @@ function PasswordForm() {
         <PasswordInput autoComplete="current-password" required value={form.oldPassword} onChange={set('oldPassword')} />
       </Field>
       <Field label="Mật khẩu mới" hint={PASSWORD_HINT}>
-        <PasswordInput autoComplete="new-password" required value={form.newPassword} onChange={set('newPassword')} />
+        <PasswordInput autoComplete="new-password" required pattern={PASSWORD_RULE.source} title={PASSWORD_HINT} value={form.newPassword} onChange={set('newPassword')} />
       </Field>
       <Field label="Nhập lại mật khẩu mới">
         <PasswordInput autoComplete="new-password" required value={form.confirm} onChange={set('confirm')} />

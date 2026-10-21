@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Icon } from './ui'
 
-const HERO =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCMGbygr04GNEbmy6Gzrc421IPqm6K9rVw-c1mBpKT6rI0ncpStvc15_uHCrcj7y9_tGRFXftIJwQG6u_lqv33tqAviCkw33JlavWcLAqj6lgI96nUJOzTbEQHWZnzSCGV-oRMj0rdkgMv4HYYpAjb_SQdBcxgOx1MFNaZkNm7TIyfJUCeTaGKclzD4AXeeGfK_uZ2sOdWDhF1ZjFzZ_WDTgxNKFlX4HtPGjvQ9VPHu8r_wuF5ZTbwj'
+const HERO = '/images/banner-auth.jpg'
 
 export const Logo = () => (
   <Link to="/" className="flex items-center gap-3 bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg">
@@ -28,11 +27,7 @@ export default function AuthShell({ title, subtitle, icon = 'lock_open', childre
           <Logo />
         </div>
         <div className="relative z-10 text-white">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-tertiary-container/80 text-on-tertiary-container font-label-sm text-label-sm uppercase">
-            <Icon name="bolt" className="text-sm" />
-            Nền tảng hội viên thông minh
-          </span>
-          <h1 className="font-display-lg text-display-lg mt-4 max-w-md">Nâng tầm phong độ, bứt phá giới hạn mỗi ngày.</h1>
+          <h1 className="font-display-lg text-display-lg max-w-md">Nâng tầm phong độ, bứt phá giới hạn mỗi ngày.</h1>
           <p className="font-body-lg text-body-lg text-inverse-on-surface/90 mt-3 max-w-md">
             Quản lý lịch tập, đặt lớp và theo dõi tiến độ sức khoẻ chỉ với một chạm.
           </p>

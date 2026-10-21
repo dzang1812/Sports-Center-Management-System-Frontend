@@ -29,9 +29,8 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import VerifyRequiredPage from './pages/VerifyRequiredPage'
 import HomePage from './pages/static/HomePage'
 import MemberSchedule from './pages/static/MemberSchedule'
-import ReceptionCheckIn from './pages/static/ReceptionCheckIn'
-import ReceptionDesk from './pages/static/ReceptionDesk'
-import SellPackages from './pages/static/SellPackages'
+import ReceptionCheckIn from './pages/ReceptionCheckIn'
+import ReceptionDesk from './pages/ReceptionDesk'
 
 // Must be logged in. A temp password has to be changed before anything else (AUTH-03).
 function RequireAuth() {
@@ -85,7 +84,8 @@ export default function App() {
             <Route element={<RequireRole roles={['Receptionist']} />}>
               <Route path="/reception" element={<ReceptionDesk />} />
               <Route path="/reception/check-in" element={<ReceptionCheckIn />} />
-              <Route path="/reception/sell" element={<SellPackages />} />
+              {/* Dedicated sell flow lives at /reception/members (plan picker + PayOS QR) — no need to duplicate it. */}
+              <Route path="/reception/sell" element={<Navigate to="/reception/members" replace />} />
               <Route path="/reception/classes" element={<ReceptionClassBookingPage />} />
               <Route path="/reception/pt" element={<ReceptionPtBookingPage />} />
               <Route path="/reception/members" element={<ReceptionMemberPage />} />

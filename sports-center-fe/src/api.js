@@ -46,6 +46,21 @@ export async function api(path, { method = 'GET', body } = {}) {
   return data
 }
 
+// Uploads a File/Blob to the backend, which forwards it to Cloudinary and returns { url }.
+export async function apiUpload(file) {
+  const auth = getAuth()
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch('/api/media/upload', {
+    method: 'POST',
+    headers: { ...(auth && { Authorization: `Bearer ${auth.token}` }) },
+    body: form,
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new ApiError(errorMessage(data, res.status), res.status, data)
+  return data
+}
+
 export const query = (params) => {
   const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null))
   return q.size ? `?${q}` : ''

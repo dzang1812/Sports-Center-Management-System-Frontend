@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, query } from '../api'
 import { SelfCheckInButton } from '../components/classCheckIn'
-import { Alert, Field, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
-import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
+import { Alert, Badge, Field, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import WeekTimetable from '../components/WeekTimetable'
+import { addDays, fromTimeOnly, toDateOnly, weekRange } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
 
 // item.date is "yyyy-MM-dd", item.endTime/startTime are "HH:mm:ss" — all local wall-clock values, safe to concatenate.
@@ -15,6 +16,15 @@ const compareSchedule = (a, b) => {
   const bPast = isPastItem(b)
   if (aPast !== bPast) return aPast ? 1 : -1
   return aPast ? startOf(b) - startOf(a) : startOf(a) - startOf(b)
+}
+
+// Reflects what actually happened, not just the booking record: once a session has ended, Present/Late
+// (real check-in/coach-marked attendance) beats the stale "Confirmed" booking status; no attendance means missed.
+function effectiveStatus(item) {
+  if (item.status === 'Cancelled') return { label: BOOKING_STATUS_LABEL.Cancelled, tone: 'slate' }
+  if (!isPastItem(item)) return { label: BOOKING_STATUS_LABEL[item.status], tone: 'indigo' }
+  if (item.attendanceStatus === 'Present' || item.attendanceStatus === 'Late') return { label: ATTENDANCE_STATUS_LABEL[item.attendanceStatus], tone: 'green' }
+  return { label: 'Đã qua — Vắng mặt', tone: 'red' }
 }
 
 function CancelConfirmModal({ item, onClose, onConfirm, busy }) {
@@ -140,68 +150,98 @@ function MySchedule() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-3">
-        <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-        <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
-        <select className={`${inputCls} !h-10 !w-auto`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="all">Tất cả loại</option>
-          <option value="Class">Lớp học</option>
-          <option value="PT">PT</option>
-        </select>
-        <select className={`${inputCls} !h-10 !w-auto`} value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
-          <option value="all">Sắp tới &amp; đã qua</option>
-          <option value="upcoming">Chỉ sắp tới</option>
-          <option value="past">Chỉ đã qua</option>
-        </select>
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Field label="Từ ngày">
+            <input className={inputCls} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+          </Field>
+          <Field label="Đến ngày">
+            <input className={inputCls} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          </Field>
+          <Field label="Loại">
+            <select className={inputCls} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              <option value="Class">Lớp học</option>
+              <option value="PT">PT</option>
+            </select>
+          </Field>
+          <Field label="Thời gian">
+            <select className={inputCls} value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
+              <option value="all">Sắp tới &amp; đã qua</option>
+              <option value="upcoming">Chỉ sắp tới</option>
+              <option value="past">Chỉ đã qua</option>
+            </select>
+          </Field>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <button
+            type="button"
+            className={btnOutline}
+            onClick={() => {
+              setRange({ from: addDays(today, -7), to: addDays(today, 30) })
+              setTypeFilter('all')
+              setTimeFilter('all')
+            }}
+          >
+            Đặt lại
+          </button>
+          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
 
-      <div className={`flex flex-col gap-3 ${loading ? 'opacity-50' : ''}`}>
-        {paged.map((item) => {
-          const past = isPastItem(item)
-          return (
-            <div
-              key={`${item.type}-${item.bookingId}`}
-              className={`rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                past ? 'bg-surface-container-low opacity-70' : 'bg-surface-container-lowest'
-              }`}
-            >
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{item.type === 'PT' ? 'PT' : 'Lớp học'}</span>
-                  <span className="font-semibold">{item.title}</span>
-                  {past && (
-                    <span className="px-2 py-0.5 rounded-full bg-outline-variant/40 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[13px]">history</span>
-                      Đã qua
-                    </span>
-                  )}
-                </div>
-                <div className="text-secondary text-body-sm">
-                  {item.date} • {fromTimeOnly(item.startTime)}-{fromTimeOnly(item.endTime)} • {item.room ?? '—'} • HLV {item.coach}
-                </div>
-                <div className="text-body-sm text-secondary">{BOOKING_STATUS_LABEL[item.status]}</div>
-              </div>
-              {item.status === 'Confirmed' && !past && (
-                <div className="flex gap-2 shrink-0">
-                  {item.type === 'PT' ? (
-                    <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => setRescheduleItem(item)}>Đổi lịch</button>
-                  ) : (
-                    <SelfCheckInButton sessionId={item.referenceId} className={btnOutline} onDone={load} />
-                  )}
-                  <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => setCancelItem(item)}>Huỷ</button>
-                </div>
-              )}
-            </div>
-          )
-        })}
-        {!loading && !sorted.length && <p className="text-secondary text-center py-10">Không có lịch nào phù hợp bộ lọc.</p>}
-      </div>
-
-      {!!sorted.length && (
-        <div className="bg-surface-container-lowest rounded-xl">
+      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
+              <th className="px-4 py-3 w-14">STT</th>
+              <th className="px-4 py-3">Nội dung</th>
+              <th className="px-4 py-3">Thời gian</th>
+              <th className="px-4 py-3">HLV</th>
+              <th className="px-4 py-3">Trạng thái</th>
+              <th className="px-4 py-3 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className={loading ? 'opacity-50' : ''}>
+            {paged.map((item, i) => {
+              const past = isPastItem(item)
+              const eff = effectiveStatus(item)
+              return (
+                <tr key={`${item.type}-${item.bookingId}`} className={`border-t border-surface-container ${past ? 'opacity-70' : ''}`}>
+                  <td className="px-4 py-3 text-secondary">{(page - 1) * pageSize + i + 1}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{item.type === 'PT' ? 'PT' : 'Lớp học'}</span>
+                      <span className="font-semibold">{item.title}</span>
+                    </div>
+                    <span className="text-secondary text-body-sm">{item.room ?? '—'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-secondary">{item.date} • {fromTimeOnly(item.startTime)}-{fromTimeOnly(item.endTime)}</td>
+                  <td className="px-4 py-3 text-secondary">{item.coach}</td>
+                  <td className="px-4 py-3"><Badge tone={eff.tone}>{eff.label}</Badge></td>
+                  <td className="px-4 py-3 text-right">
+                    {item.status === 'Confirmed' && !past && (
+                      <div className="flex gap-2 justify-end">
+                        {item.type === 'PT' ? (
+                          <button className={btnOutline + ' !h-9'} disabled={busyId === item.bookingId} onClick={() => setRescheduleItem(item)}>Đổi lịch</button>
+                        ) : (
+                          <SelfCheckInButton sessionId={item.referenceId} className={btnOutline + ' !h-9'} onDone={load} />
+                        )}
+                        <button className={btnOutline + ' !h-9'} disabled={busyId === item.bookingId} onClick={() => setCancelItem(item)}>Huỷ</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+            {!loading && !sorted.length && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Không có lịch nào phù hợp bộ lọc.</td></tr>
+            )}
+          </tbody>
+        </table>
+        {!!sorted.length && (
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -212,8 +252,8 @@ function MySchedule() {
               setPage(1)
             }}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       {cancelItem && (
         <CancelConfirmModal item={cancelItem} busy={busyId === cancelItem.bookingId} onClose={() => setCancelItem(null)} onConfirm={confirmCancel} />
@@ -234,9 +274,61 @@ function MySchedule() {
   )
 }
 
+function WeekView() {
+  const [weekStart, setWeekStart] = useState(weekRange()[0])
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setItems(await api(`/me/schedule${query({ from: weekStart, to: addDays(weekStart, 6), includeCancelled: false })}`))
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }, [weekStart])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return (
+    <>
+      {error && <Alert>{error}</Alert>}
+      <div className={loading ? 'opacity-50' : ''}>
+        <WeekTimetable
+          weekStart={weekStart}
+          onWeekChange={setWeekStart}
+          items={items}
+          statusLabel={(it) => effectiveStatus(it).label}
+          statusTone={(it) => effectiveStatus(it).tone}
+          renderMeta={(it) => (
+            <>
+              <span className="material-symbols-outlined text-sm">person</span>
+              HLV {it.coach}
+            </>
+          )}
+        />
+      </div>
+    </>
+  )
+}
+
+const ATTENDANCE_STATUS_TONE = { Present: 'green', Late: 'amber', Absent: 'red', Excused: 'slate' }
+const ATTENDANCE_STATUS_ICON = { Present: 'check_circle', Late: 'schedule', Absent: 'cancel', Excused: 'event_busy' }
+const NOT_MARKED = { label: 'Chưa điểm danh', tone: 'amber', icon: 'hourglass_top' }
+
+// Each Class groups multiple sessions under one classId; PT has no shared "class" identity, so it's
+// offered as a single bucket instead of per-booking.
+const classKey = (i) => (i.type === 'PT' ? 'pt' : `class-${i.classId}`)
+
 function AttendanceHistory() {
   const now = new Date()
   const [period, setPeriod] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 })
+  const [classFilter, setClassFilter] = useState('all')
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
 
@@ -253,43 +345,100 @@ function AttendanceHistory() {
     load()
   }, [load])
 
+  const classOptions = useMemo(() => {
+    const seen = new Map()
+    for (const i of data?.items ?? []) {
+      const key = classKey(i)
+      if (!seen.has(key)) seen.set(key, i.type === 'PT' ? 'Personal Training' : i.title)
+    }
+    return [...seen.entries()]
+  }, [data])
+
+  const items = (data?.items ?? []).filter((i) => classFilter === 'all' || classKey(i) === classFilter)
+  // Scoped to the class currently selected — not the whole-month totals from the API.
+  const ended = items.filter((i) => i.status !== null)
+  const attended = ended.filter((i) => i.status === 'Present' || i.status === 'Late').length
+  const absences = ended.filter((i) => i.status === 'Absent').length
+  const upcoming = items.length - ended.length
+  const rate = ended.length ? Math.round((attended / ended.length) * 100) : 0
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-3">
-        <input className={`${inputCls} !h-10 !w-24`} type="number" min={2000} value={period.year} onChange={(e) => setPeriod({ ...period, year: Number(e.target.value) })} />
-        <select className={`${inputCls} !h-10 !w-auto`} value={period.month} onChange={(e) => setPeriod({ ...period, month: Number(e.target.value) })}>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>Tháng {m}</option>)}
-        </select>
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field label="Năm">
+            <input className={inputCls} type="number" min={2000} value={period.year} onChange={(e) => setPeriod({ ...period, year: Number(e.target.value) })} />
+          </Field>
+          <Field label="Tháng">
+            <select className={inputCls} value={period.month} onChange={(e) => setPeriod({ ...period, month: Number(e.target.value) })}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>Tháng {m}</option>)}
+            </select>
+          </Field>
+          <Field label="Lớp học">
+            <select className={inputCls} value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              {classOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </Field>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
 
       {data && (
         <>
-          <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
-            <span className="font-headline-md text-headline-md">{Number(data.attendanceRate).toFixed(0)}%</span>
-            <span className="text-secondary ml-2">
-              ({data.attendedSessions}/{data.countedSessions} buổi — {data.formula})
+          <div className="flex items-center gap-3 bg-primary-container/10 border border-primary-container/30 rounded-xl px-4 py-3">
+            <span className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-lg">info</span>
+            </span>
+            <span className="text-on-surface">
+              Tỷ lệ tham gia <b>{rate}%</b> ({attended}/{ended.length} buổi)
+              {absences > 0 && <> — <b className="text-error">Vắng {absences} buổi</b></>}
+              {upcoming > 0 && <> — còn <b>{upcoming}</b> buổi chưa điểm danh</>}
             </span>
           </div>
-          <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-x-auto">
+
+          <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase">
-                  <th className="px-4 py-3">Ngày</th>
-                  <th className="px-4 py-3">Nội dung</th>
-                  <th className="px-4 py-3">Điểm danh</th>
+                <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
+                  <th className="px-4 py-3 w-14">#</th>
+                  <th className="px-4 py-3">Ngày học</th>
+                  <th className="px-4 py-3">Slot học</th>
+                  <th className="px-4 py-3">Phòng</th>
+                  <th className="px-4 py-3">Giảng viên</th>
+                  <th className="px-4 py-3">Lớp học</th>
+                  <th className="px-4 py-3">Trạng thái</th>
+                  <th className="px-4 py-3">Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((i, idx) => (
-                  <tr key={idx} className="border-t border-surface-container">
+                {items.map((i, idx) => {
+                  const st = i.status ? { label: ATTENDANCE_STATUS_LABEL[i.status], tone: ATTENDANCE_STATUS_TONE[i.status], icon: ATTENDANCE_STATUS_ICON[i.status] } : NOT_MARKED
+                  return (
+                  <tr key={`${i.type}-${i.referenceId}-${i.date}`} className="border-t border-surface-container">
+                    <td className="px-4 py-3 text-secondary">{idx + 1}</td>
                     <td className="px-4 py-3">{i.date}</td>
-                    <td className="px-4 py-3">{i.title}</td>
-                    <td className="px-4 py-3">{ATTENDANCE_STATUS_LABEL[i.status]}</td>
+                    <td className="px-4 py-3 text-secondary">{fromTimeOnly(i.startTime)} - {fromTimeOnly(i.endTime)}</td>
+                    <td className="px-4 py-3 text-secondary">{i.room ?? '—'}</td>
+                    <td className="px-4 py-3 text-secondary">{i.coach}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{i.type === 'PT' ? 'PT' : 'Lớp học'}</span>
+                        <span className="font-semibold">{i.title}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tone={st.tone}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">{st.icon}</span>
+                        {st.label}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-secondary">—</td>
                   </tr>
-                ))}
-                {!data.items.length && <tr><td colSpan={3} className="px-4 py-10 text-center text-secondary">Chưa có dữ liệu điểm danh.</td></tr>}
+                  )
+                })}
+                {!items.length && <tr><td colSpan={8} className="px-4 py-10 text-center text-secondary">Chưa có dữ liệu điểm danh.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -310,7 +459,7 @@ export default function MyMemberSchedulePage() {
       </div>
 
       <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['mine', 'Lịch của tôi'], ['attendance', 'Điểm danh']].map(([v, l]) => (
+        {[['week', 'Thời khóa biểu'], ['mine', 'Lịch của tôi'], ['attendance', 'Điểm danh']].map(([v, l]) => (
           <button
             key={v}
             className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
@@ -321,6 +470,7 @@ export default function MyMemberSchedulePage() {
         ))}
       </div>
 
+      {tab === 'week' && <WeekView />}
       {tab === 'mine' && <MySchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
     </div>
