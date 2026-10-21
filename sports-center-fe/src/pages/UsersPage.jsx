@@ -122,6 +122,29 @@ function TempPasswordModal({ created, onClose }) {
   )
 }
 
+function LockConfirmModal({ user, onClose, onConfirm, busy }) {
+  const lock = user.isActive
+  return (
+    <Modal title={lock ? 'Khoá tài khoản' : 'Mở khoá tài khoản'} onClose={onClose}>
+      <p className="text-on-surface">
+        {lock ? 'Khoá' : 'Mở khoá'} tài khoản <b>{user.email}</b>?
+        {lock && ' Tài khoản sẽ không thể đăng nhập cho đến khi được mở khoá lại.'}
+      </p>
+      <div className="flex justify-end gap-2 pt-5">
+        <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
+        <button
+          type="button"
+          disabled={busy}
+          className={lock ? btnPrimary + ' !bg-error !text-white hover:!opacity-90' : btnPrimary}
+          onClick={onConfirm}
+        >
+          {busy ? 'Đang xử lý…' : lock ? 'Khoá tài khoản' : 'Mở khoá'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 export default function UsersPage() {
   const { auth } = useAuth()
   const [filters, setFilters] = useState({ q: '', role: '', status: '' })
@@ -131,7 +154,7 @@ export default function UsersPage() {
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [modal, setModal] = useState(null) // { type: 'form', user? } | { type: 'temp', created }
+  const [modal, setModal] = useState(null) // { type: 'form', user? } | { type: 'temp', created } | { type: 'lock', user }
 
   // Debounce the search box so we don't call the API on every keystroke.
   useEffect(() => {
@@ -162,15 +185,19 @@ export default function UsersPage() {
     setPage(1)
   }
 
-  const toggleStatus = async (u) => {
-    const lock = u.isActive
-    if (!window.confirm(lock ? `Khoá tài khoản ${u.email}?` : `Mở khoá tài khoản ${u.email}?`)) return
+  const [lockBusy, setLockBusy] = useState(false)
+
+  const confirmToggleStatus = async () => {
+    const u = modal.user
+    setLockBusy(true)
     try {
-      await api(`/users/${u.id}/status`, { method: 'PATCH', body: { isActive: !lock } })
+      await api(`/users/${u.id}/status`, { method: 'PATCH', body: { isActive: !u.isActive } })
+      setModal(null)
       load()
     } catch (err) {
       setError(err.message)
     }
+    setLockBusy(false)
   }
 
   const done = (result) => {
@@ -250,7 +277,7 @@ export default function UsersPage() {
                       </button>
                     )}
                     {u.id !== auth.userId && (
-                      <button className={btnOutline + ' !h-8 !px-2'} title={u.isActive ? 'Khoá' : 'Mở khoá'} onClick={() => toggleStatus(u)}>
+                      <button className={btnOutline + ' !h-8 !px-2'} title={u.isActive ? 'Khoá' : 'Mở khoá'} onClick={() => setModal({ type: 'lock', user: u })}>
                         <Icon name={u.isActive ? 'lock' : 'lock_open'} className="text-base" />
                       </button>
                     )}
@@ -281,6 +308,9 @@ export default function UsersPage() {
 
       {modal?.type === 'form' && <UserForm user={modal.user} onClose={() => setModal(null)} onDone={done} />}
       {modal?.type === 'temp' && <TempPasswordModal created={modal.created} onClose={() => setModal(null)} />}
+      {modal?.type === 'lock' && (
+        <LockConfirmModal user={modal.user} busy={lockBusy} onClose={() => setModal(null)} onConfirm={confirmToggleStatus} />
+      )}
     </div>
   )
 }

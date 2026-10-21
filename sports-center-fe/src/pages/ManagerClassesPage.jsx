@@ -292,12 +292,42 @@ function SessionEditForm({ session, catalog, onClose, onDone }) {
   )
 }
 
+function CancelSessionModal({ session, onClose, onConfirm, busy, error }) {
+  const [reason, setReason] = useState('')
+
+  const submit = (e) => {
+    e.preventDefault()
+    onConfirm(reason)
+  }
+
+  return (
+    <Modal title="Huỷ buổi học" onClose={onClose}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        {error && <Alert>{error}</Alert>}
+        <p className="text-on-surface">
+          Huỷ buổi <b>"{session.className}"</b> ngày {session.date} lúc {fromTimeOnly(session.startTime)}? Hội viên đã đặt sẽ được thông báo.
+        </p>
+        <Field label="Lý do huỷ">
+          <input className={inputCls} required minLength={2} maxLength={500} autoFocus value={reason} onChange={(e) => setReason(e.target.value)} />
+        </Field>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" className={btnOutline} onClick={onClose}>Đóng</button>
+          <button type="submit" disabled={busy} className={btnPrimary + ' !bg-error !text-white hover:!opacity-90'}>
+            {busy ? 'Đang huỷ…' : 'Huỷ buổi học'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function ClassesTab({ catalog }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [modal, setModal] = useState(null)
 
   const load = useCallback(async () => {
@@ -318,7 +348,7 @@ function ClassesTab({ catalog }) {
   const done = (result) => {
     const wasGenerate = modal?.type === 'generate'
     setModal(null)
-    if (wasGenerate) window.alert(`Đã tạo ${result.created} buổi học mới (${result.existing} buổi đã tồn tại từ trước).`)
+    setNotice(wasGenerate ? `Đã tạo ${result.created} buổi học mới (${result.existing} buổi đã tồn tại từ trước).` : '')
     load()
   }
 
@@ -332,6 +362,7 @@ function ClassesTab({ catalog }) {
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {notice && <Alert type="success">{notice}</Alert>}
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
@@ -396,6 +427,9 @@ function SessionsTab({ catalog }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(null)
+  const [cancelling, setCancelling] = useState(null)
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -417,15 +451,17 @@ function SessionsTab({ catalog }) {
     setPage(1)
   }
 
-  const cancelSession = async (s) => {
-    const reason = window.prompt(`Lý do huỷ buổi học "${s.className}" ngày ${s.date}:`)
-    if (!reason) return
+  const confirmCancelSession = async (reason) => {
+    setCancelBusy(true)
+    setCancelError('')
     try {
-      await api(`/sessions/${s.id}/cancel`, { method: 'PATCH', body: { reason } })
+      await api(`/sessions/${cancelling.id}/cancel`, { method: 'PATCH', body: { reason } })
+      setCancelling(null)
       load()
     } catch (err) {
-      setError(err.message)
+      setCancelError(err.message)
     }
+    setCancelBusy(false)
   }
 
   return (
@@ -481,7 +517,7 @@ function SessionsTab({ catalog }) {
                           <Icon name="edit" className="text-base" />
                         </button>
                         <OpenCheckInCodeButton sessionId={s.id} />
-                        <button className={btnOutline + ' !h-8 !px-2'} title="Huỷ buổi học" onClick={() => cancelSession(s)}>
+                        <button className={btnOutline + ' !h-8 !px-2'} title="Huỷ buổi học" onClick={() => setCancelling(s)}>
                           <Icon name="event_busy" className="text-base" />
                         </button>
                       </>
@@ -504,6 +540,18 @@ function SessionsTab({ catalog }) {
           catalog={catalog}
           onClose={() => setEditing(null)}
           onDone={() => { setEditing(null); load() }}
+        />
+      )}
+      {cancelling && (
+        <CancelSessionModal
+          session={cancelling}
+          busy={cancelBusy}
+          error={cancelError}
+          onClose={() => {
+            setCancelling(null)
+            setCancelError('')
+          }}
+          onConfirm={confirmCancelSession}
         />
       )}
     </div>

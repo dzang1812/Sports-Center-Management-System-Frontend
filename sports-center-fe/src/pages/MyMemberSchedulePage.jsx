@@ -1,9 +1,65 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, query } from '../api'
 import { SelfCheckInButton } from '../components/classCheckIn'
-import { Alert, btnOutline, inputCls } from '../components/ui'
+import { Alert, Field, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
+
+// item.date is "yyyy-MM-dd", item.endTime/startTime are "HH:mm:ss" — all local wall-clock values, safe to concatenate.
+const isPastItem = (item) => new Date(`${item.date}T${item.endTime}`) < new Date()
+const startOf = (item) => new Date(`${item.date}T${item.startTime}`).getTime()
+
+// Upcoming first (soonest at top), past items pushed to the end (most recently passed first).
+const compareSchedule = (a, b) => {
+  const aPast = isPastItem(a)
+  const bPast = isPastItem(b)
+  if (aPast !== bPast) return aPast ? 1 : -1
+  return aPast ? startOf(b) - startOf(a) : startOf(a) - startOf(b)
+}
+
+function CancelConfirmModal({ item, onClose, onConfirm, busy }) {
+  return (
+    <Modal title="Xác nhận huỷ" onClose={onClose}>
+      <p className="text-on-surface">
+        Huỷ {item.type === 'PT' ? 'lịch PT' : 'lớp'} <b>"{item.title}"</b> ngày {item.date} lúc {fromTimeOnly(item.startTime)}?
+      </p>
+      <div className="flex justify-end gap-2 pt-5">
+        <button type="button" className={btnOutline} onClick={onClose}>Giữ lại</button>
+        <button type="button" disabled={busy} className={btnPrimary + ' !bg-error !text-white hover:!opacity-90'} onClick={onConfirm}>
+          {busy ? 'Đang huỷ…' : 'Huỷ lịch'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function RescheduleModal({ item, onClose, onConfirm, busy, error }) {
+  const [date, setDate] = useState(item.date)
+  const [time, setTime] = useState(fromTimeOnly(item.startTime))
+
+  const submit = (e) => {
+    e.preventDefault()
+    onConfirm(date, time)
+  }
+
+  return (
+    <Modal title="Đổi lịch PT" onClose={onClose}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        {error && <Alert>{error}</Alert>}
+        <Field label="Ngày mới">
+          <input className={inputCls} type="date" required min={toDateOnly(new Date())} value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Giờ bắt đầu mới">
+          <input className={inputCls} type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
+        </Field>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
+          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang lưu…' : 'Lưu lịch mới'}</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
 
 function MySchedule() {
   const today = toDateOnly(new Date())
@@ -13,6 +69,13 @@ function MySchedule() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busyId, setBusyId] = useState(null)
+  const [cancelItem, setCancelItem] = useState(null)
+  const [rescheduleItem, setRescheduleItem] = useState(null)
+  const [rescheduleError, setRescheduleError] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [timeFilter, setTimeFilter] = useState('all')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -29,14 +92,29 @@ function MySchedule() {
     load()
   }, [load])
 
-  const cancel = async (item) => {
-    if (!window.confirm(`Huỷ ${item.type === 'PT' ? 'lịch PT' : 'lớp'} "${item.title}" ngày ${item.date}?`)) return
+  useEffect(() => {
+    setPage(1)
+  }, [range, typeFilter, timeFilter])
+
+  const sorted = useMemo(
+    () =>
+      items
+        .filter((i) => typeFilter === 'all' || i.type === typeFilter)
+        .filter((i) => timeFilter === 'all' || (timeFilter === 'past') === isPastItem(i))
+        .sort(compareSchedule),
+    [items, typeFilter, timeFilter],
+  )
+  const paged = sorted.slice((page - 1) * pageSize, page * pageSize)
+
+  const confirmCancel = async () => {
+    const item = cancelItem
     setBusyId(item.bookingId)
     setError('')
     setNotice('')
     try {
       if (item.type === 'PT') await api(`/pt/bookings/${item.bookingId}`, { method: 'DELETE' })
       else await api(`/bookings/${item.bookingId}`, { method: 'DELETE' })
+      setCancelItem(null)
       setNotice('Đã huỷ thành công.')
       load()
     } catch (err) {
@@ -45,19 +123,17 @@ function MySchedule() {
     setBusyId(null)
   }
 
-  const reschedule = async (item) => {
-    const date = window.prompt('Ngày mới (yyyy-mm-dd):', item.date)
-    if (!date) return
-    const time = window.prompt('Giờ bắt đầu mới (HH:mm):', fromTimeOnly(item.startTime))
-    if (!time) return
+  const confirmReschedule = async (date, time) => {
+    const item = rescheduleItem
     setBusyId(item.bookingId)
-    setError('')
+    setRescheduleError('')
     try {
       await api(`/pt/bookings/${item.bookingId}/reschedule`, { method: 'PUT', body: { date, startTime: `${time}:00`, roomId: item.roomId ?? null } })
+      setRescheduleItem(null)
       setNotice('Đã đổi lịch PT thành công.')
       load()
     } catch (err) {
-      setError(err.message)
+      setRescheduleError(err.message)
     }
     setBusyId(null)
   }
@@ -67,38 +143,93 @@ function MySchedule() {
       <div className="flex flex-wrap gap-3">
         <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
         <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        <select className={`${inputCls} !h-10 !w-auto`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="all">Tất cả loại</option>
+          <option value="Class">Lớp học</option>
+          <option value="PT">PT</option>
+        </select>
+        <select className={`${inputCls} !h-10 !w-auto`} value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
+          <option value="all">Sắp tới &amp; đã qua</option>
+          <option value="upcoming">Chỉ sắp tới</option>
+          <option value="past">Chỉ đã qua</option>
+        </select>
       </div>
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
 
       <div className={`flex flex-col gap-3 ${loading ? 'opacity-50' : ''}`}>
-        {items.map((item) => (
-          <div key={`${item.type}-${item.bookingId}`} className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{item.type === 'PT' ? 'PT' : 'Lớp học'}</span>
-                <span className="font-semibold">{item.title}</span>
+        {paged.map((item) => {
+          const past = isPastItem(item)
+          return (
+            <div
+              key={`${item.type}-${item.bookingId}`}
+              className={`rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                past ? 'bg-surface-container-low opacity-70' : 'bg-surface-container-lowest'
+              }`}
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{item.type === 'PT' ? 'PT' : 'Lớp học'}</span>
+                  <span className="font-semibold">{item.title}</span>
+                  {past && (
+                    <span className="px-2 py-0.5 rounded-full bg-outline-variant/40 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">history</span>
+                      Đã qua
+                    </span>
+                  )}
+                </div>
+                <div className="text-secondary text-body-sm">
+                  {item.date} • {fromTimeOnly(item.startTime)}-{fromTimeOnly(item.endTime)} • {item.room ?? '—'} • HLV {item.coach}
+                </div>
+                <div className="text-body-sm text-secondary">{BOOKING_STATUS_LABEL[item.status]}</div>
               </div>
-              <div className="text-secondary text-body-sm">
-                {item.date} • {fromTimeOnly(item.startTime)}-{fromTimeOnly(item.endTime)} • {item.room ?? '—'} • HLV {item.coach}
-              </div>
-              <div className="text-body-sm text-secondary">{BOOKING_STATUS_LABEL[item.status]}</div>
+              {item.status === 'Confirmed' && !past && (
+                <div className="flex gap-2 shrink-0">
+                  {item.type === 'PT' ? (
+                    <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => setRescheduleItem(item)}>Đổi lịch</button>
+                  ) : (
+                    <SelfCheckInButton sessionId={item.referenceId} className={btnOutline} onDone={load} />
+                  )}
+                  <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => setCancelItem(item)}>Huỷ</button>
+                </div>
+              )}
             </div>
-            {item.status === 'Confirmed' && (
-              <div className="flex gap-2 shrink-0">
-                {item.type === 'PT' ? (
-                  <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => reschedule(item)}>Đổi lịch</button>
-                ) : (
-                  <SelfCheckInButton sessionId={item.referenceId} className={btnOutline} onDone={load} />
-                )}
-                <button className={btnOutline} disabled={busyId === item.bookingId} onClick={() => cancel(item)}>Huỷ</button>
-              </div>
-            )}
-          </div>
-        ))}
-        {!loading && !items.length && <p className="text-secondary text-center py-10">Chưa có lịch nào trong khoảng thời gian này.</p>}
+          )
+        })}
+        {!loading && !sorted.length && <p className="text-secondary text-center py-10">Không có lịch nào phù hợp bộ lọc.</p>}
       </div>
+
+      {!!sorted.length && (
+        <div className="bg-surface-container-lowest rounded-xl">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={sorted.length}
+            onPage={setPage}
+            onPageSize={(n) => {
+              setPageSize(n)
+              setPage(1)
+            }}
+          />
+        </div>
+      )}
+
+      {cancelItem && (
+        <CancelConfirmModal item={cancelItem} busy={busyId === cancelItem.bookingId} onClose={() => setCancelItem(null)} onConfirm={confirmCancel} />
+      )}
+      {rescheduleItem && (
+        <RescheduleModal
+          item={rescheduleItem}
+          busy={busyId === rescheduleItem.bookingId}
+          error={rescheduleError}
+          onClose={() => {
+            setRescheduleItem(null)
+            setRescheduleError('')
+          }}
+          onConfirm={confirmReschedule}
+        />
+      )}
     </div>
   )
 }

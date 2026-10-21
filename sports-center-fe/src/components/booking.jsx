@@ -3,7 +3,7 @@ import { api, query } from '../api'
 import { OpenCheckInCodeButton } from './classCheckIn'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { LEVEL_LABEL } from '../labels'
-import { Alert, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
+import { Alert, Avatar, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
 
 // Shared by MemberSchedulePage ("Đặt lớp mới" tab) and ReceptionClassBookingPage.
 // When requireMemberId is true (Receptionist acting on behalf of a member), a numeric
@@ -208,16 +208,35 @@ export function PtBrowser({ requireMemberId = false }) {
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {coaches.map((c) => (
           <button
             key={c.id}
             onClick={() => selectCoach(c)}
-            className={`text-left bg-surface-container-lowest rounded-xl p-4 shadow-sm transition-all ${coach?.id === c.id ? 'ring-2 ring-primary-container' : 'hover:shadow-md'}`}
+            className={`text-left bg-surface-container-lowest rounded-xl p-4 shadow-sm transition-all flex flex-col gap-2.5 ${
+              coach?.id === c.id ? 'ring-2 ring-primary-container' : 'hover:shadow-md'
+            }`}
           >
-            <div className="font-semibold">{c.fullName}</div>
-            <div className="text-secondary text-body-sm">{c.sports.map((s) => s.name).join(', ')}</div>
-            {c.bio && <p className="text-body-sm text-on-surface-variant mt-1 line-clamp-2">{c.bio}</p>}
+            <div className="flex items-center gap-3">
+              <Avatar src={c.avatarUrl} className="w-14 h-14" />
+              <div className="min-w-0">
+                <div className="font-semibold truncate">{c.fullName}</div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {c.sports.map((s) => (
+                    <span key={s.id} className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {c.certifications && (
+              <div className="flex items-start gap-1.5 text-body-sm text-primary font-semibold">
+                <Icon name="verified" className="text-base shrink-0 mt-0.5" />
+                <span className="line-clamp-1">{c.certifications}</span>
+              </div>
+            )}
+            {c.bio && <p className="text-body-sm text-on-surface-variant line-clamp-2">{c.bio}</p>}
           </button>
         ))}
         {!coaches.length && <p className="text-secondary">Chưa có HLV nhận PT.</p>}

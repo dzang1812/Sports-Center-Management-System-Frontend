@@ -1,18 +1,25 @@
 // UI exported from Stitch; wired to the real class-booking API (GET /sessions, POST /sessions/{id}/bookings,
 // GET /me/schedule) while keeping the original layout/markup. Fields with no backing API (waitlist, the
-// "empty state" demo toggle, stock coach photos) were dropped or replaced — see src/components/booking.jsx
-// for the equivalent Reception-facing flow and API_MAPPING.md for details.
+// "empty state" demo toggle) were dropped — see src/components/booking.jsx for the equivalent
+// Reception-facing flow and SCREEN_API_MAPPING.md for details. Coach photos and the bottom CTA were
+// restored once real data/pages existed to back them (GET /pt/coaches avatarUrl, /packages, /member/pt).
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, query } from '../../api'
+import { Avatar } from '../../components/ui'
 import { addDays, fromDateOnly, fromTimeOnly, toDateOnly } from '../../dateUtils'
 import { LEVEL_LABEL } from '../../labels'
 
-const SPORT_COLOR = {
-  Yoga: { dot: '#0EA5E9', bg: '#E0F2FE', text: '#0369A1', border: '#0EA5E9' },
-  GroupX: { dot: '#4338CA', bg: '#EEF2FF', text: '#4338CA', border: '#4338CA' },
-}
-const FALLBACK_COLOR = { dot: '#64748B', bg: '#F1F5F9', text: '#334155', border: '#64748B' }
-const sportColor = (name) => SPORT_COLOR[name] ?? FALLBACK_COLOR
+// A fixed color order, cycled by each sport's position in the catalog (not hardcoded per sport name) —
+// any sport a Manager adds later still gets a distinct color instead of falling back to the same gray.
+const SPORT_PALETTE = [
+  { dot: '#0EA5E9', bg: '#E0F2FE', text: '#0369A1', border: '#0EA5E9' }, // sky
+  { dot: '#4338CA', bg: '#EEF2FF', text: '#4338CA', border: '#4338CA' }, // indigo
+  { dot: '#16A34A', bg: '#DCFCE7', text: '#15803D', border: '#16A34A' }, // green
+  { dot: '#EA580C', bg: '#FFEDD5', text: '#C2410C', border: '#EA580C' }, // orange
+  { dot: '#DB2777', bg: '#FCE7F3', text: '#BE185D', border: '#DB2777' }, // pink
+  { dot: '#CA8A04', bg: '#FEF9C3', text: '#A16207', border: '#CA8A04' }, // amber
+]
 
 const SLOT_RANGES = [
   ['morning', 'Sáng', '00:00:00', '12:00:00'],
@@ -20,8 +27,6 @@ const SLOT_RANGES = [
   ['evening', 'Tối', '17:00:00', '24:00:00'],
 ]
 const slotOf = (startTime) => SLOT_RANGES.find(([, , from, to]) => startTime >= from && startTime < to)?.[1] ?? 'Sáng'
-
-const initials = (name) => (name ?? '?').trim().split(/\s+/).slice(-1)[0]?.[0]?.toUpperCase() ?? '?'
 
 const dayHeading = (dateStr, today, tomorrow) => {
   const weekday = new Date(dateStr).toLocaleDateString('vi-VN', { weekday: 'long' })
@@ -37,6 +42,7 @@ export default function MemberSchedule() {
   // mostly empty just because today happens to fall near the end of the calendar week.
   const [week, setWeek] = useState([today, addDays(today, 6)])
   const [sports, setSports] = useState([])
+  const [coachAvatars, setCoachAvatars] = useState({})
   const [sessions, setSessions] = useState([])
   const [bookedIds, setBookedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -48,7 +54,15 @@ export default function MemberSchedule() {
 
   useEffect(() => {
     api('/sports').then((list) => setSports(list.filter((s) => s.hasClasses))).catch(() => {})
+    // GET /sessions only gives the coach's name, not an id/avatar — /pt/coaches is the only public endpoint
+    // that has real coach photos, so this is a best-effort lookup by name (coaches with no PT sport won't match).
+    api('/pt/coaches')
+      .then((list) => setCoachAvatars(Object.fromEntries(list.filter((c) => c.avatarUrl).map((c) => [c.fullName, c.avatarUrl]))))
+      .catch(() => {})
   }, [])
+
+  const sportColorMap = useMemo(() => Object.fromEntries(sports.map((s, i) => [s.name, SPORT_PALETTE[i % SPORT_PALETTE.length]])), [sports])
+  const sportColor = (name) => sportColorMap[name] ?? SPORT_PALETTE[SPORT_PALETTE.length - 1]
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -289,9 +303,7 @@ export default function MemberSchedule() {
                         </div>
 
                         <div className="flex items-center gap-3.5 lg:w-4/12">
-                          <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-headline-sm text-headline-sm font-bold shrink-0">
-                            {initials(s.coach)}
-                          </div>
+                          <Avatar src={coachAvatars[s.coach]} className="w-12 h-12" />
                           <div className="min-w-0">
                             <span className="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Huấn luyện viên</span>
                             <p className="font-headline-sm text-headline-sm text-on-surface truncate font-semibold">{s.coach ?? 'Chưa phân công'}</p>
@@ -357,18 +369,18 @@ export default function MemberSchedule() {
                 </div>
                 <h2 className="font-headline-lg text-headline-lg font-bold text-white tracking-tight">Chưa biết bắt đầu với bộ môn nào?</h2>
                 <p className="font-body-md text-body-md text-white/90 leading-relaxed">
-                  Đội ngũ chuyên gia FitZone sẽ hỗ trợ đo chỉ số cơ thể InBody miễn phí 100%, tư vấn lớp học khoa học phù hợp nhất với thể trạng của bạn.
+                  Xem các gói tập đang mở bán hoặc đặt một buổi PT 1-1 để HLV tư vấn lộ trình phù hợp nhất với thể trạng của bạn.
                 </p>
               </div>
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-3.5 shrink-0">
-                <button className="w-full sm:w-auto h-11 px-5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white font-label-lg text-label-lg transition-all shadow-md flex items-center justify-center gap-2 active:scale-95">
+                <Link to="/packages" className="w-full sm:w-auto h-11 px-5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white font-label-lg text-label-lg transition-all shadow-md flex items-center justify-center gap-2 active:scale-95">
+                  <span className="material-symbols-outlined text-[18px]">sell</span>
+                  <span>Xem bảng giá gói tập</span>
+                </Link>
+                <Link to="/member/pt" className="w-full sm:w-auto h-11 px-5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm">
                   <span className="material-symbols-outlined text-[18px]">fitness_center</span>
-                  <span>Đo InBody miễn phí</span>
-                </button>
-                <a className="w-full sm:w-auto h-11 px-5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm" href="tel:19008888">
-                  <span className="material-symbols-outlined text-[18px]">phone_in_talk</span>
-                  <span>Gọi hotline 1900 8888</span>
-                </a>
+                  <span>Đặt lịch PT 1-1</span>
+                </Link>
               </div>
             </div>
           </div>

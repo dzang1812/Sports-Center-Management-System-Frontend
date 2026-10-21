@@ -70,12 +70,12 @@ function StaffLayout() {
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="h-16 px-space-md flex items-center justify-between">
+        <div className="px-space-md pt-5 pb-4 flex flex-col gap-2.5">
           <div className="flex items-center gap-space-sm">
-            <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
+            <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain shrink-0" />
             <span className="font-headline-sm text-headline-sm font-bold text-white">FitZone</span>
           </div>
-          <span className="px-space-xs py-0.5 rounded bg-tertiary-container text-on-tertiary font-label-sm text-label-sm uppercase">
+          <span className="self-start inline-flex items-center px-2.5 py-1 rounded-full bg-tertiary-container text-on-tertiary font-label-sm text-label-sm whitespace-nowrap">
             {ROLE_LABEL[auth.role]}
           </span>
         </div>
