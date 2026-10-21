@@ -18,8 +18,9 @@ const NAV = {
   Receptionist: [
     { to: '/reception', label: 'Quầy lễ tân', icon: 'support_agent', end: true },
     { to: '/reception/check-in', label: 'Check-in', icon: 'how_to_reg' },
-    { to: '/reception/members', label: 'Chi tiết thành viên', icon: 'badge' },
-    { to: '/reception/sell', label: 'Bán gói & thu phí', icon: 'point_of_sale' },
+    { to: '/reception/schedule', label: 'Lịch tập trung tâm', icon: 'calendar_month' },
+    { to: '/reception/members', label: 'Danh sách hội viên', icon: 'badge' },
+    { to: '/reception/payments', label: 'Xác nhận thanh toán', icon: 'point_of_sale' },
     { to: '/reception/classes', label: 'Đặt lớp cho hội viên', icon: 'event_available' },
     { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
   ],

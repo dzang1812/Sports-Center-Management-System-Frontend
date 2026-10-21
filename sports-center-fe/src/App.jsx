@@ -21,6 +21,8 @@ import PaymentResultPage from './pages/PaymentResultPage'
 import ProfilePage from './pages/ProfilePage'
 import ReceptionClassBookingPage from './pages/ReceptionClassBookingPage'
 import ReceptionMemberPage from './pages/ReceptionMemberPage'
+import ReceptionPaymentsPage from './pages/ReceptionPaymentsPage'
+import ReceptionSchedulePage from './pages/ReceptionSchedulePage'
 import ReceptionPtBookingPage from './pages/ReceptionPtBookingPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
@@ -90,6 +92,8 @@ export default function App() {
               <Route path="/reception/pt" element={<ReceptionPtBookingPage />} />
               <Route path="/reception/members" element={<ReceptionMemberPage />} />
               <Route path="/reception/members/:id" element={<ReceptionMemberPage />} />
+              <Route path="/reception/schedule" element={<ReceptionSchedulePage />} />
+              <Route path="/reception/payments" element={<ReceptionPaymentsPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Coach']} />}>
