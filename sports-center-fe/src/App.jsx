@@ -16,6 +16,7 @@ import ManagerReportsPage from './pages/ManagerReportsPage'
 import MemberPtPage from './pages/MemberPtPage'
 import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
+import NewsPage from './pages/NewsPage'
 import PackagesPage from './pages/PackagesPage'
 import PaymentResultPage from './pages/PaymentResultPage'
 import ProfilePage from './pages/ProfilePage'
@@ -26,6 +27,7 @@ import ReceptionSchedulePage from './pages/ReceptionSchedulePage'
 import ReceptionPtBookingPage from './pages/ReceptionPtBookingPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import TrainersPage from './pages/TrainersPage'
 import UsersPage from './pages/UsersPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import VerifyRequiredPage from './pages/VerifyRequiredPage'
@@ -58,6 +60,8 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/classes" element={<ClassesPage />} />
           <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/trainers" element={<TrainersPage />} />
+          <Route path="/news" element={<NewsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

@@ -321,7 +321,7 @@ function CancelSessionModal({ session, onClose, onConfirm, busy, error }) {
   )
 }
 
-function ClassesTab({ catalog }) {
+function ClassesTab({ catalog, onViewSessions }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [data, setData] = useState({ items: [], total: 0 })
@@ -391,6 +391,9 @@ function ClassesTab({ catalog }) {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
+                    <button className={btnOutline + ' !h-8 !px-2'} title="Xem buổi học" onClick={() => onViewSessions(c)}>
+                      <Icon name="event_note" className="text-base" />
+                    </button>
                     <button className={btnOutline + ' !h-8 !px-2'} title="Sửa" onClick={() => setModal({ type: 'form', cls: c })}>
                       <Icon name="edit" className="text-base" />
                     </button>
@@ -419,8 +422,13 @@ function ClassesTab({ catalog }) {
   )
 }
 
-function SessionsTab({ catalog }) {
-  const [filters, setFilters] = useState({ sportId: '', coachId: '', level: '', from: '', to: '' })
+function SessionsTab({ catalog, initialFilters }) {
+  const { className: initialClassName, ...initialFilterValues } = initialFilters ?? {}
+  const [filters, setFilters] = useState({
+    sportId: '', coachId: '', level: '', from: '', to: '', classId: '',
+    ...initialFilterValues,
+  })
+  const [classNameFilter, setClassNameFilter] = useState(initialClassName ?? '')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [data, setData] = useState({ items: [], total: 0 })
@@ -467,6 +475,23 @@ function SessionsTab({ catalog }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        {classNameFilter && (
+          <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-primary-container/15 border border-primary-container/40 w-fit">
+            <Icon name="filter_alt" className="text-primary text-lg" />
+            <span className="font-label-md text-label-md">Đang lọc theo lớp: <b>{classNameFilter}</b></span>
+            <button
+              type="button"
+              className="text-on-surface-variant hover:text-on-surface"
+              onClick={() => {
+                setClassNameFilter('')
+                setFilters({ ...filters, classId: '' })
+                setPage(1)
+              }}
+            >
+              <Icon name="close" className="text-base" />
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Field label="Bộ môn">
             <select className={inputCls} value={filters.sportId} onChange={setFilter('sportId')}>
@@ -498,7 +523,8 @@ function SessionsTab({ catalog }) {
             type="button"
             className={btnOutline}
             onClick={() => {
-              setFilters({ sportId: '', coachId: '', level: '', from: '', to: '' })
+              setFilters({ sportId: '', coachId: '', level: '', from: '', to: '', classId: '' })
+              setClassNameFilter('')
               setPage(1)
             }}
           >
@@ -585,7 +611,13 @@ function SessionsTab({ catalog }) {
 
 export default function ManagerClassesPage() {
   const [tab, setTab] = useState('classes')
+  const [sessionsFilter, setSessionsFilter] = useState(null)
   const catalog = useCatalog()
+
+  const viewSessions = (cls) => {
+    setSessionsFilter({ classId: String(cls.id), className: cls.name, from: cls.startDate, to: cls.endDate })
+    setTab('sessions')
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -599,14 +631,21 @@ export default function ManagerClassesPage() {
           <button
             key={v}
             className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
-            onClick={() => setTab(v)}
+            onClick={() => {
+              setTab(v)
+              setSessionsFilter(null)
+            }}
           >
             {l}
           </button>
         ))}
       </div>
 
-      {tab === 'classes' ? <ClassesTab catalog={catalog} /> : <SessionsTab catalog={catalog} />}
+      {tab === 'classes' ? (
+        <ClassesTab catalog={catalog} onViewSessions={viewSessions} />
+      ) : (
+        <SessionsTab key={sessionsFilter?.classId ?? 'all'} catalog={catalog} initialFilters={sessionsFilter} />
+      )}
     </div>
   )
 }

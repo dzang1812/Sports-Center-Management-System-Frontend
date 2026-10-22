@@ -1,11 +1,14 @@
 // Static UI exported from Stitch. Data is hardcoded until the real API is wired in.
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth'
 import { api, query } from '../../api'
+import SiteHeader from '../../components/SiteHeader'
 import { Avatar, Icon } from '../../components/ui'
 import { addDays, fromTimeOnly, toDateOnly } from '../../dateUtils'
-import { LEVEL_LABEL } from '../../labels'
+import { LEVEL_LABEL, PLAN_TYPE_LABEL } from '../../labels'
+import { NEWS_ITEMS } from '../../newsItems'
+
+const formatVnd = (n) => `${n.toLocaleString('vi-VN')}đ`
 
 const HOME_BANNERS = [
   '/images/banner-home-1.jpg',
@@ -65,7 +68,7 @@ function ClassesSection() {
   }, [])
 
   return (
-    <section className="py-16 bg-surface" id="classes">
+    <section className="py-16 bg-surface scroll-mt-24" id="classes">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
@@ -122,11 +125,15 @@ function TrainersSection() {
   }, [])
 
   return (
-    <section className="py-16 bg-surface-container-low" id="trainers">
+    <section className="py-16 bg-surface-container-low scroll-mt-24" id="trainers">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">ĐỘI NGŨ CHUYÊN MÔN</span>
           <h2 className="font-headline-xl text-headline-xl text-on-surface">Huấn luyện viên giàu kinh nghiệm</h2>
+          <Link to="/trainers" className="inline-flex items-center gap-1.5 mt-3 font-label-lg text-label-lg text-primary hover:text-primary-container transition-colors">
+            <span>Xem tất cả huấn luyện viên</span>
+            <Icon name="arrow_forward" className="text-base" />
+          </Link>
         </div>
 
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 ${loading ? 'opacity-50' : ''}`}>
@@ -173,36 +180,17 @@ function TrainersSection() {
   )
 }
 
-// Static promo content — no news/promotions API exists yet; same convention as the rest of this
-// Stitch-exported page (hardcoded until a real backend feed is wired in).
-const NEWS_ITEMS = [
-  {
-    banner: '/images/banner-news-1.jpg',
-    tag: 'Khuyến mãi',
-    title: 'Giảm 20% gói năm khi đăng ký theo nhóm từ 3 người',
-    desc: 'Áp dụng cho mọi gói Combo và PT trọn gói, đăng ký trước cuối tháng để nhận ưu đãi.',
-  },
-  {
-    banner: '/images/banner-news-2.jpg',
-    tag: 'Tin tức',
-    title: 'Khai trương chi nhánh FitZone thứ 5 tại Hà Nội',
-    desc: 'Không gian tập luyện 2.000m² với hồ bơi vô cực và phòng xông hơi đá muối Himalaya.',
-  },
-  {
-    banner: '/images/banner-news-3.jpg',
-    tag: 'Sự kiện',
-    title: 'Giải chạy FitZone Run 10K — mở đăng ký miễn phí',
-    desc: 'Dành cho hội viên đang có gói hoạt động, nhận áo và huy chương hoàn thành miễn phí.',
-  },
-]
-
 function NewsSection() {
   return (
-    <section className="py-16 bg-surface" id="news">
+    <section className="py-16 bg-surface scroll-mt-24" id="news">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">CẬP NHẬT MỚI NHẤT</span>
           <h2 className="font-headline-xl text-headline-xl text-on-surface">Tin tức &amp; Khuyến mãi</h2>
+          <Link to="/news" className="inline-flex items-center gap-1.5 mt-3 font-label-lg text-label-lg text-primary hover:text-primary-container transition-colors">
+            <span>Xem tất cả tin tức</span>
+            <Icon name="arrow_forward" className="text-base" />
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -225,48 +213,110 @@ function NewsSection() {
   )
 }
 
+const PRICING_PREVIEW_COUNT = 3
+const PRICING_CARD_BANNERS = ['/images/banner-home-4.jpg', '/images/banner-home-2.jpg', '/images/banner-home-1.jpg']
+
+// Public, real plan list — GET /membership-plans is AllowAnonymous. CTAs go to /packages,
+// which already has the full subscribe + PayOS QR flow (no need to duplicate it here). Only a
+// preview is shown — "Xem thêm gói tập" links to the full list instead of dumping everything here.
+function PricingSection() {
+  const [plans, setPlans] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api('/membership-plans')
+      .then(setPlans)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const preview = plans.slice(0, PRICING_PREVIEW_COUNT)
+
+  return (
+    <section className="py-16 bg-surface-container-low scroll-mt-24" id="pricing">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative rounded-2xl overflow-hidden shadow-lg h-56 sm:h-64 mb-16">
+          <img src="/images/banner-home-3.jpg" alt="Bảng giá gói tập FitZone" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/55 to-inverse-surface/20" />
+          <div className="relative h-full flex flex-col items-center justify-center text-center px-6 text-white">
+            <span className="font-label-md text-label-md uppercase tracking-wider text-tertiary-fixed mb-2">Bảng giá dịch vụ linh hoạt</span>
+            <h2 className="font-headline-xl text-headline-xl">Chọn gói tập phù hợp với mục tiêu của bạn</h2>
+            <p className="text-white/85 mt-1">Cam kết chi phí minh bạch, không phụ phí ẩn</p>
+          </div>
+        </div>
+
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch ${loading ? 'opacity-50' : ''}`}>
+          {preview.map((p, i) => (
+            <div key={p.id} className="bg-surface-container-lowest rounded-xl shadow-sm hover:shadow-lg transition-shadow flex flex-col justify-between overflow-hidden">
+              <div>
+                <div className="relative h-36">
+                  <img src={p.imageUrl || PRICING_CARD_BANNERS[i % PRICING_CARD_BANNERS.length]} alt={p.name} className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-inverse-surface/10 to-transparent" />
+                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm">
+                    {PLAN_TYPE_LABEL[p.planType] ?? p.planType}
+                  </span>
+                  <h3 className="absolute bottom-3 left-4 right-4 font-headline-md text-headline-md text-white">{p.name}</h3>
+                </div>
+                <div className="p-6">
+                  <p className="font-body-sm text-body-sm text-secondary">{p.sportName ?? 'Áp dụng mọi bộ môn'}</p>
+                  <div className="my-5">
+                    <span className="font-display-lg text-display-lg text-on-surface">{formatVnd(p.price)}</span>
+                    <span className="font-body-sm text-body-sm text-on-surface-variant"> / {p.durationDays} ngày</span>
+                  </div>
+                  <ul className="space-y-2.5 font-body-sm text-body-sm text-on-surface-variant mb-6">
+                    {p.includesClasses && (
+                      <li className="flex items-start gap-2">
+                        <Icon name="check" className="text-sm text-primary mt-0.5" />
+                        <span>Tham gia lớp học nhóm</span>
+                      </li>
+                    )}
+                    {p.ptSessionCredits > 0 && (
+                      <li className="flex items-start gap-2">
+                        <Icon name="check" className="text-sm text-primary mt-0.5" />
+                        <span>{p.ptSessionCredits} buổi PT 1:1</span>
+                      </li>
+                    )}
+                    {p.includesGymAccess && (
+                      <li className="flex items-start gap-2">
+                        <Icon name="check" className="text-sm text-primary mt-0.5" />
+                        <span>Sử dụng tự do tiện ích phòng Gym</span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+              <div className="px-6 pb-6">
+                <Link to="/packages" className="w-full block text-center py-2.5 px-4 rounded-lg bg-surface-container text-primary font-label-lg text-label-lg hover:bg-surface-container-high transition-colors">
+                  Chọn gói này
+                </Link>
+              </div>
+            </div>
+          ))}
+          {!loading && !plans.length && (
+            <p className="text-secondary text-center py-10 col-span-full">Hiện chưa có gói tập nào đang mở bán.</p>
+          )}
+        </div>
+
+        {plans.length > PRICING_PREVIEW_COUNT && (
+          <div className="flex justify-center mt-10">
+            <Link to="/packages" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg shadow-sm hover:opacity-90 transition-opacity">
+              <span>Xem thêm gói tập ({plans.length - PRICING_PREVIEW_COUNT}+)</span>
+              <Icon name="arrow_forward" className="text-lg" />
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default function HomePage() {
-  const { auth } = useAuth()
   return (
     <>
-<header className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-container/15 via-surface-container-lowest/95 to-tertiary-container/15 backdrop-blur-md shadow-sm border-b-2 border-primary-container/40 transition-all duration-300">
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-
-<a className="flex items-center gap-3 group" href="#">
-<img alt="FitZone Sports Center" className="h-10 w-auto object-contain transition-transform group-hover:scale-105" src="/logo.png" />
-<span className="font-headline-sm text-headline-sm font-extrabold uppercase text-on-surface tracking-wider">Fit<span className="text-primary-container">Zone</span></span>
-</a>
-
-<nav className="hidden md:flex items-center gap-8 font-label-lg text-body-md text-on-surface-variant">
-<a className="text-primary font-headline-sm transition-colors" href="#home">Trang chủ</a>
-<a className="hover:text-primary transition-colors" href="#classes">Lớp học</a>
-<a className="hover:text-primary transition-colors" href="#pricing">Gói tập</a>
-<a className="hover:text-primary transition-colors" href="#trainers">Huấn luyện viên</a>
-<a className="hover:text-primary transition-colors" href="#news">Tin tức &amp; Khuyến mãi</a>
-</nav>
-
-<div className="flex items-center gap-3">
-{auth ? (
-<Link className="inline-flex items-center gap-2 justify-center font-label-lg text-label-lg px-5 py-2.5 rounded-lg bg-primary-container text-on-primary hover:opacity-90 shadow-sm transition-all" to="/profile">
-<Icon name="person" className="text-lg" />
-          Vào hệ thống
-        </Link>
-) : (
-<>
-<Link className="hidden sm:inline-flex items-center justify-center font-label-lg text-label-lg px-4 py-2 rounded-lg text-primary hover:bg-surface-container-low transition-colors" to="/login">
-          Đăng nhập
-        </Link>
-<Link className="inline-flex items-center justify-center font-label-lg text-label-lg px-5 py-2.5 rounded-lg bg-primary-container text-on-primary hover:opacity-90 shadow-sm transition-all" to="/register">
-          Đăng ký ngay
-        </Link>
-</>
-)}
-</div>
-</div>
-</header>
+<SiteHeader />
 <main className="w-full min-h-screen bg-[#F8FAFC] flex items-center justify-center p-margin-mobile md:p-margin"><div className="flex flex-col w-full">
 
-<section className="relative overflow-hidden py-12 lg:py-20 bg-surface" id="home">
+<section className="relative overflow-hidden py-12 lg:py-20 bg-surface scroll-mt-24" id="home">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
@@ -287,10 +337,10 @@ export default function HomePage() {
 <span>Nhận tư vấn &amp; Tập thử miễn phí</span>
 <span className="material-symbols-outlined text-base">arrow_forward</span>
 </Link>
-<a className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg transition-all" href="#classes">
+<Link className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg transition-all" to="/classes">
 <span className="material-symbols-outlined text-base">calendar_today</span>
 <span>Xem lịch lớp hôm nay</span>
-</a>
+</Link>
 </div>
 
 <div className="grid grid-cols-3 gap-6 pt-6 w-full border-t border-surface-container-high/60">
@@ -439,148 +489,7 @@ export default function HomePage() {
 <ClassesSection />
 <TrainersSection />
 <NewsSection />
-<section className="py-16 bg-surface-container-low" id="pricing">
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div className="text-center max-w-3xl mx-auto mb-16">
-<span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">BẢNG GIÁ DỊCH VỤ LINH HOẠT</span>
-<h2 className="font-headline-xl text-headline-xl text-on-surface">Chọn gói tập phù hợp với mục tiêu của bạn</h2>
-<p className="font-body-md text-body-md text-on-surface-variant mt-2">Cam kết chi phí minh bạch, không phụ phí ẩn, bảo lưu linh hoạt</p>
-</div>
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col justify-between">
-<div>
-<h3 className="font-headline-md text-headline-md text-on-surface">Gym 1 tháng</h3>
-<p className="font-body-sm text-body-sm text-secondary mt-1">Trải nghiệm tiện ích gym căn bản</p>
-<div className="my-6">
-<span className="font-display-lg text-display-lg text-on-surface">450.000đ</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">/ tháng</span>
-</div>
-<ul className="space-y-3 font-body-sm text-body-sm text-on-surface-variant mb-6">
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Không giới hạn giờ tập tại chi nhánh</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Tủ locker thông minh &amp; phòng tắm nóng lạnh</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Đo chỉ số InBody miễn phí hàng tháng</span>
-</li>
-</ul>
-</div>
-<button className="w-full py-2.5 px-4 rounded-lg bg-surface-container text-primary font-label-lg text-label-lg hover:bg-surface-container-high transition-colors">
-            Chọn gói này
-          </button>
-</div>
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between">
-<h3 className="font-headline-md text-headline-md text-on-surface">Gym 3 tháng</h3>
-<span className="font-label-sm text-label-sm px-2 py-0.5 rounded bg-secondary-container text-on-secondary-fixed">Tiết kiệm 150K</span>
-</div>
-<p className="font-body-sm text-body-sm text-secondary mt-1">Bắt đầu thói quen bền vững</p>
-<div className="my-6">
-<span className="font-display-lg text-display-lg text-on-surface">1.200.000đ</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">/ 3 tháng</span>
-</div>
-<ul className="space-y-3 font-body-sm text-body-sm text-on-surface-variant mb-6">
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Tất cả quyền lợi của gói 1 tháng</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Tặng 01 buổi tập định hướng cùng PT riêng</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Giảm 10% đồ uống dinh dưỡng tại Healthy Bar</span>
-</li>
-</ul>
-</div>
-<button className="w-full py-2.5 px-4 rounded-lg bg-surface-container text-primary font-label-lg text-label-lg hover:bg-surface-container-high transition-colors">
-            Chọn gói này
-          </button>
-</div>
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-xl relative lg:-translate-y-3 flex flex-col justify-between border-2 border-primary-container">
-<div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-tertiary-container text-on-tertiary font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
-<span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-<span>Gói được chọn nhiều nhất</span>
-</div>
-<div>
-<h3 className="font-headline-md text-headline-md text-primary-container mt-2">All-Access VIP</h3>
-<p className="font-body-sm text-body-sm text-secondary mt-1">Trọn quyền trải nghiệm cao cấp nhất</p>
-<div className="my-6">
-<span className="font-display-lg text-display-lg text-on-surface">990.000đ</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">/ tháng</span>
-</div>
-<ul className="space-y-3 font-body-sm text-body-sm text-on-surface-variant mb-6">
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary-container mt-0.5">check_circle</span>
-<span className="font-semibold text-on-surface">Không giới hạn Gym, Yoga, Pilates &amp; HIIT</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary-container mt-0.5">check_circle</span>
-<span>Tặng 03 buổi hướng dẫn PT riêng</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary-container mt-0.5">check_circle</span>
-<span>Miễn phí khăn tập cao cấp &amp; nước bù khoáng</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary-container mt-0.5">check_circle</span>
-<span>Khu xông hơi khô &amp; đá muối Himalaya</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary-container mt-0.5">check_circle</span>
-<span>Ưu tiên đặt chỗ sớm mọi khung giờ</span>
-</li>
-</ul>
-</div>
-<Link to="/register" className="w-full py-3 px-4 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg shadow-md hover:opacity-90 transition-opacity">
-            Đăng ký ngay gói VIP
-          </Link>
-</div>
-
-<div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col justify-between">
-<div>
-<h3 className="font-headline-md text-headline-md text-on-surface">Yoga &amp; Class</h3>
-<p className="font-body-sm text-body-sm text-secondary mt-1">Chuyên sâu cho các lớp nhóm</p>
-<div className="my-6">
-<span className="font-display-lg text-display-lg text-on-surface">700.000đ</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">/ tháng</span>
-</div>
-<ul className="space-y-3 font-body-sm text-body-sm text-on-surface-variant mb-6">
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Tham gia mọi lớp Yoga, Dance &amp; GroupX</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Thảm tập và dụng cụ khử khuẩn chuẩn y tế</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Huấn luyện viên quốc tế trực tiếp giảng dạy</span>
-</li>
-<li className="flex items-start gap-2">
-<span className="material-symbols-outlined text-sm text-primary mt-0.5">check</span>
-<span>Tham gia workshop trị liệu phục hồi cơ thể</span>
-</li>
-</ul>
-</div>
-<button className="w-full py-2.5 px-4 rounded-lg bg-surface-container text-primary font-label-lg text-label-lg hover:bg-surface-container-high transition-colors">
-            Chọn gói này
-          </button>
-</div>
-</div>
-</div>
-</section>
+<PricingSection />
 </div></main>
 
 <footer className="w-full bg-inverse-surface text-inverse-on-surface pt-16 pb-8">
