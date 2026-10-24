@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../api'
+import ImageCarousel from '../components/ImageCarousel'
 import PublicShell from '../components/PublicShell'
 import { LEVEL_LABEL } from '../labels'
 import { Alert, Field, Icon, btnOutline, btnPrimary, inputCls } from '../components/ui'
@@ -85,10 +86,10 @@ export default function ClassesPage() {
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ${loading ? 'opacity-50' : ''}`}>
           {classes.map((c, i) => (
             <div key={c.id} className="relative rounded-xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden aspect-[3/4] group">
-              <img
-                src={c.imageUrl || CARD_BANNERS[i % CARD_BANNERS.length]}
+              <ImageCarousel
+                images={c.imageUrls.length ? c.imageUrls : [CARD_BANNERS[i % CARD_BANNERS.length]]}
                 alt={c.name}
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/70 to-inverse-surface/15" />
               <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">

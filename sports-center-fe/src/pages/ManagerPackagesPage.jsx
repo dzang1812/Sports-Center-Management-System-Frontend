@@ -89,7 +89,7 @@ function PlanForm({ plan, sports, onClose, onDone }) {
             <input className={inputCls} type="number" required min={1} max={3650} value={form.durationDays} onChange={set('durationDays')} />
           </Field>
           <Field label="Giá (đ)">
-            <input className={inputCls} type="number" required min={0} value={form.price} onChange={set('price')} />
+            <input className={inputCls} type="number" required min={0} max={1_000_000_000} value={form.price} onChange={set('price')} />
           </Field>
         </div>
         <Field label="Bộ môn áp dụng" hint="Bỏ trống nếu áp dụng mọi bộ môn (gói All-Access)">
