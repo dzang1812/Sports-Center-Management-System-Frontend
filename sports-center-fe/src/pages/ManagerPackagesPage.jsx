@@ -126,6 +126,16 @@ export default function ManagerPackagesPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // { plan? }
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [sportFilter, setSportFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  const filteredPlans = plans
+    .filter((p) => !search.trim() || p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    .filter((p) => typeFilter === 'all' || p.planType === typeFilter)
+    .filter((p) => sportFilter === 'all' || String(p.sportId) === sportFilter)
+    .filter((p) => statusFilter === 'all' || (statusFilter === 'active' ? p.isActive : !p.isActive))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -164,6 +174,42 @@ export default function ManagerPackagesPage() {
 
       {error && <Alert>{error}</Alert>}
 
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Field label="Tìm theo tên gói">
+            <input className={inputCls} placeholder="Tìm theo tên…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </Field>
+          <Field label="Loại gói">
+            <select className={inputCls} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              {Object.entries(PLAN_TYPE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Field>
+          <Field label="Bộ môn">
+            <select className={inputCls} value={sportFilter} onChange={(e) => setSportFilter(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              {sports.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Trạng thái">
+            <select className={inputCls} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              <option value="active">Đang mở bán</option>
+              <option value="inactive">Ngừng bán</option>
+            </select>
+          </Field>
+        </div>
+        <div className="flex justify-end pt-4">
+          <button
+            type="button"
+            className={btnOutline}
+            onClick={() => { setSearch(''); setTypeFilter('all'); setSportFilter('all'); setStatusFilter('all') }}
+          >
+            Đặt lại
+          </button>
+        </div>
+      </div>
+
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
           <thead>
@@ -180,7 +226,7 @@ export default function ManagerPackagesPage() {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {plans.map((p) => (
+            {filteredPlans.map((p) => (
               <tr key={p.id} className="border-t border-surface-container">
                 <td className="px-4 py-3">
                   {p.imageUrl ? (
@@ -209,6 +255,9 @@ export default function ManagerPackagesPage() {
             ))}
             {!loading && !plans.length && (
               <tr><td colSpan={9} className="px-4 py-10 text-center text-secondary">Chưa có gói tập nào.</td></tr>
+            )}
+            {!loading && plans.length > 0 && !filteredPlans.length && (
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-secondary">Không có gói khớp bộ lọc.</td></tr>
             )}
           </tbody>
         </table>
