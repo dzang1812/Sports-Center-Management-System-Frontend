@@ -13,7 +13,7 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-container/15 via-surface-container-lowest/95 to-tertiary-container/15 backdrop-blur-md shadow-sm border-b-2 border-primary-container/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-        <Link to="/"><Logo /></Link>
+        <Logo />
         <nav className="hidden md:flex items-center gap-6 font-label-lg text-body-md text-on-surface-variant">
           <NavLink to="/" end className={navLinkCls}>Trang chủ</NavLink>
           <NavLink to="/classes" className={navLinkCls}>Lớp học</NavLink>

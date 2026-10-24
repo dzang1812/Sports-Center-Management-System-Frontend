@@ -1,13 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import { Alert, Badge, Field, Icon, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { PaymentPendingPanel } from '../components/payment'
+import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 const PAYMENT_STATUS_TONE = { Pending: 'amber', Paid: 'green', Failed: 'red', Refunded: 'slate' }
 
 const dayCount = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000) + 1
+
+// Re-opens a fresh PayOS payment for the same plan — the subscribe endpoint now supersedes any
+// stale pending payment for that plan, so this is safe even if an earlier QR was never scanned.
+function RetryPaymentModal({ sub, onClose }) {
+  const [payment, setPayment] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api('/subscriptions', { method: 'POST', body: { planId: sub.planId, memberId: null } })
+      .then(setPayment)
+      .catch((err) => setError(err.message))
+  }, [sub.planId])
+
+  return (
+    <Modal title="Quét mã để thanh toán lại" onClose={onClose}>
+      {error && <Alert>{error}</Alert>}
+      {!error && (payment ? <PaymentPendingPanel payment={payment} /> : <p className="text-secondary text-center">Đang tạo đơn thanh toán…</p>)}
+    </Modal>
+  )
+}
 
 function CurrentPlanHero({ sub }) {
   if (!sub) {
@@ -82,6 +103,7 @@ export default function MemberSubscriptionPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [retrying, setRetrying] = useState(null)
 
   useEffect(() => {
     api('/me/subscriptions')
@@ -164,6 +186,7 @@ export default function MemberSubscriptionPage() {
                 <th className="px-4 py-3">Thời hạn</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Thanh toán</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className={loading ? 'opacity-50' : ''}>
@@ -189,13 +212,21 @@ export default function MemberSubscriptionPage() {
                       <Badge tone={PAYMENT_STATUS_TONE[s.paymentStatus]}>{PAYMENT_STATUS_LABEL[s.paymentStatus]}</Badge>
                     ) : '—'}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    {s.status === 'Cancelled' && (
+                      <button type="button" className={btnOutline + ' !h-8'} onClick={() => setRetrying(s)}>
+                        <Icon name="refresh" className="text-base" />
+                        Thanh toán lại
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {!loading && !subs.length && (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-secondary">Chưa có gói tập nào. Hãy xem bảng giá để đăng ký.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Chưa có gói tập nào. Hãy xem bảng giá để đăng ký.</td></tr>
               )}
               {!loading && subs.length > 0 && !filtered.length && (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-secondary">Không có gói nào khớp bộ lọc.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Không có gói nào khớp bộ lọc.</td></tr>
               )}
             </tbody>
           </table>
@@ -206,6 +237,8 @@ export default function MemberSubscriptionPage() {
         Lịch sử thanh toán chi tiết theo từng giao dịch hiện chỉ xem được ngay sau khi thanh toán (trang kết quả thanh toán) — hệ thống backend chưa có API
         liệt kê toàn bộ hoá đơn theo hội viên.
       </Alert>
+
+      {retrying && <RetryPaymentModal sub={retrying} onClose={() => setRetrying(null)} />}
     </div>
   )
 }

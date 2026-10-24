@@ -1,10 +1,10 @@
 // Static UI exported from Stitch. Data is hardcoded until the real API is wired in.
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { api, query } from '../../api'
+import { api } from '../../api'
+import FloatingContactWidget from '../../components/FloatingContactWidget'
 import SiteHeader from '../../components/SiteHeader'
 import { Avatar, Icon } from '../../components/ui'
-import { addDays, fromTimeOnly, toDateOnly } from '../../dateUtils'
 import { LEVEL_LABEL, PLAN_TYPE_LABEL } from '../../labels'
 import { NEWS_ITEMS } from '../../newsItems'
 
@@ -15,6 +15,29 @@ const HOME_BANNERS = [
   '/images/banner-home-2.jpg',
   '/images/banner-home-3.jpg',
   '/images/banner-home-4.jpg',
+]
+
+const SPORT_CARDS = [
+  {
+    key: 'gym', tag: 'Gym', title: 'Gym & Thể hình', href: '#gym', banner: '/images/sport-gym.jpg',
+    desc: 'Hệ thống máy tập tạ tự do, cardio hiện đại nhập khẩu trực tiếp cùng lộ trình PT 1:1 cá nhân hóa chuyên sâu.',
+    features: ['Dàn máy cơ sinh học Technogym', 'Huấn luyện viên chuẩn quốc tế'],
+  },
+  {
+    key: 'yoga', tag: 'Yoga', title: 'Yoga & Thiền định', href: '#yoga', banner: '/images/sport-yoga.jpg',
+    desc: 'Vinyasa, Hatha, Aerial Yoga cùng Master Ấn Độ. Cân bằng năng lượng, xoa dịu tâm trí và dẻo dai cơ thể.',
+    features: ['Studio lọc khí ion âm tĩnh lặng', 'Giảng viên chuẩn Yoga Alliance'],
+  },
+  {
+    key: 'pilates', tag: 'Pilates', title: 'Pilates Reformer', href: '#pilates', banner: '/images/sport-pilates.jpg',
+    desc: 'Máy tập Reformer chuyên dụng tăng cơ lõi vững chắc, nắn chỉnh cột sống và định hình đường cong chuẩn xác.',
+    features: ['Máy móc chuyển động êm mượt', 'Sĩ số lớp giới hạn dưới 8 học viên'],
+  },
+  {
+    key: 'hiit', tag: 'HIIT', title: 'HIIT & Functional', href: '#hiit', banner: '/images/sport-hiit.jpg',
+    desc: 'Tập luyện cường độ cao ngắt quãng giúp đốt mỡ tối đa, tăng sức bền tim mạch với âm nhạc bùng nổ nhiệt huyết.',
+    features: ['Đo nhịp tim thời gian thực', 'Tiêu hao lên tới 800 kcal/giờ'],
+  },
 ]
 
 function HeroBannerSlider() {
@@ -51,18 +74,16 @@ function HeroBannerSlider() {
   )
 }
 
-const SEAT_TONE = (remaining, capacity) =>
-  remaining <= 0 ? 'bg-outline-variant/40 text-on-surface-variant' : remaining <= capacity * 0.3 ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-fixed'
+const FEATURED_CLASS_FALLBACKS = ['/images/sport-gym.jpg', '/images/sport-yoga.jpg', '/images/sport-pilates.jpg', '/images/sport-hiit.jpg']
 
-// Real upcoming sessions (next 7 days), same public GET /sessions ClassesPage.jsx uses.
+// The newest open classes (not individual sessions), GET /classes/featured is AllowAnonymous.
 function ClassesSection() {
-  const [sessions, setSessions] = useState([])
+  const [featured, setFeatured] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const today = toDateOnly(new Date())
-    api(`/sessions${query({ from: today, to: addDays(today, 7), pageSize: 6 })}`)
-      .then(({ items }) => setSessions(items.filter((s) => s.status === 'Scheduled')))
+    api('/classes/featured?count=4')
+      .then(setFeatured)
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -82,29 +103,36 @@ function ClassesSection() {
           </Link>
         </div>
 
-        <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${loading ? 'opacity-50' : ''}`}>
-          {sessions.map((s) => (
-            <div key={s.id} className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-l-primary flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant">{LEVEL_LABEL[s.level] ?? s.level}</span>
-                  <span className={`font-label-sm text-label-sm px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${SEAT_TONE(s.remainingSeats, s.capacity)}`}>
-                    {s.remainingSeats > 0 ? `Còn ${s.remainingSeats}/${s.capacity} chỗ` : 'Đã kín chỗ'}
-                  </span>
-                </div>
-                <h3 className="font-headline-md text-headline-md text-on-surface mb-1">{s.className}</h3>
-                <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-4">
-                  <Icon name="schedule" className="text-sm" />
-                  <span>{s.date} • {fromTimeOnly(s.startTime)}-{fromTimeOnly(s.endTime)} • {s.room}</span>
-                </div>
+        <div className={`flex flex-col gap-12 ${loading ? 'opacity-50' : ''}`}>
+          {featured.map((c, i) => (
+            <div key={c.id} className={`flex flex-col md:flex-row ${i % 2 === 1 ? 'md:flex-row-reverse' : ''} items-center gap-8`}>
+              <div className="w-full md:w-1/2">
+                <img
+                  src={c.imageUrl || FEATURED_CLASS_FALLBACKS[i % FEATURED_CLASS_FALLBACKS.length]}
+                  alt={c.name}
+                  className="w-full h-64 sm:h-80 object-cover rounded-2xl shadow-md"
+                />
               </div>
-              <Link to="/login" className="mt-2 w-full text-center py-2.5 px-4 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg hover:opacity-90 transition-opacity">
-                Đăng nhập để đặt chỗ
-              </Link>
+              <div className="w-full md:w-1/2">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-primary-container text-on-primary">{c.sport}</span>
+                  <span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant">{LEVEL_LABEL[c.level] ?? c.level}</span>
+                </div>
+                <h3 className="font-headline-lg text-headline-lg text-on-surface mb-2">{c.name}</h3>
+                <p className="font-body-md text-body-md text-on-surface-variant mb-4">{c.description || 'Lớp học chất lượng cao cùng huấn luyện viên giàu kinh nghiệm tại FitZone.'}</p>
+                <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm mb-5">
+                  <Icon name="calendar_today" className="text-sm" />
+                  <span>{c.startDate} → {c.endDate}</span>
+                </div>
+                <Link to="/classes" className="inline-flex items-center gap-1.5 font-label-lg text-label-lg text-primary hover:gap-2.5 transition-all">
+                  <span>Tìm hiểu thêm</span>
+                  <Icon name="arrow_forward" className="text-base" />
+                </Link>
+              </div>
             </div>
           ))}
-          {!loading && !sessions.length && (
-            <p className="text-secondary text-center py-10 col-span-full">Hiện chưa có buổi học nào mở trong 7 ngày tới.</p>
+          {!loading && !featured.length && (
+            <p className="text-secondary text-center py-10">Hiện chưa có lớp học nào đang mở.</p>
           )}
         </div>
       </div>
@@ -197,8 +225,8 @@ function NewsSection() {
           {NEWS_ITEMS.map((n) => (
             <div key={n.title} className="relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden aspect-[3/4] group">
               <img src={n.banner} alt={n.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/40 to-transparent" />
-              <span className="absolute top-3 left-3 font-label-sm text-label-sm text-on-tertiary-container bg-tertiary-fixed/90 backdrop-blur-sm uppercase tracking-wide px-2.5 py-1 rounded-full">
+              <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/55 to-transparent" />
+              <span className="absolute top-3 left-3 font-label-sm text-label-sm text-on-tertiary-container bg-tertiary-container/90 backdrop-blur-sm uppercase tracking-wide px-2.5 py-1 rounded-full">
                 {n.tag}
               </span>
               <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
@@ -247,46 +275,40 @@ function PricingSection() {
 
         <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch ${loading ? 'opacity-50' : ''}`}>
           {preview.map((p, i) => (
-            <div key={p.id} className="bg-surface-container-lowest rounded-xl shadow-sm hover:shadow-lg transition-shadow flex flex-col justify-between overflow-hidden">
-              <div>
-                <div className="relative h-36">
-                  <img src={p.imageUrl || PRICING_CARD_BANNERS[i % PRICING_CARD_BANNERS.length]} alt={p.name} className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-inverse-surface/10 to-transparent" />
-                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm">
-                    {PLAN_TYPE_LABEL[p.planType] ?? p.planType}
-                  </span>
-                  <h3 className="absolute bottom-3 left-4 right-4 font-headline-md text-headline-md text-white">{p.name}</h3>
+            <div key={p.id} className="relative rounded-xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden aspect-[3/4] group">
+              <img src={p.imageUrl || PRICING_CARD_BANNERS[i % PRICING_CARD_BANNERS.length]} alt={p.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/75 to-inverse-surface/20" />
+              <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm">
+                {PLAN_TYPE_LABEL[p.planType] ?? p.planType}
+              </span>
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                <h3 className="font-headline-md text-headline-md mb-1">{p.name}</h3>
+                <p className="font-body-sm text-body-sm text-white/80 mb-3">{p.sportName ?? 'Áp dụng mọi bộ môn'}</p>
+                <div className="mb-3">
+                  <span className="font-display-lg text-display-lg">{formatVnd(p.price)}</span>
+                  <span className="font-body-sm text-body-sm text-white/80"> / {p.durationDays} ngày</span>
                 </div>
-                <div className="p-6">
-                  <p className="font-body-sm text-body-sm text-secondary">{p.sportName ?? 'Áp dụng mọi bộ môn'}</p>
-                  <div className="my-5">
-                    <span className="font-display-lg text-display-lg text-on-surface">{formatVnd(p.price)}</span>
-                    <span className="font-body-sm text-body-sm text-on-surface-variant"> / {p.durationDays} ngày</span>
-                  </div>
-                  <ul className="space-y-2.5 font-body-sm text-body-sm text-on-surface-variant mb-6">
-                    {p.includesClasses && (
-                      <li className="flex items-start gap-2">
-                        <Icon name="check" className="text-sm text-primary mt-0.5" />
-                        <span>Tham gia lớp học nhóm</span>
-                      </li>
-                    )}
-                    {p.ptSessionCredits > 0 && (
-                      <li className="flex items-start gap-2">
-                        <Icon name="check" className="text-sm text-primary mt-0.5" />
-                        <span>{p.ptSessionCredits} buổi PT 1:1</span>
-                      </li>
-                    )}
-                    {p.includesGymAccess && (
-                      <li className="flex items-start gap-2">
-                        <Icon name="check" className="text-sm text-primary mt-0.5" />
-                        <span>Sử dụng tự do tiện ích phòng Gym</span>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-              <div className="px-6 pb-6">
-                <Link to="/packages" className="w-full block text-center py-2.5 px-4 rounded-lg bg-surface-container text-primary font-label-lg text-label-lg hover:bg-surface-container-high transition-colors">
+                <ul className="space-y-1.5 font-body-sm text-body-sm text-white/90 mb-4">
+                  {p.includesClasses && (
+                    <li className="flex items-center gap-2">
+                      <Icon name="check_circle" className="text-sm text-tertiary-fixed" />
+                      <span>Tham gia lớp học nhóm</span>
+                    </li>
+                  )}
+                  {p.ptSessionCredits > 0 && (
+                    <li className="flex items-center gap-2">
+                      <Icon name="check_circle" className="text-sm text-tertiary-fixed" />
+                      <span>{p.ptSessionCredits} buổi PT 1:1</span>
+                    </li>
+                  )}
+                  {p.includesGymAccess && (
+                    <li className="flex items-center gap-2">
+                      <Icon name="check_circle" className="text-sm text-tertiary-fixed" />
+                      <span>Sử dụng tự do tiện ích phòng Gym</span>
+                    </li>
+                  )}
+                </ul>
+                <Link to="/packages" className="w-full block text-center py-2.5 px-4 rounded-lg bg-surface-container-lowest text-on-surface font-label-lg text-label-lg hover:opacity-90 transition-opacity">
                   Chọn gói này
                 </Link>
               </div>
@@ -379,109 +401,31 @@ export default function HomePage() {
 </div>
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-<div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
-<div>
-<div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container mb-4">
-<span className="material-symbols-outlined text-2xl">fitness_center</span>
-</div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-2">Gym &amp; Thể hình</h3>
-<p className="font-body-md text-body-md text-on-surface-variant mb-6">
-              Hệ thống máy tập tạ tự do, cardio hiện đại nhập khẩu trực tiếp cùng lộ trình PT 1:1 cá nhân hóa chuyên sâu.
-            </p>
-<ul className="space-y-2 font-body-sm text-body-sm text-secondary mb-6">
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Dàn máy cơ sinh học Technogym
-              </li>
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Huấn luyện viên chuẩn quốc tế
-              </li>
+{SPORT_CARDS.map((s) => (
+<div key={s.key} className="relative rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden aspect-[3/4] group">
+<img src={s.banner} alt={s.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+<div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/65 to-transparent" />
+<span className="absolute top-3 left-3 font-label-sm text-label-sm text-on-tertiary-container bg-tertiary-container/90 backdrop-blur-sm uppercase tracking-wide px-2.5 py-1 rounded-full">
+{s.tag}
+</span>
+<div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+<h3 className="font-headline-md text-headline-md mb-1.5">{s.title}</h3>
+<p className="font-body-sm text-body-sm text-white/85 mb-3">{s.desc}</p>
+<ul className="space-y-1.5 font-body-sm text-body-sm text-white/90 mb-4">
+{s.features.map((f) => (
+<li key={f} className="flex items-center gap-2">
+<span className="material-symbols-outlined text-sm text-tertiary-fixed">check_circle</span>
+{f}
+</li>
+))}
 </ul>
-</div>
-<a className="inline-flex items-center gap-1 font-label-md text-label-md text-primary-container hover:gap-2 transition-all" href="#gym">
+<a className="inline-flex items-center gap-1 font-label-md text-label-md text-white hover:gap-2 transition-all" href={s.href}>
 <span>Tìm hiểu thêm</span>
 <span className="material-symbols-outlined text-sm">arrow_forward</span>
 </a>
 </div>
-
-<div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
-<div>
-<div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container mb-4">
-<span className="material-symbols-outlined text-2xl">self_improvement</span>
 </div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-2">Yoga &amp; Thiền định</h3>
-<p className="font-body-md text-body-md text-on-surface-variant mb-6">
-              Vinyasa, Hatha, Aerial Yoga cùng Master Ấn Độ. Cân bằng năng lượng, xoa dịu tâm trí và dẻo dai cơ thể.
-            </p>
-<ul className="space-y-2 font-body-sm text-body-sm text-secondary mb-6">
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Studio lọc khí ion âm tĩnh lặng
-              </li>
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Giảng viên chuẩn Yoga Alliance
-              </li>
-</ul>
-</div>
-<a className="inline-flex items-center gap-1 font-label-md text-label-md text-primary-container hover:gap-2 transition-all" href="#yoga">
-<span>Tìm hiểu thêm</span>
-<span className="material-symbols-outlined text-sm">arrow_forward</span>
-</a>
-</div>
-
-<div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
-<div>
-<div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container mb-4">
-<span className="material-symbols-outlined text-2xl">accessibility_new</span>
-</div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-2">Pilates Reformer</h3>
-<p className="font-body-md text-body-md text-on-surface-variant mb-6">
-              Máy tập Reformer chuyên dụng tăng cơ lõi vững chắc, nắn chỉnh cột sống và định hình đường cong chuẩn xác.
-            </p>
-<ul className="space-y-2 font-body-sm text-body-sm text-secondary mb-6">
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Máy móc chuyển động êm mượt
-              </li>
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Sĩ số lớp giới hạn dưới 8 học viên
-              </li>
-</ul>
-</div>
-<a className="inline-flex items-center gap-1 font-label-md text-label-md text-primary-container hover:gap-2 transition-all" href="#pilates">
-<span>Tìm hiểu thêm</span>
-<span className="material-symbols-outlined text-sm">arrow_forward</span>
-</a>
-</div>
-
-<div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
-<div>
-<div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container mb-4">
-<span className="material-symbols-outlined text-2xl">timer</span>
-</div>
-<h3 className="font-headline-md text-headline-md text-on-surface mb-2">HIIT &amp; Functional</h3>
-<p className="font-body-md text-body-md text-on-surface-variant mb-6">
-              Tập luyện cường độ cao ngắt quãng giúp đốt mỡ tối đa, tăng sức bền tim mạch với âm nhạc bùng nổ nhiệt huyết.
-            </p>
-<ul className="space-y-2 font-body-sm text-body-sm text-secondary mb-6">
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Đo nhịp tim thời gian thực
-              </li>
-<li className="flex items-center gap-2">
-<span className="material-symbols-outlined text-sm text-primary">check_circle</span>
-                Tiêu hao lên tới 800 kcal/giờ
-              </li>
-</ul>
-</div>
-<a className="inline-flex items-center gap-1 font-label-md text-label-md text-primary-container hover:gap-2 transition-all" href="#hiit">
-<span>Tìm hiểu thêm</span>
-<span className="material-symbols-outlined text-sm">arrow_forward</span>
-</a>
-</div>
+))}
 </div>
 </div>
 </section>
@@ -563,6 +507,7 @@ export default function HomePage() {
 </div>
 </div>
 </footer>
+<FloatingContactWidget />
     </>
   )
 }
