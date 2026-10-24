@@ -60,6 +60,27 @@ export function Alert({ type = 'error', title, children, className = '' }) {
   )
 }
 
+// Self-dismissing popup for one-off confirmations (e.g. "action completed"), as opposed to
+// Alert which stays inline on the page until the caller clears it.
+export function Toast({ type = 'success', children, onClose, duration = 4000 }) {
+  const [cls, icon] = ALERT[type]
+  useEffect(() => {
+    const t = setTimeout(onClose, duration)
+    return () => clearTimeout(t)
+  }, [onClose, duration])
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100]">
+      <div role="status" className={`shadow-lg border-l-4 pl-4 pr-3 py-3 rounded-xl flex items-center gap-3 bg-surface-container-lowest ${cls}`}>
+        <Icon name={icon} className="text-xl shrink-0" />
+        <span className="font-body-sm text-body-sm text-on-surface">{children}</span>
+        <button type="button" onClick={onClose} className="text-on-surface-variant hover:text-on-surface">
+          <Icon name="close" className="text-base" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function Modal({ title, onClose, children }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()

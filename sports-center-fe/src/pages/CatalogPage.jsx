@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api } from '../api'
+import { api, apiUpload } from '../api'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { ROOM_STATUS_LABEL, SPORT_STATUS_LABEL } from '../labels'
 
@@ -76,17 +76,34 @@ function RoomForm({ room, onClose, onDone }) {
     name: room?.name ?? '',
     capacity: room?.capacity ?? 10,
     status: room?.status ?? 'Active',
+    imageUrl: room?.imageUrl ?? '',
   })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+
+  const uploadImage = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError('')
+    setUploading(true)
+    try {
+      const { url } = await apiUpload(file)
+      setForm((f) => ({ ...f, imageUrl: url }))
+    } catch (err) {
+      setError(err.message)
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
 
   const submit = async (e) => {
     e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      const body = { ...form, capacity: Number(form.capacity) }
+      const body = { ...form, capacity: Number(form.capacity), imageUrl: form.imageUrl || null }
       const result = editing ? await api(`/rooms/${room.id}`, { method: 'PUT', body }) : await api('/rooms', { method: 'POST', body })
       onDone(result)
     } catch (err) {
@@ -101,6 +118,21 @@ function RoomForm({ room, onClose, onDone }) {
         {error && <Alert>{error}</Alert>}
         <Field label="Tên phòng">
           <input className={inputCls} required minLength={2} maxLength={100} value={form.name} onChange={set('name')} />
+        </Field>
+        <Field label="Ảnh đại diện phòng" hint="Dùng làm ảnh đại diện cho các lớp học trong phòng này">
+          <div className="flex items-center gap-3">
+            {form.imageUrl ? (
+              <img src={form.imageUrl} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-outline-variant" />
+            ) : (
+              <div className="w-20 h-20 rounded-lg bg-surface-container-low flex items-center justify-center shrink-0 border border-outline-variant">
+                <Icon name="image" className="text-outline text-2xl" />
+              </div>
+            )}
+            <label className={`${btnOutline} cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploading ? 'Đang tải lên…' : form.imageUrl ? 'Đổi ảnh' : 'Chọn ảnh'}
+              <input type="file" accept="image/*" className="hidden" onChange={uploadImage} />
+            </label>
+          </div>
         </Field>
         <Field label="Sức chứa">
           <input className={inputCls} type="number" required min={1} max={10000} value={form.capacity} onChange={set('capacity')} />
@@ -222,7 +254,18 @@ export default function CatalogPage() {
           <tbody className={loading ? 'opacity-50' : ''}>
             {rooms.map((r) => (
               <tr key={r.id} className="border-t border-surface-container">
-                <td className="px-4 py-3 font-semibold">{r.name}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {r.imageUrl ? (
+                      <img src={r.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-outline-variant" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
+                        <Icon name="image" className="text-outline text-lg" />
+                      </div>
+                    )}
+                    <span className="font-semibold">{r.name}</span>
+                  </div>
+                </td>
                 <td className="px-4 py-3">{r.capacity}</td>
                 <td className="px-4 py-3">
                   <Badge tone={ROOM_STATUS_TONE[r.status]}>{ROOM_STATUS_LABEL[r.status]}</Badge>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
 import { OpenCheckInCodeButton } from '../components/classCheckIn'
 import { toTimeOnly, fromTimeOnly } from '../dateUtils'
-import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { Alert, Badge, Field, Icon, Modal, Pagination, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { CLASS_STATUS_LABEL, DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, LEVEL_LABEL, SESSION_STATUS_LABEL } from '../labels'
 
 const CLASS_STATUS_TONE = { Draft: 'slate', Open: 'green', Closed: 'amber', Cancelled: 'red' }
@@ -362,7 +362,7 @@ function ClassesTab({ catalog, onViewSessions }) {
       </div>
 
       {error && <Alert>{error}</Alert>}
-      {notice && <Alert type="success">{notice}</Alert>}
+      {notice && <Toast onClose={() => setNotice('')}>{notice}</Toast>}
 
       <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
