@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api } from '../../api'
 import FloatingContactWidget from '../../components/FloatingContactWidget'
+import ImageCarousel from '../../components/ImageCarousel'
 import SiteHeader from '../../components/SiteHeader'
 import { Avatar, Icon } from '../../components/ui'
 import { LEVEL_LABEL, PLAN_TYPE_LABEL } from '../../labels'
@@ -106,11 +107,10 @@ function ClassesSection() {
         <div className={`flex flex-col gap-12 ${loading ? 'opacity-50' : ''}`}>
           {featured.map((c, i) => (
             <div key={c.id} className={`flex flex-col md:flex-row ${i % 2 === 1 ? 'md:flex-row-reverse' : ''} items-center gap-8`}>
-              <div className="w-full md:w-1/2">
-                <img
-                  src={c.imageUrl || FEATURED_CLASS_FALLBACKS[i % FEATURED_CLASS_FALLBACKS.length]}
+              <div className="w-full md:w-1/2 relative h-64 sm:h-80 rounded-2xl shadow-md overflow-hidden">
+                <ImageCarousel
+                  images={c.imageUrls.length ? c.imageUrls : [FEATURED_CLASS_FALLBACKS[i % FEATURED_CLASS_FALLBACKS.length]]}
                   alt={c.name}
-                  className="w-full h-64 sm:h-80 object-cover rounded-2xl shadow-md"
                 />
               </div>
               <div className="w-full md:w-1/2">

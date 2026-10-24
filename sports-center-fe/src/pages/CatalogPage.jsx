@@ -76,34 +76,35 @@ function RoomForm({ room, onClose, onDone }) {
     name: room?.name ?? '',
     capacity: room?.capacity ?? 10,
     status: room?.status ?? 'Active',
-    imageUrl: room?.imageUrl ?? '',
+    imageUrls: room?.imageUrls ?? [],
   })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
-  const uploadImage = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadImages = async (e) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
     setError('')
     setUploading(true)
     try {
-      const { url } = await apiUpload(file)
-      setForm((f) => ({ ...f, imageUrl: url }))
+      const urls = await Promise.all(files.map((f) => apiUpload(f).then((r) => r.url)))
+      setForm((f) => ({ ...f, imageUrls: [...f.imageUrls, ...urls] }))
     } catch (err) {
       setError(err.message)
     }
     setUploading(false)
     e.target.value = ''
   }
+  const removeImage = (url) => setForm((f) => ({ ...f, imageUrls: f.imageUrls.filter((u) => u !== url) }))
 
   const submit = async (e) => {
     e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      const body = { ...form, capacity: Number(form.capacity), imageUrl: form.imageUrl || null }
+      const body = { ...form, capacity: Number(form.capacity) }
       const result = editing ? await api(`/rooms/${room.id}`, { method: 'PUT', body }) : await api('/rooms', { method: 'POST', body })
       onDone(result)
     } catch (err) {
@@ -119,18 +120,27 @@ function RoomForm({ room, onClose, onDone }) {
         <Field label="Tên phòng">
           <input className={inputCls} required minLength={2} maxLength={100} value={form.name} onChange={set('name')} />
         </Field>
-        <Field label="Ảnh đại diện phòng" hint="Dùng làm ảnh đại diện cho các lớp học trong phòng này">
-          <div className="flex items-center gap-3">
-            {form.imageUrl ? (
-              <img src={form.imageUrl} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-outline-variant" />
-            ) : (
-              <div className="w-20 h-20 rounded-lg bg-surface-container-low flex items-center justify-center shrink-0 border border-outline-variant">
-                <Icon name="image" className="text-outline text-2xl" />
+        <Field label="Hình ảnh phòng" hint="Ảnh đầu tiên là ảnh chính, các ảnh sau là ảnh chi tiết — dùng làm banner cho các lớp học trong phòng này">
+          <div className="flex flex-wrap gap-3">
+            {form.imageUrls.map((url, i) => (
+              <div key={url} className="relative w-20 h-20 shrink-0">
+                <img src={url} alt="" className="w-full h-full rounded-lg object-cover border border-outline-variant" />
+                {i === 0 && (
+                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-primary-container text-on-primary text-[10px] font-semibold leading-none">Chính</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeImage(url)}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-error text-on-error flex items-center justify-center shadow"
+                >
+                  <Icon name="close" className="text-sm" />
+                </button>
               </div>
-            )}
-            <label className={`${btnOutline} cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-              {uploading ? 'Đang tải lên…' : form.imageUrl ? 'Đổi ảnh' : 'Chọn ảnh'}
-              <input type="file" accept="image/*" className="hidden" onChange={uploadImage} />
+            ))}
+            <label className={`${btnOutline} cursor-pointer !w-20 !h-20 flex-col gap-1 ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              <Icon name="add_photo_alternate" className="text-xl" />
+              <span className="text-label-sm">{uploading ? 'Đang tải…' : 'Thêm ảnh'}</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={uploadImages} />
             </label>
           </div>
         </Field>
@@ -256,8 +266,8 @@ export default function CatalogPage() {
               <tr key={r.id} className="border-t border-surface-container">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {r.imageUrl ? (
-                      <img src={r.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-outline-variant" />
+                    {r.imageUrls?.[0] ? (
+                      <img src={r.imageUrls[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-outline-variant" />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
                         <Icon name="image" className="text-outline text-lg" />

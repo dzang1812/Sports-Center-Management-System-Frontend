@@ -3,11 +3,12 @@ import { api, query } from '../api'
 import { OpenCheckInCodeButton } from '../components/classCheckIn'
 import { toTimeOnly, fromTimeOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, Pagination, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
-import { CLASS_STATUS_LABEL, DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, LEVEL_LABEL, SESSION_STATUS_LABEL } from '../labels'
+import { CLASS_STATUS_LABEL, DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, LEVEL_LABEL, ROOM_STATUS_LABEL, SESSION_STATUS_LABEL } from '../labels'
 
 const CLASS_STATUS_TONE = { Draft: 'slate', Open: 'green', Closed: 'amber', Cancelled: 'red' }
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
 const CREATABLE_STATUSES = ['Draft', 'Open', 'Closed']
+const daysBetween = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000)
 
 function useCatalog() {
   const [sports, setSports] = useState([])
@@ -16,7 +17,7 @@ function useCatalog() {
   useEffect(() => {
     api('/sports').then(setSports).catch(() => {})
     api('/rooms').then(setRooms).catch(() => {})
-    api(`/users${query({ role: 'Coach', pageSize: 50 })}`).then((r) => setCoaches(r.items)).catch(() => {})
+    api(`/users${query({ role: 'Coach', status: 'Active', pageSize: 50 })}`).then((r) => setCoaches(r.items)).catch(() => {})
   }, [])
   return { sports, rooms, coaches }
 }
@@ -38,6 +39,14 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+
+  const selectedRoom = catalog.rooms.find((r) => String(r.id) === String(form.roomId))
+  const dateError =
+    form.startDate && form.endDate && form.endDate <= form.startDate
+      ? 'Ngày kết thúc phải sau ngày bắt đầu.'
+      : form.startDate && form.endDate && daysBetween(form.startDate, form.endDate) > 366
+        ? 'Khoảng lớp tối đa 366 ngày.'
+        : ''
 
   const submit = async (e) => {
     e.preventDefault()
@@ -71,16 +80,20 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
           <Field label="Bộ môn">
             <select className={inputCls} required value={form.sportId} onChange={set('sportId')}>
               <option value="">Chọn bộ môn</option>
-              {catalog.sports.filter((s) => s.hasClasses).map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {catalog.sports.filter((s) => s.hasClasses && (s.status === 'Active' || String(s.id) === String(form.sportId))).map((s) => (
+                <option key={s.id} value={s.id} disabled={s.status !== 'Active'}>
+                  {s.name}{s.status !== 'Active' ? ' — Ngừng hoạt động' : ''}
+                </option>
               ))}
             </select>
           </Field>
           <Field label="Phòng">
             <select className={inputCls} required value={form.roomId} onChange={set('roomId')}>
               <option value="">Chọn phòng</option>
-              {catalog.rooms.map((r) => (
-                <option key={r.id} value={r.id}>{r.name} (sức chứa {r.capacity})</option>
+              {catalog.rooms.filter((r) => r.status === 'Active' || String(r.id) === String(form.roomId)).map((r) => (
+                <option key={r.id} value={r.id} disabled={r.status !== 'Active'}>
+                  {r.name} (sức chứa {r.capacity}){r.status !== 'Active' ? ` — ${ROOM_STATUS_LABEL[r.status]}` : ''}
+                </option>
               ))}
             </select>
           </Field>
@@ -96,8 +109,8 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
           </Field>
         )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Sức chứa">
-            <input className={inputCls} type="number" required min={1} max={10000} value={form.capacity} onChange={set('capacity')} />
+          <Field label="Sức chứa" hint={selectedRoom ? `Tối đa ${selectedRoom.capacity} (sức chứa phòng)` : undefined}>
+            <input className={inputCls} type="number" required min={1} max={selectedRoom?.capacity ?? 10000} value={form.capacity} onChange={set('capacity')} />
           </Field>
           <Field label="Cấp độ">
             <select className={inputCls} value={form.level} onChange={set('level')}>
@@ -111,7 +124,7 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
           <Field label="Ngày bắt đầu">
             <input className={inputCls} type="date" required value={form.startDate} onChange={set('startDate')} />
           </Field>
-          <Field label="Ngày kết thúc">
+          <Field label="Ngày kết thúc" error={dateError}>
             <input className={inputCls} type="date" required value={form.endDate} onChange={set('endDate')} />
           </Field>
         </div>
@@ -127,7 +140,7 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
         </Field>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
+          <button type="submit" disabled={busy || !!dateError} className={btnPrimary}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
         </div>
       </form>
     </Modal>
@@ -180,6 +193,7 @@ function GenerateSessionsModal({ cls, onClose, onDone }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const toggleDay = (d) => setDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d]))
+  const timeError = startTime && endTime && startTime >= endTime ? 'Giờ kết thúc phải sau giờ bắt đầu.' : ''
 
   const submit = async (e) => {
     e.preventDefault()
@@ -213,13 +227,13 @@ function GenerateSessionsModal({ cls, onClose, onDone }) {
           <Field label="Giờ bắt đầu">
             <input className={inputCls} type="time" required value={startTime} onChange={(e) => setStartTime(e.target.value)} />
           </Field>
-          <Field label="Giờ kết thúc">
+          <Field label="Giờ kết thúc" error={timeError}>
             <input className={inputCls} type="time" required value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </Field>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-          <button type="submit" disabled={busy || !days.length} className={btnPrimary}>{busy ? 'Đang tạo…' : 'Tạo buổi học'}</button>
+          <button type="submit" disabled={busy || !days.length || !!timeError} className={btnPrimary}>{busy ? 'Đang tạo…' : 'Tạo buổi học'}</button>
         </div>
       </form>
     </Modal>
@@ -237,6 +251,7 @@ function SessionEditForm({ session, catalog, onClose, onDone }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const timeError = form.startTime && form.endTime && form.startTime >= form.endTime ? 'Giờ kết thúc phải sau giờ bắt đầu.' : ''
 
   const submit = async (e) => {
     e.preventDefault()
@@ -269,14 +284,16 @@ function SessionEditForm({ session, catalog, onClose, onDone }) {
           <Field label="Giờ bắt đầu">
             <input className={inputCls} type="time" required value={form.startTime} onChange={set('startTime')} />
           </Field>
-          <Field label="Giờ kết thúc">
+          <Field label="Giờ kết thúc" error={timeError}>
             <input className={inputCls} type="time" required value={form.endTime} onChange={set('endTime')} />
           </Field>
         </div>
         <Field label="Phòng">
           <select className={inputCls} required value={form.roomId} onChange={set('roomId')}>
-            {catalog.rooms.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
+            {catalog.rooms.filter((r) => r.status === 'Active' || String(r.id) === String(form.roomId)).map((r) => (
+              <option key={r.id} value={r.id} disabled={r.status !== 'Active'}>
+                {r.name}{r.status !== 'Active' ? ` — ${ROOM_STATUS_LABEL[r.status]}` : ''}
+              </option>
             ))}
           </select>
         </Field>
@@ -285,7 +302,7 @@ function SessionEditForm({ session, catalog, onClose, onDone }) {
         </Field>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
+          <button type="submit" disabled={busy || !!timeError} className={btnPrimary}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
         </div>
       </form>
     </Modal>
