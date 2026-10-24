@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, query } from '../api'
+import { api, apiUpload, query } from '../api'
 import { useAuth } from '../auth'
-import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { Alert, Avatar, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { ROLE_LABEL } from '../labels'
 
 const ROLE_TONE = { Manager: 'amber', Coach: 'indigo', Receptionist: 'slate', Member: 'green' }
@@ -15,9 +15,11 @@ function UserForm({ user, onClose, onDone }) {
     phone: user?.phone ?? '',
     role: user?.role ?? 'Coach',
     specialties: user?.specialties ?? [],
+    avatarUrl: user?.avatarUrl ?? '',
   })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [sports, setSports] = useState([])
 
   useEffect(() => {
@@ -28,15 +30,31 @@ function UserForm({ user, onClose, onDone }) {
     setForm({ ...form, specialties: form.specialties.includes(s) ? form.specialties.filter((x) => x !== s) : [...form.specialties, s] })
   const isCoach = form.role === 'Coach'
 
+  const uploadAvatar = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError('')
+    setUploading(true)
+    try {
+      const { url } = await apiUpload(file)
+      setForm((f) => ({ ...f, avatarUrl: url }))
+    } catch (err) {
+      setError(err.message)
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
+
   const submit = async (e) => {
     e.preventDefault()
     setError('')
     setBusy(true)
     const specialties = isCoach ? form.specialties : []
+    const avatarUrl = form.avatarUrl || null
     try {
       const result = editing
-        ? await api(`/users/${user.id}`, { method: 'PUT', body: { fullName: form.fullName, phone: form.phone || null, specialties } })
-        : await api('/users', { method: 'POST', body: { ...form, phone: form.phone || null, specialties } })
+        ? await api(`/users/${user.id}`, { method: 'PUT', body: { fullName: form.fullName, phone: form.phone || null, specialties, avatarUrl } })
+        : await api('/users', { method: 'POST', body: { ...form, phone: form.phone || null, specialties, avatarUrl } })
       onDone(result)
     } catch (err) {
       setError(err.message)
@@ -48,6 +66,15 @@ function UserForm({ user, onClose, onDone }) {
     <Modal title={editing ? 'Sửa tài khoản' : 'Thêm tài khoản'} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
+        <Field label="Ảnh đại diện">
+          <div className="flex items-center gap-3">
+            <Avatar src={form.avatarUrl} className="w-16 h-16" />
+            <label className={`${btnOutline} cursor-pointer ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploading ? 'Đang tải lên…' : form.avatarUrl ? 'Đổi ảnh' : 'Chọn ảnh'}
+              <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+            </label>
+          </div>
+        </Field>
         {!editing && (
           <Field label="Vai trò">
             <select className={inputCls} value={form.role} onChange={set('role')}>
@@ -187,6 +214,20 @@ export default function UsersPage() {
 
   const [lockBusy, setLockBusy] = useState(false)
 
+  const [verifyingId, setVerifyingId] = useState(null)
+
+  const verifyEmail = async (u) => {
+    setVerifyingId(u.id)
+    setError('')
+    try {
+      await api(`/users/${u.id}/verify-email`, { method: 'PATCH' })
+      load()
+    } catch (err) {
+      setError(err.message)
+    }
+    setVerifyingId(null)
+  }
+
   const confirmToggleStatus = async () => {
     const u = modal.user
     setLockBusy(true)
@@ -280,8 +321,14 @@ export default function UsersPage() {
               <tr key={u.id} className="border-t border-surface-container">
                 <td className="px-4 py-3 text-secondary">#{u.id}</td>
                 <td className="px-4 py-3">
-                  <div className="font-semibold">{u.fullName}</div>
-                  <div className="text-secondary text-body-sm">{u.email}</div>
+                  <div className="flex items-center gap-3">
+                    <Avatar src={u.avatarUrl} className="w-9 h-9" />
+                    <div>
+                      <div className="font-semibold">{u.fullName}</div>
+                      <div className="text-secondary text-body-sm">{u.email}</div>
+                      {!u.emailVerified && <Badge tone="amber">Chưa xác thực email</Badge>}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3">{u.phone ?? '—'}</td>
                 <td className="px-4 py-3">
@@ -298,6 +345,16 @@ export default function UsersPage() {
                     {isStaffAccount(u.role) && (
                       <button className={btnOutline + ' !h-8 !px-2'} title="Sửa" onClick={() => setModal({ type: 'form', user: u })}>
                         <Icon name="edit" className="text-base" />
+                      </button>
+                    )}
+                    {!u.emailVerified && (
+                      <button
+                        className={btnOutline + ' !h-8 !px-2'}
+                        title="Xác thực email thủ công (dùng khi người dùng không nhận được mail)"
+                        disabled={verifyingId === u.id}
+                        onClick={() => verifyEmail(u)}
+                      >
+                        <Icon name="mark_email_read" className="text-base" />
                       </button>
                     )}
                     {u.id !== auth.userId && (
