@@ -169,6 +169,17 @@ export default function CatalogPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // { type: 'sport'|'room', item? }
+  const [sportSearch, setSportSearch] = useState('')
+  const [sportStatus, setSportStatus] = useState('all')
+  const [roomSearch, setRoomSearch] = useState('')
+  const [roomStatus, setRoomStatus] = useState('all')
+
+  const filteredSports = sports
+    .filter((s) => sportStatus === 'all' || s.status === sportStatus)
+    .filter((s) => !sportSearch.trim() || s.name.toLowerCase().includes(sportSearch.trim().toLowerCase()))
+  const filteredRooms = rooms
+    .filter((r) => roomStatus === 'all' || r.status === roomStatus)
+    .filter((r) => !roomSearch.trim() || r.name.toLowerCase().includes(roomSearch.trim().toLowerCase()))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -202,12 +213,19 @@ export default function CatalogPage() {
       {error && <Alert>{error}</Alert>}
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-container">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-surface-container">
           <h2 className="font-headline-md text-headline-md">Bộ môn</h2>
-          <button className={btnPrimary} onClick={() => setModal({ type: 'sport' })}>
-            <Icon name="add" className="text-lg" />
-            Thêm bộ môn
-          </button>
+          <div className="flex items-center gap-2">
+            <input className={inputCls + ' !w-48'} placeholder="Tìm theo tên…" value={sportSearch} onChange={(e) => setSportSearch(e.target.value)} />
+            <select className={inputCls + ' !w-40'} value={sportStatus} onChange={(e) => setSportStatus(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              {Object.entries(SPORT_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <button className={btnPrimary} onClick={() => setModal({ type: 'sport' })}>
+              <Icon name="add" className="text-lg" />
+              Thêm bộ môn
+            </button>
+          </div>
         </div>
         <table className="w-full text-left">
           <thead>
@@ -221,7 +239,7 @@ export default function CatalogPage() {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {sports.map((s) => (
+            {filteredSports.map((s) => (
               <tr key={s.id} className="border-t border-surface-container">
                 <td className="px-4 py-3 font-semibold">{s.name}</td>
                 <td className="px-4 py-3 text-secondary">{s.description ?? '—'}</td>
@@ -240,17 +258,27 @@ export default function CatalogPage() {
             {!loading && !sports.length && (
               <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Chưa có bộ môn nào.</td></tr>
             )}
+            {!loading && sports.length > 0 && !filteredSports.length && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Không có bộ môn khớp bộ lọc.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-container">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-surface-container">
           <h2 className="font-headline-md text-headline-md">Phòng tập</h2>
-          <button className={btnPrimary} onClick={() => setModal({ type: 'room' })}>
-            <Icon name="add" className="text-lg" />
-            Thêm phòng
-          </button>
+          <div className="flex items-center gap-2">
+            <input className={inputCls + ' !w-48'} placeholder="Tìm theo tên…" value={roomSearch} onChange={(e) => setRoomSearch(e.target.value)} />
+            <select className={inputCls + ' !w-40'} value={roomStatus} onChange={(e) => setRoomStatus(e.target.value)}>
+              <option value="all">— Tất cả —</option>
+              {Object.entries(ROOM_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <button className={btnPrimary} onClick={() => setModal({ type: 'room' })}>
+              <Icon name="add" className="text-lg" />
+              Thêm phòng
+            </button>
+          </div>
         </div>
         <table className="w-full text-left">
           <thead>
@@ -262,7 +290,7 @@ export default function CatalogPage() {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {rooms.map((r) => (
+            {filteredRooms.map((r) => (
               <tr key={r.id} className="border-t border-surface-container">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -289,6 +317,9 @@ export default function CatalogPage() {
             ))}
             {!loading && !rooms.length && (
               <tr><td colSpan={4} className="px-4 py-10 text-center text-secondary">Chưa có phòng tập nào.</td></tr>
+            )}
+            {!loading && rooms.length > 0 && !filteredRooms.length && (
+              <tr><td colSpan={4} className="px-4 py-10 text-center text-secondary">Không có phòng khớp bộ lọc.</td></tr>
             )}
           </tbody>
         </table>

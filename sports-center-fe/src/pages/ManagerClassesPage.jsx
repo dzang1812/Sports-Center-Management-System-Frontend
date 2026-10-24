@@ -346,21 +346,27 @@ function ClassesTab({ catalog, onViewSessions }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [modal, setModal] = useState(null)
+  const [filters, setFilters] = useState({ q: '', sportId: '', status: '' })
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      setData(await api(`/classes${query({ page, pageSize })}`))
+      setData(await api(`/classes${query({ ...filters, page, pageSize })}`))
     } catch (err) {
       setError(err.message)
     }
     setLoading(false)
-  }, [page, pageSize])
+  }, [filters, page, pageSize])
 
   useEffect(() => {
     load()
   }, [load])
+
+  const setFilter = (k) => (e) => {
+    setFilters({ ...filters, [k]: e.target.value })
+    setPage(1)
+  }
 
   const done = (result) => {
     const wasGenerate = modal?.type === 'generate'
@@ -371,11 +377,33 @@ function ClassesTab({ catalog, onViewSessions }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <button className={btnPrimary} onClick={() => setModal({ type: 'form' })}>
-          <Icon name="add" className="text-lg" />
-          Tạo lớp học
-        </button>
+      <div className="bg-surface-container rounded-xl shadow-sm p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field label="Tìm theo tên lớp">
+            <input className={inputCls} placeholder="Tìm theo tên…" value={filters.q} onChange={setFilter('q')} />
+          </Field>
+          <Field label="Bộ môn">
+            <select className={inputCls} value={filters.sportId} onChange={setFilter('sportId')}>
+              <option value="">— Tất cả —</option>
+              {catalog.sports.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Trạng thái">
+            <select className={inputCls} value={filters.status} onChange={setFilter('status')}>
+              <option value="">— Tất cả —</option>
+              {Object.entries(CLASS_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <button type="button" className={btnOutline} onClick={() => { setFilters({ q: '', sportId: '', status: '' }); setPage(1) }}>
+            Đặt lại
+          </button>
+          <button className={btnPrimary} onClick={() => setModal({ type: 'form' })}>
+            <Icon name="add" className="text-lg" />
+            Tạo lớp học
+          </button>
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
