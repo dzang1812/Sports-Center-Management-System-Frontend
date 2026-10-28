@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, query } from '../api'
+import { useFlow2TimeRules } from '../flow2TimeRules'
 import { SelfCheckInButton } from '../components/classCheckIn'
 import { Alert, Badge, Field, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import WeekTimetable from '../components/WeekTimetable'
@@ -20,10 +21,11 @@ const compareSchedule = (a, b) => {
 
 // Reflects what actually happened, not just the booking record: once a session has ended, Present/Late
 // (real check-in/coach-marked attendance) beats the stale "Confirmed" booking status; no attendance means missed.
-function effectiveStatus(item) {
+function effectiveStatus(item, enforceTimeRules = true) {
   if (item.status === 'Cancelled') return { label: BOOKING_STATUS_LABEL.Cancelled, tone: 'slate' }
   if (!isPastItem(item)) return { label: BOOKING_STATUS_LABEL[item.status], tone: 'indigo' }
   if (item.attendanceStatus === 'Present' || item.attendanceStatus === 'Late') return { label: ATTENDANCE_STATUS_LABEL[item.attendanceStatus], tone: 'green' }
+  if (!enforceTimeRules) return { label: BOOKING_STATUS_LABEL[item.status], tone: 'indigo' }
   return { label: 'Đã qua — Vắng mặt', tone: 'red' }
 }
 
@@ -44,6 +46,7 @@ function CancelConfirmModal({ item, onClose, onConfirm, busy }) {
 }
 
 function RescheduleModal({ item, onClose, onConfirm, busy, error }) {
+  const { enforceTimeRules, refresh } = useFlow2TimeRules()
   const [date, setDate] = useState(item.date)
   const [time, setTime] = useState(fromTimeOnly(item.startTime))
 
@@ -57,7 +60,7 @@ function RescheduleModal({ item, onClose, onConfirm, busy, error }) {
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
         <Field label="Ngày mới">
-          <input className={inputCls} type="date" required min={toDateOnly(new Date())} value={date} onChange={(e) => setDate(e.target.value)} />
+          <input className={inputCls} type="date" required min={enforceTimeRules ? toDateOnly(new Date()) : undefined} onFocus={refresh} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="Giờ bắt đầu mới">
           <input className={inputCls} type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
@@ -72,6 +75,7 @@ function RescheduleModal({ item, onClose, onConfirm, busy, error }) {
 }
 
 function MySchedule() {
+  const { enforceTimeRules, refresh } = useFlow2TimeRules()
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -7), to: addDays(today, 30) })
   const [items, setItems] = useState([])
@@ -207,7 +211,7 @@ function MySchedule() {
           <tbody className={loading ? 'opacity-50' : ''}>
             {paged.map((item, i) => {
               const past = isPastItem(item)
-              const eff = effectiveStatus(item)
+              const eff = effectiveStatus(item, enforceTimeRules)
               return (
                 <tr key={`${item.type}-${item.bookingId}`} className={`border-t border-surface-container ${past ? 'opacity-70' : ''}`}>
                   <td className="px-4 py-3 text-secondary">{(page - 1) * pageSize + i + 1}</td>
@@ -222,10 +226,10 @@ function MySchedule() {
                   <td className="px-4 py-3 text-secondary">{item.coach}</td>
                   <td className="px-4 py-3"><Badge tone={eff.tone}>{eff.label}</Badge></td>
                   <td className="px-4 py-3 text-right">
-                    {item.status === 'Confirmed' && !past && (
+                    {item.status === 'Confirmed' && (!enforceTimeRules || !past) && (
                       <div className="flex gap-2 justify-end">
                         {item.type === 'PT' ? (
-                          <button className={btnOutline + ' !h-9'} disabled={busyId === item.bookingId} onClick={() => setRescheduleItem(item)}>Đổi lịch</button>
+                          <button className={btnOutline + ' !h-9'} disabled={busyId === item.bookingId} onClick={() => { refresh(); setRescheduleItem(item) }}>Đổi lịch</button>
                         ) : (
                           <SelfCheckInButton sessionId={item.referenceId} className={btnOutline + ' !h-9'} onDone={load} />
                         )}
@@ -275,6 +279,7 @@ function MySchedule() {
 }
 
 function WeekView() {
+  const { enforceTimeRules } = useFlow2TimeRules()
   const [weekStart, setWeekStart] = useState(weekRange()[0])
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -303,8 +308,8 @@ function WeekView() {
           weekStart={weekStart}
           onWeekChange={setWeekStart}
           items={items}
-          statusLabel={(it) => effectiveStatus(it).label}
-          statusTone={(it) => effectiveStatus(it).tone}
+          statusLabel={(it) => effectiveStatus(it, enforceTimeRules).label}
+          statusTone={(it) => effectiveStatus(it, enforceTimeRules).tone}
           renderMeta={(it) => (
             <>
               <span className="material-symbols-outlined text-sm">person</span>

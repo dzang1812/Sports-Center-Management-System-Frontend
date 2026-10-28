@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, query } from '../api'
+import { useFlow2TimeRules } from '../flow2TimeRules'
 import { OpenCheckInCodeButton } from './classCheckIn'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { LEVEL_LABEL } from '../labels'
@@ -216,6 +217,7 @@ export function ClassBrowser({ requireMemberId = false }) {
 
 // Shared by MemberPtPage and ReceptionPtBookingPage.
 export function PtBrowser({ requireMemberId = false }) {
+  const { enforceTimeRules } = useFlow2TimeRules()
   const today = toDateOnly(new Date())
   const [coaches, setCoaches] = useState([])
   const [coach, setCoach] = useState(null)
@@ -246,7 +248,7 @@ export function PtBrowser({ requireMemberId = false }) {
 
   useEffect(() => {
     loadSlots()
-  }, [loadSlots])
+  }, [loadSlots, enforceTimeRules])
 
   const selectCoach = (c) => {
     setCoach(c)

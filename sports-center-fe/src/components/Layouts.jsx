@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { Flow2TimeRulesProvider, Flow2TimeRulesSwitch } from '../flow2TimeRules'
 import { ROLE_LABEL } from '../labels'
 import { Avatar, Icon } from './ui'
 
@@ -117,7 +118,8 @@ function StaffLayout() {
           <button className="lg:hidden p-2 rounded-lg hover:bg-surface-container-high" onClick={() => setOpen(true)} aria-label="Mở menu">
             <Icon name="menu" />
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <Flow2TimeRulesSwitch />
             <UserChip />
           </div>
         </header>
@@ -170,5 +172,5 @@ function MemberLayout() {
 
 export default function AppLayout() {
   const { auth } = useAuth()
-  return auth.role === 'Member' ? <MemberLayout /> : <StaffLayout />
+  return <Flow2TimeRulesProvider key={auth.token}>{auth.role === 'Member' ? <MemberLayout /> : <StaffLayout />}</Flow2TimeRulesProvider>
 }
