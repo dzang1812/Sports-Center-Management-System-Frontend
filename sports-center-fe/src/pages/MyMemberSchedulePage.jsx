@@ -1,80 +1,36 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, query } from '../api'
 import { useFlow2TimeRules } from '../flow2TimeRules'
 import { SelfCheckInButton } from '../components/classCheckIn'
-import { Alert, Badge, Field, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { Alert, Badge, Field, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { CancelBookingModal, PtRescheduleModal } from '../components/scheduleActions'
 import WeekTimetable from '../components/WeekTimetable'
-import { addDays, fromTimeOnly, toDateOnly, weekRange } from '../dateUtils'
+import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly, weekRange } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
 
 // item.date is "yyyy-MM-dd", item.endTime/startTime are "HH:mm:ss" — all local wall-clock values, safe to concatenate.
-const isPastItem = (item) => new Date(`${item.date}T${item.endTime}`) < new Date()
-const startOf = (item) => new Date(`${item.date}T${item.startTime}`).getTime()
+const isPastItem = isPastSchedule
+const startOf = (item) => `${item.date}T${item.startTime}`
 
 // Upcoming first (soonest at top), past items pushed to the end (most recently passed first).
 const compareSchedule = (a, b) => {
   const aPast = isPastItem(a)
   const bPast = isPastItem(b)
   if (aPast !== bPast) return aPast ? 1 : -1
-  return aPast ? startOf(b) - startOf(a) : startOf(a) - startOf(b)
+  return aPast ? startOf(b).localeCompare(startOf(a)) : startOf(a).localeCompare(startOf(b))
 }
 
-// Reflects what actually happened, not just the booking record: once a session has ended, Present/Late
-// (real check-in/coach-marked attendance) beats the stale "Confirmed" booking status; no attendance means missed.
+// Attendance labels come from the backend. A past date alone never creates an Absent result.
 function effectiveStatus(item, enforceTimeRules = true) {
   if (item.status === 'Cancelled') return { label: BOOKING_STATUS_LABEL.Cancelled, tone: 'slate' }
-  if (!isPastItem(item)) return { label: BOOKING_STATUS_LABEL[item.status], tone: 'indigo' }
   if (item.attendanceStatus === 'Present' || item.attendanceStatus === 'Late') return { label: ATTENDANCE_STATUS_LABEL[item.attendanceStatus], tone: 'green' }
+  if (item.attendanceStatus) return { label: ATTENDANCE_STATUS_LABEL[item.attendanceStatus], tone: 'slate' }
+  if (!isPastItem(item)) return { label: BOOKING_STATUS_LABEL[item.status], tone: 'indigo' }
   if (!enforceTimeRules) return { label: BOOKING_STATUS_LABEL[item.status], tone: 'indigo' }
-  return { label: 'Đã qua — Vắng mặt', tone: 'red' }
+  return { label: 'Đã qua — Chưa có điểm danh', tone: 'slate' }
 }
 
-function CancelConfirmModal({ item, onClose, onConfirm, busy }) {
-  return (
-    <Modal title="Xác nhận huỷ" onClose={onClose}>
-      <p className="text-on-surface">
-        Huỷ {item.type === 'PT' ? 'lịch PT' : 'lớp'} <b>"{item.title}"</b> ngày {item.date} lúc {fromTimeOnly(item.startTime)}?
-      </p>
-      <div className="flex justify-end gap-2 pt-5">
-        <button type="button" className={btnOutline} onClick={onClose}>Giữ lại</button>
-        <button type="button" disabled={busy} className={btnPrimary + ' !bg-error !text-white hover:!opacity-90'} onClick={onConfirm}>
-          {busy ? 'Đang huỷ…' : 'Huỷ lịch'}
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
-function RescheduleModal({ item, onClose, onConfirm, busy, error }) {
-  const { enforceTimeRules, refresh } = useFlow2TimeRules()
-  const [date, setDate] = useState(item.date)
-  const [time, setTime] = useState(fromTimeOnly(item.startTime))
-
-  const submit = (e) => {
-    e.preventDefault()
-    onConfirm(date, time)
-  }
-
-  return (
-    <Modal title="Đổi lịch PT" onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        {error && <Alert>{error}</Alert>}
-        <Field label="Ngày mới">
-          <input className={inputCls} type="date" required min={enforceTimeRules ? toDateOnly(new Date()) : undefined} onFocus={refresh} value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label="Giờ bắt đầu mới">
-          <input className={inputCls} type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
-        </Field>
-        <div className="flex justify-end gap-2 pt-2">
-          <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang lưu…' : 'Lưu lịch mới'}</button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
-
-function MySchedule() {
+export function BookingSchedule({ memberId = null, onChanged }) {
   const { enforceTimeRules, refresh } = useFlow2TimeRules()
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -7), to: addDays(today, 30) })
@@ -82,33 +38,45 @@ function MySchedule() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [busyId, setBusyId] = useState(null)
   const [cancelItem, setCancelItem] = useState(null)
   const [rescheduleItem, setRescheduleItem] = useState(null)
-  const [rescheduleError, setRescheduleError] = useState('')
+  const [includeCancelled, setIncludeCancelled] = useState(false)
+  const [subscriptions, setSubscriptions] = useState([])
+  const request = useRef(null)
   const [typeFilter, setTypeFilter] = useState('all')
   const [timeFilter, setTimeFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
+    setItems([])
     try {
-      setItems(await api(`/me/schedule${query({ ...range, includeCancelled: false })}`))
+      const path = memberId ? `/members/${memberId}/schedule` : '/me/schedule'
+      const [schedule, subs] = await Promise.all([
+        api(`${path}${query({ ...range, includeCancelled })}`, { signal: controller.signal }),
+        memberId ? Promise.resolve(null) : api('/me/subscriptions', { signal: controller.signal }),
+      ])
+      if (!controller.signal.aborted) { setItems(schedule); if (subs) setSubscriptions(subs) }
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
-  }, [range])
+    if (!controller.signal.aborted) setLoading(false)
+  }, [range, includeCancelled, memberId])
+  const stop = useCallback(() => request.current?.abort(), [])
 
   useEffect(() => {
     load()
-  }, [load])
+    return stop
+  }, [load, stop])
 
   useEffect(() => {
     setPage(1)
-  }, [range, typeFilter, timeFilter])
+  }, [range, typeFilter, timeFilter, includeCancelled])
 
   const sorted = useMemo(
     () =>
@@ -120,37 +88,7 @@ function MySchedule() {
   )
   const paged = sorted.slice((page - 1) * pageSize, page * pageSize)
 
-  const confirmCancel = async () => {
-    const item = cancelItem
-    setBusyId(item.bookingId)
-    setError('')
-    setNotice('')
-    try {
-      if (item.type === 'PT') await api(`/pt/bookings/${item.bookingId}`, { method: 'DELETE' })
-      else await api(`/bookings/${item.bookingId}`, { method: 'DELETE' })
-      setCancelItem(null)
-      setNotice('Đã huỷ thành công.')
-      load()
-    } catch (err) {
-      setError(err.message)
-    }
-    setBusyId(null)
-  }
-
-  const confirmReschedule = async (date, time) => {
-    const item = rescheduleItem
-    setBusyId(item.bookingId)
-    setRescheduleError('')
-    try {
-      await api(`/pt/bookings/${item.bookingId}/reschedule`, { method: 'PUT', body: { date, startTime: `${time}:00`, roomId: item.roomId ?? null } })
-      setRescheduleItem(null)
-      setNotice('Đã đổi lịch PT thành công.')
-      load()
-    } catch (err) {
-      setRescheduleError(err.message)
-    }
-    setBusyId(null)
-  }
+  const changed = (message) => { setCancelItem(null); setRescheduleItem(null); setNotice(message); load(); onChanged?.() }
 
   return (
     <div className="flex flex-col gap-4">
@@ -177,6 +115,7 @@ function MySchedule() {
             </select>
           </Field>
         </div>
+        <label className="flex items-center gap-2 pt-4"><input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} /> Bao gồm lịch đã hủy</label>
         <div className="flex justify-end gap-2 pt-4">
           <button
             type="button"
@@ -189,12 +128,14 @@ function MySchedule() {
           >
             Đặt lại
           </button>
-          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+          <button type="button" className={btnPrimary} onClick={load} disabled={loading}>Tìm kiếm</button>
         </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
+      {!memberId && subscriptions.filter((s) => s.totalPtSessions > 0).map((s) => <p key={s.id} className="text-secondary">{s.planName}: còn <b>{s.remainingPtSessions}</b>/{s.totalPtSessions} buổi PT ({s.status}).</p>)}
+      {loading && <p role="status" className="text-secondary">Đang tải lịch…</p>}
 
       <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
@@ -228,12 +169,13 @@ function MySchedule() {
                   <td className="px-4 py-3 text-right">
                     {item.status === 'Confirmed' && (!enforceTimeRules || !past) && (
                       <div className="flex gap-2 justify-end">
-                        {item.type === 'PT' ? (
-                          <button className={btnOutline + ' !h-9'} disabled={busyId === item.bookingId} onClick={() => { refresh(); setRescheduleItem(item) }}>Đổi lịch</button>
-                        ) : (
+                        {item.type === 'PT' && (!enforceTimeRules || !hasScheduleStarted(item)) && (
+                          <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => { refresh(); setRescheduleItem(item) }}>Đổi lịch</button>
+                        )}
+                        {item.type === 'Class' && !memberId && (
                           <SelfCheckInButton sessionId={item.referenceId} className={btnOutline + ' !h-9'} onDone={load} />
                         )}
-                        <button className={btnOutline + ' !h-9'} disabled={busyId === item.bookingId} onClick={() => setCancelItem(item)}>Huỷ</button>
+                        {(!enforceTimeRules || !hasScheduleStarted(item)) && <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => setCancelItem(item)}>Huỷ</button>}
                       </div>
                     )}
                   </td>
@@ -260,18 +202,13 @@ function MySchedule() {
       </div>
 
       {cancelItem && (
-        <CancelConfirmModal item={cancelItem} busy={busyId === cancelItem.bookingId} onClose={() => setCancelItem(null)} onConfirm={confirmCancel} />
+        <CancelBookingModal item={cancelItem} onClose={() => setCancelItem(null)} onDone={() => changed('Đã hủy thành công.')} />
       )}
       {rescheduleItem && (
-        <RescheduleModal
+        <PtRescheduleModal
           item={rescheduleItem}
-          busy={busyId === rescheduleItem.bookingId}
-          error={rescheduleError}
-          onClose={() => {
-            setRescheduleItem(null)
-            setRescheduleError('')
-          }}
-          onConfirm={confirmReschedule}
+          onClose={() => setRescheduleItem(null)}
+          onDone={(_, refreshError) => changed(`Đã đổi lịch PT thành công.${refreshError ? ` Không tải lại được khung giờ: ${refreshError}` : ''} Vui lòng kiểm tra lịch và gói tập bên dưới.`)}
         />
       )}
     </div>
@@ -284,25 +221,35 @@ function WeekView() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [includeCancelled, setIncludeCancelled] = useState(false)
+  const request = useRef(null)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
+    setItems([])
     try {
-      setItems(await api(`/me/schedule${query({ from: weekStart, to: addDays(weekStart, 6), includeCancelled: false })}`))
+      const result = await api(`/me/schedule${query({ from: weekStart, to: addDays(weekStart, 6), includeCancelled })}`, { signal: controller.signal })
+      if (!controller.signal.aborted) setItems(result)
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
-  }, [weekStart])
+    if (!controller.signal.aborted) setLoading(false)
+  }, [weekStart, includeCancelled])
+  const stop = useCallback(() => request.current?.abort(), [])
 
   useEffect(() => {
     load()
-  }, [load])
+    return stop
+  }, [load, stop])
 
   return (
     <>
       {error && <Alert>{error}</Alert>}
+      <label className="flex items-center gap-2"><input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} /> Bao gồm lịch đã hủy</label>
       <div className={loading ? 'opacity-50' : ''}>
         <WeekTimetable
           weekStart={weekStart}
@@ -331,24 +278,35 @@ const NOT_MARKED = { label: 'Chưa điểm danh', tone: 'amber', icon: 'hourglas
 const classKey = (i) => (i.type === 'PT' ? 'pt' : `class-${i.classId}`)
 
 function AttendanceHistory() {
-  const now = new Date()
-  const [period, setPeriod] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 })
+  const [year, month] = toDateOnly().split('-').map(Number)
+  const [period, setPeriod] = useState({ year, month })
   const [classFilter, setClassFilter] = useState('all')
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const request = useRef(null)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setError('')
+    setLoading(true)
+    setData(null)
     try {
-      setData(await api(`/me/attendance${query(period)}`))
+      const result = await api(`/me/attendance${query(period)}`, { signal: controller.signal })
+      if (!controller.signal.aborted) setData(result)
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
+    if (!controller.signal.aborted) setLoading(false)
   }, [period])
+  const stop = useCallback(() => request.current?.abort(), [])
 
   useEffect(() => {
     load()
-  }, [load])
+    return stop
+  }, [load, stop])
 
   const classOptions = useMemo(() => {
     const seen = new Map()
@@ -361,11 +319,12 @@ function AttendanceHistory() {
 
   const items = (data?.items ?? []).filter((i) => classFilter === 'all' || classKey(i) === classFilter)
   // Scoped to the class currently selected — not the whole-month totals from the API.
-  const ended = items.filter((i) => i.status !== null)
+  const ended = items.filter((i) => i.status != null)
   const attended = ended.filter((i) => i.status === 'Present' || i.status === 'Late').length
   const absences = ended.filter((i) => i.status === 'Absent').length
   const upcoming = items.length - ended.length
-  const rate = ended.length ? Math.round((attended / ended.length) * 100) : 0
+  const hasData = classFilter === 'all' ? data?.hasData === true && data.countedSessions > 0 : ended.length > 0
+  const rate = classFilter === 'all' ? data?.attendanceRate : ended.length ? Math.round((attended / ended.length) * 10000) / 100 : 0
 
   return (
     <div className="flex flex-col gap-4">
@@ -389,6 +348,7 @@ function AttendanceHistory() {
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {loading && <p role="status" className="text-secondary">Đang tải dữ liệu điểm danh…</p>}
 
       {data && (
         <>
@@ -397,7 +357,7 @@ function AttendanceHistory() {
               <span className="material-symbols-outlined text-lg">info</span>
             </span>
             <span className="text-on-surface">
-              Tỷ lệ tham gia <b>{rate}%</b> ({attended}/{ended.length} buổi)
+              {hasData ? <>Tỷ lệ tham gia <b>{rate}%</b> ({attended}/{ended.length} buổi)</> : <b>Chưa có dữ liệu</b>}
               {absences > 0 && <> — <b className="text-error">Vắng {absences} buổi</b></>}
               {upcoming > 0 && <> — còn <b>{upcoming}</b> buổi chưa điểm danh</>}
             </span>
@@ -476,7 +436,7 @@ export default function MyMemberSchedulePage() {
       </div>
 
       {tab === 'week' && <WeekView />}
-      {tab === 'mine' && <MySchedule />}
+      {tab === 'mine' && <BookingSchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
     </div>
   )

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../../api'
 import { Avatar } from '../../components/ui'
-import { addDays, fromDateOnly, fromTimeOnly, toDateOnly } from '../../dateUtils'
+import { addDays, formatDate, fromTimeOnly, toDateOnly } from '../../dateUtils'
 import { LEVEL_LABEL } from '../../labels'
 
 // A fixed color order, cycled by each sport's position in the catalog (not hardcoded per sport name) —
@@ -29,7 +29,7 @@ const SLOT_RANGES = [
 const slotOf = (startTime) => SLOT_RANGES.find(([, , from, to]) => startTime >= from && startTime < to)?.[1] ?? 'Sáng'
 
 const dayHeading = (dateStr, today, tomorrow) => {
-  const weekday = new Date(dateStr).toLocaleDateString('vi-VN', { weekday: 'long' })
+  const weekday = formatDate(dateStr, { weekday: 'long' })
   const [y, m, d] = dateStr.split('-')
   const prefix = dateStr === today ? 'Hôm nay - ' : dateStr === tomorrow ? 'Ngày mai - ' : ''
   return `${prefix}${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${d}/${m}/${y}`
@@ -132,9 +132,7 @@ export default function MemberSchedule() {
   }
 
   const shiftWeek = (days) => {
-    const start = fromDateOnly(week[0])
-    start.setDate(start.getDate() + days)
-    const newStart = toDateOnly(start)
+    const newStart = addDays(week[0], days)
     setWeek([newStart, addDays(newStart, 6)])
   }
   const goToday = () => setWeek([today, addDays(today, 6)])

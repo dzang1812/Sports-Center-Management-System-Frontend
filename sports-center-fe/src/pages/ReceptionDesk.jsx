@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../api'
+import { formatTimestamp, toDateOnly } from '../dateUtils'
 import { GYM_CARD_STATUS_LABEL } from '../labels'
 
 const STATUS_TONE = {
@@ -21,7 +22,7 @@ const OK_STATUSES = new Set(['Active'])
 const initials = (name) =>
   name.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase()
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+const todayStr = () => toDateOnly()
 
 export default function ReceptionDesk() {
   const [cardCode, setCardCode] = useState('')
@@ -381,7 +382,7 @@ Vui lòng tư vấn hội viên gia hạn gói hoặc xử lý thanh toán trư�
 <div key={v.id} className={`p-space-sm rounded-lg hover:bg-surface-container-low transition-colors flex items-center justify-between ${!v.checkedOutAt ? 'bg-primary-fixed/20' : ''}`}>
 <div className="flex items-center gap-space-sm min-w-0">
 <span className="font-label-md text-label-md text-primary font-bold bg-surface-container px-2 py-1 rounded">
-{new Date(v.checkedInAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+{formatTimestamp(v.checkedInAt, { hour: '2-digit', minute: '2-digit' })}
 </span>
 <div className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center font-bold text-primary shrink-0">
 {initials(v.memberName)}

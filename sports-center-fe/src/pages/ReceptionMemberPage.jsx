@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, query } from '../api'
 import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { SUBSCRIPTION_STATUS_LABEL } from '../labels'
+import { BookingSchedule } from './MyMemberSchedulePage'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 
@@ -60,23 +61,29 @@ function MemberDirectory() {
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const request = useRef(null)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
     try {
-      setData(await api(`/members${query({ q, page, pageSize })}`))
+      const result = await api(`/members${query({ q, page, pageSize })}`, { signal: controller.signal })
+      if (!controller.signal.aborted) setData(result)
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
+    if (!controller.signal.aborted) setLoading(false)
   }, [q, page, pageSize])
+  const stop = useCallback(() => request.current?.abort(), [])
 
   // Debounce so we don't call the API on every keystroke.
   useEffect(() => {
     const t = setTimeout(load, 300)
-    return () => clearTimeout(t)
-  }, [load])
+    return () => { clearTimeout(t); stop() }
+  }, [load, stop])
 
   useEffect(() => {
     setPage(1)
@@ -139,29 +146,39 @@ function MemberDirectory() {
   )
 }
 
-export default function ReceptionMemberPage() {
-  const { id } = useParams()
+function ReceptionMemberContent({ id }) {
   const [subs, setSubs] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [modal, setModal] = useState(false)
   const [lastPayment, setLastPayment] = useState(null)
+  const [member, setMember] = useState(null)
+  const request = useRef(null)
 
   const load = async (memberId) => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
     setSubs(null)
     try {
-      setSubs(await api(`/members/${memberId}/subscriptions`))
+      const [subscriptions, people] = await Promise.all([
+        api(`/members/${memberId}/subscriptions`, { signal: controller.signal }),
+        api(`/members${query({ q: memberId, pageSize: 50 })}`, { signal: controller.signal }),
+      ])
+      if (!controller.signal.aborted) { setSubs(subscriptions); setMember(people.items.find((m) => String(m.id) === String(memberId)) ?? null) }
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
+    if (!controller.signal.aborted) setLoading(false)
   }
+  const stop = useCallback(() => request.current?.abort(), [])
 
   useEffect(() => {
     if (id) load(id)
-  }, [id])
+    return stop
+  }, [id, stop])
 
   return (
     <div className="flex flex-col gap-6">
@@ -173,7 +190,7 @@ export default function ReceptionMemberPage() {
         )}
         <div>
           <h1 className="font-headline-xl text-headline-xl">{id ? 'Chi tiết thành viên' : 'Danh sách hội viên'}</h1>
-          <p className="text-secondary">{id ? 'Gói tập của hội viên, bán hoặc gia hạn tại quầy.' : 'Tìm hội viên theo mã, tên, email hoặc số điện thoại.'}</p>
+          <p className="text-secondary">{id ? `Đang thao tác: ${member?.fullName ?? 'Hội viên'} #${id}${member?.email ? ` • ${member.email}` : ''}` : 'Tìm hội viên theo mã, tên, email hoặc số điện thoại.'}</p>
         </div>
       </div>
 
@@ -221,6 +238,7 @@ export default function ReceptionMemberPage() {
         </div>
       )}
 
+      {id && <section className="space-y-4"><h2 className="font-headline-md text-headline-md">Lịch & booking của {member?.fullName ?? `hội viên #${id}`}</h2><div className="flex gap-2"><Link className={btnOutline} to="/reception/classes">Đặt lớp cho hội viên</Link><Link className={btnOutline} to="/reception/pt">Đặt PT cho hội viên</Link></div><BookingSchedule memberId={id} onChanged={() => load(id)} /></section>}
       {modal && (
         <SellPackageModal
           memberId={id}
@@ -234,4 +252,10 @@ export default function ReceptionMemberPage() {
       )}
     </div>
   )
+}
+
+export default function ReceptionMemberPage() {
+  const { id } = useParams()
+  // Reset subscriptions, selected booking and pending modals immediately when switching members.
+  return <ReceptionMemberContent key={id ?? 'directory'} id={id} />
 }

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
+import { formatTimestamp } from '../dateUtils'
 import { Alert, Badge, Field, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { AUDIT_ACTIONS } from '../labels'
 
-const fmt = (iso) => new Date(iso).toLocaleString('vi-VN', { hour12: false })
+const fmt = (iso) => formatTimestamp(iso, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
 export default function AuditLogsPage() {
   const [filters, setFilters] = useState({ from: '', to: '', user: '', action: '' })
