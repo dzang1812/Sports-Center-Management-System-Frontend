@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { formatTimestamp } from '../dateUtils'
 import { useFlow2TimeRules } from '../flow2TimeRules'
 import { ATTENDANCE_STATUS_LABEL } from '../labels'
 import { Alert, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
@@ -51,6 +52,7 @@ function CodeModal({ sessionId, onClose }) {
             {!enforceTimeRules ? 'Đang bỏ qua hạn mã check-in: Ràng buộc thời gian Flow 2 OFF.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
           </p>
           <p className="text-body-sm text-secondary text-center max-w-xs">Đọc mã này cho hội viên/HLV để họ nhập vào ô check-in.</p>
+          <p className="text-body-sm text-secondary">Hạn mã (giờ Việt Nam): {formatTimestamp(data.expiresAt)}</p>
         </div>
       )}
       <div className="flex justify-end pt-2">
@@ -106,7 +108,7 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
           <p className="font-semibold">{result.alreadyCheckedIn ? 'Bạn đã check-in buổi này trước đó.' : 'Check-in thành công!'}</p>
           <p className="text-secondary">
             Trạng thái: {ATTENDANCE_STATUS_LABEL[result.status] ?? result.status}
-            {result.checkedInAt && ` • lúc ${new Date(result.checkedInAt).toLocaleTimeString('vi-VN')}`}
+            {result.checkedInAt && ` • lúc ${formatTimestamp(result.checkedInAt, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
           </p>
           <button className={btnPrimary} onClick={onClose}>Đóng</button>
         </div>

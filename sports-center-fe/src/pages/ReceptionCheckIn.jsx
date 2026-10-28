@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../api'
+import { formatTimestamp, toDateOnly } from '../dateUtils'
 import { GYM_CARD_STATUS_LABEL } from '../labels'
 
 const STATUS_TONE = {
@@ -21,7 +22,7 @@ const OK_STATUSES = new Set(['Active'])
 const initials = (name) =>
   name.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase()
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+const todayStr = () => toDateOnly()
 
 export default function ReceptionCheckIn() {
   const [cardCode, setCardCode] = useState('')
@@ -331,7 +332,7 @@ Mã: <span className="font-semibold text-on-surface">#{card.cardCode}</span>
 <div key={v.id} className="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-between">
 <div className="flex items-center gap-space-sm min-w-0">
 <span className="font-label-md text-label-md font-bold text-primary font-mono whitespace-nowrap">
-{new Date(v.checkedInAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+{formatTimestamp(v.checkedInAt, { hour: '2-digit', minute: '2-digit' })}
 </span>
 <div className="flex flex-col min-w-0">
 <span className="font-label-lg text-label-lg font-bold text-on-surface truncate">{v.memberName}</span>
