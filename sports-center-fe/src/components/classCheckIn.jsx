@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { useFlow2TimeRules } from '../flow2TimeRules'
 import { ATTENDANCE_STATUS_LABEL } from '../labels'
 import { Alert, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
 
 const msLeft = (expiresAt) => Math.max(0, new Date(expiresAt).getTime() - Date.now())
 
 function CodeModal({ sessionId, onClose }) {
+  const { enforceTimeRules } = useFlow2TimeRules()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [left, setLeft] = useState(0)
@@ -30,7 +32,7 @@ function CodeModal({ sessionId, onClose }) {
     return () => clearInterval(t)
   }, [data])
 
-  const expired = data && left <= 0
+  const expired = enforceTimeRules && data && left <= 0
 
   return (
     <Modal title="Mã check-in buổi học" onClose={onClose}>
@@ -46,7 +48,7 @@ function CodeModal({ sessionId, onClose }) {
             {data.code}
           </div>
           <p className={expired ? 'text-error font-semibold' : 'text-secondary'}>
-            {expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
+            {!enforceTimeRules ? 'Đang bỏ qua hạn mã check-in: Ràng buộc thời gian Flow 2 OFF.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
           </p>
           <p className="text-body-sm text-secondary text-center max-w-xs">Đọc mã này cho hội viên/HLV để họ nhập vào ô check-in.</p>
         </div>
