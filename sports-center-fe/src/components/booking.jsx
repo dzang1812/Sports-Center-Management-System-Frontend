@@ -8,7 +8,7 @@ import { Alert, Avatar, Field, Icon, btnOutline, btnPrimary, inputCls } from './
 
 // Search-as-you-type member picker (GET /members?q=, matches ID/tên/email/SĐT). Used wherever
 // Reception books on behalf of a member — sets the numeric memberId via onSelect once chosen.
-function MemberLookupField({ onSelect }) {
+export function MemberLookupField({ onSelect }) {
   const [text, setText] = useState('')
   const [selected, setSelected] = useState(null)
   const [results, setResults] = useState([])
@@ -20,16 +20,16 @@ function MemberLookupField({ onSelect }) {
       setResults([])
       return
     }
+    const controller = new AbortController()
     const t = setTimeout(async () => {
       try {
-        const { items } = await api(`/members${query({ q: text, pageSize: 6 })}`)
-        setResults(items)
-        setOpen(true)
+        const { items } = await api(`/members${query({ q: text, pageSize: 6 })}`, { signal: controller.signal })
+        if (!controller.signal.aborted) { setResults(items); setOpen(true) }
       } catch {
-        setResults([])
+        if (!controller.signal.aborted) setResults([])
       }
     }, 300)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t); controller.abort() }
   }, [text, selected])
 
   const pick = (m) => {

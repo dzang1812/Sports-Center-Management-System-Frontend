@@ -4,6 +4,7 @@ import { useAuth } from '../auth'
 import { Flow2TimeRulesProvider, Flow2TimeRulesSwitch } from '../flow2TimeRules'
 import { ROLE_LABEL } from '../labels'
 import { Avatar, Icon } from './ui'
+import Notifications from './Notifications'
 
 // Menu per role. Only pages that exist are listed.
 const NAV = {
@@ -12,6 +13,7 @@ const NAV = {
     { to: '/manager/users', label: 'Quản lý người dùng', icon: 'group' },
     { to: '/manager/sports-rooms', label: 'Bộ môn & phòng tập', icon: 'category' },
     { to: '/manager/classes', label: 'Lịch & lớp học', icon: 'calendar_month' },
+    { to: '/manager/pt-bookings', label: 'Lịch PT trung tâm', icon: 'fitness_center' },
     { to: '/manager/packages', label: 'Gói tập', icon: 'sell' },
     { to: '/manager/reports', label: 'Báo cáo', icon: 'monitoring' },
     { to: '/manager/audit-logs', label: 'Nhật ký thao tác', icon: 'history' },
@@ -118,8 +120,9 @@ function StaffLayout() {
           <button className="lg:hidden p-2 rounded-lg hover:bg-surface-container-high" onClick={() => setOpen(true)} aria-label="Mở menu">
             <Icon name="menu" />
           </button>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <Flow2TimeRulesSwitch />
+            <Notifications />
             <UserChip />
           </div>
         </header>
@@ -158,7 +161,7 @@ function MemberLayout() {
               Hồ sơ
             </NavLink>
           </nav>
-          <UserChip />
+          <div className="flex items-center gap-2"><Notifications /><UserChip /></div>
         </div>
       </header>
       <main className="pt-16 w-full max-w-7xl mx-auto px-6 lg:px-12">

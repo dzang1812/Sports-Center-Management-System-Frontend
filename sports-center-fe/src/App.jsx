@@ -14,6 +14,7 @@ import ManagerClassesPage from './pages/ManagerClassesPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
 import ManagerPackagesPage from './pages/ManagerPackagesPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
+import ManagerPtBookingsPage from './pages/ManagerPtBookingsPage'
 import MemberPtPage from './pages/MemberPtPage'
 import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
 import MemberTrainingPage from './pages/MemberTrainingPage'
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="/manager/audit-logs" element={<AuditLogsPage />} />
               <Route path="/manager/sports-rooms" element={<CatalogPage />} />
               <Route path="/manager/classes" element={<ManagerClassesPage />} />
+              <Route path="/manager/pt-bookings" element={<ManagerPtBookingsPage />} />
               <Route path="/manager/packages" element={<ManagerPackagesPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
             </Route>
