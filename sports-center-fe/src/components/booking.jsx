@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, query } from '../api'
+import { CommerceConfirm } from './commerce'
+import { Link } from 'react-router-dom'
 import { useFlow2TimeRules } from '../flow2TimeRules'
 import { OpenCheckInCodeButton } from './classCheckIn'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
@@ -126,7 +128,7 @@ export function ClassBrowser({ requireMemberId = false }) {
     setError('')
     try {
       const { items } = await api(`/sessions${query({ ...filters, pageSize: 50 })}`)
-      setSessions(items.filter((s) => s.status === 'Scheduled'))
+      setSessions(items.filter((s) => s.status === 'Scheduled' && s.bookingMode !== 'CourseEnrollment'))
       // GET /me/schedule is Member-only — skip it when acting on behalf of someone else (Receptionist).
       if (!requireMemberId) {
         const mine = await api(`/me/schedule${query({ ...filters, includeCancelled: false })}`)
@@ -165,6 +167,7 @@ export function ClassBrowser({ requireMemberId = false }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <Link className={btnOutline} to={requireMemberId ? '/reception/members' : '/member/wallet'}>Đăng ký nguyên khóa / số dư</Link>
       {requireMemberId && <MemberLookupField onSelect={setMemberId} />}
 
       <div className="flex flex-wrap gap-3">
@@ -215,140 +218,76 @@ export function ClassBrowser({ requireMemberId = false }) {
   )
 }
 
-// Shared by MemberPtPage and ReceptionPtBookingPage.
+// Shared PT browser; choosing a staff target remounts all booking/payment state.
 export function PtBrowser({ requireMemberId = false }) {
+  const [memberId, setMemberId] = useState('')
+  return <div className="space-y-4">{requireMemberId && <MemberLookupField onSelect={setMemberId} />}{(!requireMemberId || memberId) && <PtBookingBrowser key={memberId || 'self'} memberId={memberId} requireMemberId={requireMemberId} />}</div>
+}
+
+function PtBookingBrowser({ requireMemberId, memberId }) {
   const { enforceTimeRules } = useFlow2TimeRules()
-  const today = toDateOnly(new Date())
+  const today = toDateOnly()
   const [coaches, setCoaches] = useState([])
   const [coach, setCoach] = useState(null)
   const [sportId, setSportId] = useState('')
   const [range, setRange] = useState({ from: today, to: addDays(today, 7) })
   const [slots, setSlots] = useState([])
-  const [memberId, setMemberId] = useState('')
+  const [fundingSource, setFundingSource] = useState('PackageCredit')
+  const [intent, setIntent] = useState(null)
+  const [wallet, setWallet] = useState(null)
+  const [prices, setPrices] = useState([])
+  const [subscriptions, setSubscriptions] = useState([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
-  const [busyKey, setBusyKey] = useState(null)
-
+  const request = useRef(null)
   useEffect(() => {
-    api('/pt/coaches').then(setCoaches).catch((err) => setError(err.message))
+    const c = new AbortController()
+    api('/pt/coaches', { signal: c.signal }).then(setCoaches).catch(err => { if (!c.signal.aborted) setError(err.message) })
+    return () => c.abort()
   }, [])
-
   const loadSlots = useCallback(async () => {
     if (!coach || !sportId) return
-    setLoading(true)
-    setError('')
+    request.current?.abort(); const c = new AbortController(); request.current = c
+    setLoading(true); setError(''); setSlots([])
     try {
-      setSlots(await api(`/pt/coaches/${coach.id}/slots${query({ sportId, ...range })}`))
-    } catch (err) {
-      setError(err.message)
-    }
-    setLoading(false)
-  }, [coach, sportId, range])
-
+      const [available, balance, rates, subs] = await Promise.all([
+        api('/pt/coaches/' + coach.id + '/slots' + query({ sportId, ...range }), { signal: c.signal }),
+        api('/wallet' + query({ memberId: requireMemberId ? memberId : null }), { signal: c.signal }),
+        api('/pt/prices', { signal: c.signal }),
+        api(requireMemberId ? '/members/' + memberId + '/subscriptions' : '/me/subscriptions', { signal: c.signal }),
+      ])
+      if (!c.signal.aborted) { setSlots(available); setWallet(balance); setPrices(rates); setSubscriptions(subs) }
+    } catch (err) { if (!c.signal.aborted) setError(err.message) }
+    finally { if (!c.signal.aborted) setLoading(false) }
+  }, [coach, sportId, range, requireMemberId, memberId])
   useEffect(() => {
-    loadSlots()
+    let active = true
+    void Promise.resolve().then(() => { if (active) loadSlots() })
+    return () => { active = false; request.current?.abort() }
   }, [loadSlots, enforceTimeRules])
-
-  const selectCoach = (c) => {
-    setCoach(c)
-    setSportId(c.sports[0]?.id ?? '')
-    setSlots([])
+  const book = (slot) => {
+    const rate = prices.find(p => p.id === slot.sportId)?.ptSinglePrice
+    if (fundingSource === 'Wallet' && rate == null) { setError('Trung tâm chưa cấu hình giá PT lẻ.'); return }
+    setIntent({
+      title: fundingSource === 'Wallet' ? 'Thanh toán PT buổi lẻ' : 'Đặt PT bằng gói',
+      description: coach.fullName + ' • ' + slot.date + ' ' + fromTimeOnly(slot.startTime) + (requireMemberId ? ' cho hội viên #' + memberId : ''),
+      price: fundingSource === 'Wallet' ? rate : null, balance: wallet?.balance,
+      policy: fundingSource === 'Wallet' ? 'Trả buổi lẻ, không trừ PT credit. Hủy còn ít nhất 12 giờ: hoàn tiền; hủy muộn theo cấu hình: không hoàn. Đổi cùng Coach/dịch vụ/giá không thu lại tiền.' : 'Dùng 1 credit từ gói hợp lệ tại ngày tập; không trừ số dư. Hết credit không tự chuyển sang trả tiền. Hủy đúng hạn hoàn credit về đúng gói.',
+      path: '/pt/bookings', body: { coachId: slot.coachId, sportId: slot.sportId, date: slot.date, startTime: slot.startTime,
+        roomId: null, memberId: requireMemberId ? Number(memberId) : null, fundingSource, expectedPrice: fundingSource === 'Wallet' ? rate : null },
+    })
   }
-
-  const book = async (slot) => {
-    if (requireMemberId && !memberId) {
-      setError('Vui lòng nhập mã hội viên trước khi đặt lịch PT.')
-      return
-    }
-    const key = `${slot.date}-${slot.startTime}`
-    setBusyKey(key)
-    setError('')
-    setNotice('')
-    try {
-      await api('/pt/bookings', {
-        method: 'POST',
-        body: {
-          coachId: slot.coachId,
-          sportId: slot.sportId,
-          date: slot.date,
-          startTime: slot.startTime,
-          roomId: null,
-          memberId: requireMemberId ? Number(memberId) : null,
-        },
-      })
-      setNotice(`Đã đặt lịch PT với ${coach.fullName} ngày ${slot.date} lúc ${fromTimeOnly(slot.startTime)}.`)
-      loadSlots()
-    } catch (err) {
-      setError(err.message)
-    }
-    setBusyKey(null)
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      {requireMemberId && <MemberLookupField onSelect={setMemberId} />}
-
-      {error && <Alert>{error}</Alert>}
-      {notice && <Alert type="success">{notice}</Alert>}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {coaches.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => selectCoach(c)}
-            className={`text-left bg-surface-container-lowest rounded-xl p-4 shadow-sm transition-all flex flex-col gap-2.5 ${
-              coach?.id === c.id ? 'ring-2 ring-primary-container' : 'hover:shadow-md'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Avatar src={c.avatarUrl} className="w-14 h-14" />
-              <div className="min-w-0">
-                <div className="font-semibold truncate">{c.fullName}</div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {c.sports.map((s) => (
-                    <span key={s.id} className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
-                      {s.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {c.certifications && (
-              <div className="flex items-start gap-1.5 text-body-sm text-primary font-semibold">
-                <Icon name="verified" className="text-base shrink-0 mt-0.5" />
-                <span className="line-clamp-1">{c.certifications}</span>
-              </div>
-            )}
-            {c.bio && <p className="text-body-sm text-on-surface-variant line-clamp-2">{c.bio}</p>}
-          </button>
-        ))}
-        {!coaches.length && <p className="text-secondary">Chưa có HLV nhận PT.</p>}
-      </div>
-
-      {coach && (
-        <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col gap-3">
-          <div className="flex flex-wrap gap-3">
-            <select className={`${inputCls} !h-10 !w-auto`} value={sportId} onChange={(e) => setSportId(e.target.value)}>
-              {coach.sports.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-            <input className={`${inputCls} !h-10 !w-auto`} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
-          </div>
-
-          <div className={`flex flex-wrap gap-2 ${loading ? 'opacity-50' : ''}`}>
-            {slots.map((slot) => {
-              const key = `${slot.date}-${slot.startTime}`
-              return (
-                <button key={key} disabled={busyKey === key} className={btnOutline} onClick={() => book(slot)}>
-                  {slot.date} • {fromTimeOnly(slot.startTime)}
-                </button>
-              )
-            })}
-            {!loading && !slots.length && <p className="text-secondary">Không có khung giờ trống trong khoảng thời gian này.</p>}
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return <div className="space-y-4">
+    {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}</Alert>}
+    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{coaches.map(c => <button key={c.id} onClick={() => { setCoach(c); setSportId(c.sports[0]?.id ?? ''); setSlots([]); setIntent(null) }} className={'text-left rounded-xl p-4 bg-surface-container-lowest shadow-sm ' + (coach?.id === c.id ? 'ring-2 ring-primary-container' : '')}><div className="flex gap-3"><Avatar src={c.avatarUrl} className="w-14 h-14" /><div><h3 className="font-semibold">{c.fullName}</h3><p>{c.sports.map(s => s.name).join(' • ')}</p></div></div><p className="text-secondary">{c.certifications}</p><p>{c.bio}</p></button>)}</div>
+    {!coaches.length && <p>Chưa có Coach nhận PT.</p>}
+    <label className="flex flex-wrap gap-3 items-center">Phương thức đặt PT<select className={inputCls + ' !w-auto'} value={fundingSource} onChange={e => { setFundingSource(e.target.value); setIntent(null) }}><option value="PackageCredit">Dùng gói PT — 1 credit, không trừ ví</option><option value="Wallet">Trả buổi lẻ — trừ số dư, không trừ credit</option></select></label>
+    {wallet && <p>Số dư: <b>{wallet.balance.toLocaleString('vi-VN')}đ</b>. {subscriptions.filter(s => s.totalPtSessions > 0).map(s => s.planName + ': ' + s.remainingPtSessions + ' credit (' + s.startDate + ' → ' + s.endDate + ')').join(' • ')}</p>}
+    <Link className={btnOutline} to={requireMemberId ? '/reception/members/' + memberId : '/member/wallet'}>Số dư / mua gói PT</Link>
+    {coach && <section className="rounded-xl bg-surface-container p-4 space-y-3"><div className="flex flex-wrap gap-3"><select className={inputCls + ' !w-auto'} value={sportId} onChange={e => { setSportId(e.target.value); setIntent(null) }}>{coach.sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input className={inputCls + ' !w-auto'} type="date" value={range.from} onChange={e => setRange({ ...range, from: e.target.value })} /><input className={inputCls + ' !w-auto'} type="date" value={range.to} onChange={e => setRange({ ...range, to: e.target.value })} /><button className={btnOutline} disabled={loading} onClick={loadSlots}>Làm mới slot / số dư</button></div>
+      {loading && <p>Đang tải…</p>}<div className="flex flex-wrap gap-2">{slots.map(s => <button key={s.date + s.startTime} className={btnOutline} disabled={loading} onClick={() => book(s)}>{s.date} • {fromTimeOnly(s.startTime)}</button>)}</div>{!loading && !slots.length && <p>Không có khung giờ trống.</p>}
+    </section>}
+    {intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={() => { setIntent(null); setNotice('Backend đã xác nhận booking. Đang tải lại số dư, credit và slots.'); loadSlots() }} />}
+  </div>
 }

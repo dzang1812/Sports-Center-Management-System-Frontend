@@ -1,3 +1,4 @@
+import { MemberCommerce } from '../components/commerce'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, query } from '../api'
@@ -38,7 +39,7 @@ function SellPackageModal({ memberId, onClose, onDone }) {
         <Field label="Gói tập">
           <select className={inputCls} required value={planId} onChange={(e) => setPlanId(e.target.value)}>
             <option value="">— Chọn gói —</option>
-            {plans.map((p) => (
+            {plans.filter((p) => !p.walletPtPackage).map((p) => (
               <option key={p.id} value={p.id}>{p.name} — {p.price.toLocaleString('vi-VN')}đ / {p.durationDays} ngày</option>
             ))}
           </select>
@@ -238,6 +239,7 @@ function ReceptionMemberContent({ id }) {
         </div>
       )}
 
+      {id && <MemberCommerce key={id} memberId={id} />}
       {id && <section className="space-y-4"><h2 className="font-headline-md text-headline-md">Lịch & booking của {member?.fullName ?? `hội viên #${id}`}</h2><div className="flex gap-2"><Link className={btnOutline} to="/reception/classes">Đặt lớp cho hội viên</Link><Link className={btnOutline} to="/reception/pt">Đặt PT cho hội viên</Link></div><BookingSchedule memberId={id} onChanged={() => load(id)} /></section>}
       {modal && (
         <SellPackageModal

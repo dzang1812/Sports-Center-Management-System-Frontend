@@ -30,6 +30,7 @@ export function CancelBookingModal({ item, kind = 'booking', onClose, onDone }) 
   }
   return <Modal title={kind === 'manager' ? 'Trung tâm hủy buổi PT' : item.type === 'PT' ? 'Hủy buổi PT' : 'Hủy lịch lớp'} onClose={close}>
     <form onSubmit={submit} className="space-y-4">
+      <p className="text-secondary">PT trả ví: hủy còn ít nhất 12 giờ được hoàn tiền; dùng gói: hoàn credit về đúng gói. Hủy muộn theo cấu hình không hoàn. Khóa nhóm phải hủy nguyên enrollment.</p>
       <p>Hủy <b>{item.title}</b> ngày {item.date}, {fromTimeOnly(item.startTime)}? Quyền lợi sẽ được cập nhật theo quy định sau khi xác nhận.</p>
       {error && <Alert>{error}</Alert>}
       <Field label="Lý do hủy"><textarea className={inputCls + ' !h-24 py-2'} required={kind !== 'booking'} minLength={kind === 'manager' ? 2 : undefined} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} disabled={busy} /></Field>

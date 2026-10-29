@@ -159,7 +159,7 @@ export function BookingSchedule({ memberId = null, onChanged }) {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{item.type === 'PT' ? 'PT' : 'Lớp học'}</span>
-                      <span className="font-semibold">{item.title}</span>
+                      <span className="font-semibold">{item.title}</span>{item.enrollmentId && <span className="text-body-sm">Đã mua nguyên khóa</span>}{item.fundingSource && <span className="text-body-sm">{item.fundingSource === 'Wallet' ? 'Đã trả buổi lẻ' : 'Dùng gói PT'}</span>}
                     </div>
                     <span className="text-secondary text-body-sm">{item.room ?? '—'}</span>
                   </td>
@@ -175,7 +175,7 @@ export function BookingSchedule({ memberId = null, onChanged }) {
                         {item.type === 'Class' && !memberId && (
                           <SelfCheckInButton sessionId={item.referenceId} className={btnOutline + ' !h-9'} onDone={load} />
                         )}
-                        {(!enforceTimeRules || !hasScheduleStarted(item)) && <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => setCancelItem(item)}>Huỷ</button>}
+                        {!item.enrollmentId && (!enforceTimeRules || !hasScheduleStarted(item)) && <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => setCancelItem(item)}>Huỷ</button>}
                       </div>
                     )}
                   </td>

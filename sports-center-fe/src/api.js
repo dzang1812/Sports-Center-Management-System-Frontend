@@ -27,12 +27,12 @@ export class ApiError extends Error {
 const errorMessage = (data, status) =>
   data?.error ?? Object.values(data?.errors ?? {})[0]?.[0] ?? data?.message ?? (status === 403 ? 'Bạn không có quyền thực hiện thao tác này' : 'Có lỗi xảy ra, vui lòng thử lại')
 
-export async function api(path, { method = 'GET', body, signal } = {}) {
+export async function api(path, { method = 'GET', body, signal, idempotencyKey } = {}) {
   const auth = getAuth()
   const res = await fetch(`/api${path}`, {
     method,
     signal,
-    headers: { ...(body && { 'Content-Type': 'application/json' }), ...(auth && { Authorization: `Bearer ${auth.token}` }) },
+    headers: { ...(idempotencyKey && { 'Idempotency-Key': idempotencyKey }), ...(body && { 'Content-Type': 'application/json' }), ...(auth && { Authorization: `Bearer ${auth.token}` }) },
     body: body && JSON.stringify(body),
   })
 
