@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
 import AppLayout from './components/Layouts'
+import { MemberCommerce, CourseManagement } from './components/commerce'
 import AuditLogsPage from './pages/AuditLogsPage'
 import CatalogPage from './pages/CatalogPage'
 import ClassesPage from './pages/ClassesPage'
@@ -84,6 +85,7 @@ export default function App() {
               <Route path="/manager/audit-logs" element={<AuditLogsPage />} />
               <Route path="/manager/sports-rooms" element={<CatalogPage />} />
               <Route path="/manager/classes" element={<ManagerClassesPage />} />
+              <Route path="/manager/courses" element={<CourseManagement />} />
               <Route path="/manager/pt-bookings" element={<ManagerPtBookingsPage />} />
               <Route path="/manager/packages" element={<ManagerPackagesPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
@@ -112,6 +114,7 @@ export default function App() {
               <Route path="/member/classes" element={<MemberSchedule />} />
               <Route path="/member/schedule" element={<MyMemberSchedulePage />} />
               <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
+              <Route path="/member/wallet" element={<MemberCommerce />} />
               <Route path="/member/pt" element={<MemberPtPage />} />
             </Route>
           </Route>

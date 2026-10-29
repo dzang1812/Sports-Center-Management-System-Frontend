@@ -27,6 +27,20 @@ export const formatTimestamp = (value, options = { day: '2-digit', month: '2-dig
   return value && !Number.isNaN(date.getTime()) ? date.toLocaleString('vi-VN', { ...options, timeZone: BUSINESS_TIME_ZONE }) : '—'
 }
 
+export const businessDateTimeInput = (instant) => {
+  const date = new Date(instant)
+  return `${toDateOnly(date)}T${timeFormatter.format(date).slice(0, 5)}`
+}
+
+// Convert an explicit business wall-clock input to an instant using Intl's zone rules.
+export const businessDateTimeToUtc = (value) => {
+  const [y, m, d, h, minute] = value.split(/[-T:]/).map(Number)
+  const candidate = new Date(Date.UTC(y, m - 1, d, h, minute))
+  const rendered = `${toDateOnly(candidate)}T${timeFormatter.format(candidate)}`
+  const representedAsUtc = new Date(`${rendered}Z`).getTime()
+  return new Date(candidate.getTime() - (representedAsUtc - candidate.getTime())).toISOString()
+}
+
 // DateOnly/TimeOnly are already business wall-clock values; compare as such without parsing in the host timezone.
 const businessWallClock = (now) => `${toDateOnly(now)}T${timeFormatter.format(now)}`
 export const hasScheduleStarted = (item, now = new Date()) => `${item.date}T${item.startTime}` <= businessWallClock(now)

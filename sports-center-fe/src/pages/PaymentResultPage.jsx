@@ -70,7 +70,7 @@ export default function PaymentResultPage() {
           {payment.status === 'Pending' && <p className="text-secondary">Hệ thống sẽ tự cập nhật khi nhận được xác nhận từ ngân hàng (thường trong vài giây).</p>}
 
           <div className="w-full bg-surface-container-lowest rounded-xl shadow-sm p-5 text-left flex flex-col gap-2">
-            <Row label="Gói tập" value={payment.planName ?? '—'} />
+            <Row label="Mục đích" value={payment.purpose === 'WalletTopUp' ? 'Nạp số dư nội bộ' : payment.planName ?? 'Gói tập'} />
             <Row label="Số tiền" value={`${payment.amount.toLocaleString('vi-VN')}đ`} />
             <Row label="Trạng thái" value={PAYMENT_STATUS_LABEL[payment.status]} />
             <Row label="Phương thức" value={PAYMENT_METHOD_LABEL[payment.method]} />
@@ -78,7 +78,7 @@ export default function PaymentResultPage() {
           </div>
 
           <div className="flex gap-3">
-            {auth?.role === 'Member' && <Link to="/member/subscription" className={btnPrimary}>Xem gói của tôi</Link>}
+            {auth?.role === 'Member' && <Link to={payment.purpose === 'WalletTopUp' ? '/member/wallet' : '/member/subscription'} className={btnPrimary}>{payment.purpose === 'WalletTopUp' ? 'Xem số dư' : 'Xem gói của tôi'}</Link>}
             <Link to="/" className={btnOutline}>Về trang chủ</Link>
           </div>
         </>

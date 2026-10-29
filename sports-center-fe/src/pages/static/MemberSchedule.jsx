@@ -70,7 +70,7 @@ export default function MemberSchedule() {
     try {
       const [from, to] = week
       const { items } = await api(`/sessions${query({ from, to, pageSize: 100 })}`)
-      setSessions(items.filter((s) => s.status === 'Scheduled'))
+      setSessions(items.filter((s) => s.status === 'Scheduled' && s.bookingMode !== 'CourseEnrollment'))
       const mine = await api(`/me/schedule${query({ from, to, includeCancelled: false })}`)
       setBookedIds(new Set(mine.filter((m) => m.type === 'Class' && m.status === 'Confirmed').map((m) => m.referenceId)))
     } catch (err) {
@@ -172,6 +172,7 @@ export default function MemberSchedule() {
             </div>
           </div>
 
+          <Link to="/member/wallet" className="inline-flex rounded-lg px-4 py-3 bg-primary-container text-on-primary">Xem khóa nhiều tuần — Đăng ký nguyên khóa</Link>
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               className={`px-4 py-2 rounded-xl font-label-md text-label-md shadow-sm shrink-0 transition-all flex items-center gap-2 ${filters.sport === 'all' ? 'text-on-primary bg-primary-container' : 'text-on-surface-variant bg-surface-container-lowest hover:bg-surface-container-high'}`}
