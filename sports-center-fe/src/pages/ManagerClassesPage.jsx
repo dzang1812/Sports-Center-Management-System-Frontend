@@ -34,6 +34,7 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
     startDate: cls?.startDate ?? '',
     endDate: cls?.endDate ?? '',
     status: cls?.status ?? 'Draft',
+    bookingMode: cls?.bookingMode ?? 'LegacySession',
     description: cls?.description ?? '',
   })
   const [error, setError] = useState('')
@@ -73,6 +74,9 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
     <Modal title={editing ? 'Sửa lớp học' : 'Tạo lớp học'} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
+        <Field label="Mô hình quyền lợi" hint="Khóa mới cần tạo đủ lịch, cấu hình học phí và publish tại Khóa nhóm & học phí. Lớp legacy giữ policy cũ.">
+          <select className={inputCls} disabled={editing} value={form.bookingMode} onChange={set('bookingMode')}><option value="LegacySession">Legacy — đặt từng session bằng gói</option><option value="CourseEnrollment">Đăng ký nguyên khóa</option></select>
+        </Field>
         <Field label="Tên lớp">
           <input className={inputCls} required minLength={2} maxLength={150} value={form.name} onChange={set('name')} />
         </Field>

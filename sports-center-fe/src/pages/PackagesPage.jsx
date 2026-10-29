@@ -67,6 +67,7 @@ export default function PackagesPage() {
     if (!auth) return navigate('/login', { state: { from: { pathname: '/packages' } } })
     if (auth.role !== 'Member') return setError('Chỉ tài khoản hội viên mới tự đăng ký gói ở đây. Lễ tân vui lòng bán gói tại trang quản lý hội viên.')
     setError('')
+    if (plan.ptSessionCredits > 0 && !plan.includesClasses && !plan.includesGymAccess) return navigate('/member/wallet')
     setModalPlan(plan)
   }
 
