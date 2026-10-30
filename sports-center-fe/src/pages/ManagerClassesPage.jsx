@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../api'
 import { OpenCheckInCodeButton } from '../components/classCheckIn'
@@ -10,6 +10,17 @@ const CLASS_STATUS_TONE = { Draft: 'slate', Open: 'green', Closed: 'amber', Canc
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
 const CREATABLE_STATUSES = ['Draft', 'Open', 'Closed']
 const daysBetween = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000)
+
+// Filter before paginating so hidden legacy rows cannot leave blank pages or incorrect totals.
+async function courseSessions(filters, signal) {
+  const items = []
+  const pageSize = 50
+  for (let page = 1; ; page++) {
+    const result = await api(`/sessions${query({ ...filters, page, pageSize })}`, { signal })
+    items.push(...result.items.filter(s => s.bookingMode === 'CourseEnrollment'))
+    if (!result.items.length || page * pageSize >= result.total) return items
+  }
+}
 
 function useCatalog() {
   const [sports, setSports] = useState([])
@@ -75,7 +86,7 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
     <Modal title={editing ? 'Sửa lớp học' : 'Tạo lớp học'} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
-        <Field label="Mô hình quyền lợi" hint="Khóa nguyên khóa được tạo tại màn Tạo khóa học thống nhất. Form này giữ tương thích lớp legacy.">
+        <Field label="Mô hình quyền lợi" hint="Học viên đăng ký và thanh toán nguyên khóa.">
           <select className={inputCls} disabled={editing} value={form.bookingMode} onChange={set('bookingMode')}><option value="LegacySession">Legacy — đặt từng session bằng gói</option>{editing && <option value="CourseEnrollment">Đăng ký nguyên khóa</option>}</select>
         </Field>
         <Field label="Tên lớp">
@@ -352,20 +363,31 @@ function ClassesTab({ catalog, onViewSessions }) {
   const [notice, setNotice] = useState('')
   const [modal, setModal] = useState(null)
   const [filters, setFilters] = useState({ q: '', sportId: '', status: '' })
+  const request = useRef(null)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
     try {
-      setData(await api(`/classes${query({ ...filters, page, pageSize })}`))
+      const courses = await api('/courses', { signal: controller.signal })
+      const term = filters.q.trim().toLocaleLowerCase('vi-VN')
+      const items = courses.map(({ course }) => ({ ...course, bookingMode: 'CourseEnrollment' }))
+        .filter(c => (!term || c.name.toLocaleLowerCase('vi-VN').includes(term)) &&
+          (!filters.sportId || String(c.sportId) === filters.sportId) && (!filters.status || c.status === filters.status))
+        .sort((a, b) => a.id - b.id)
+      if (!controller.signal.aborted) setData({ items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length })
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
+    if (!controller.signal.aborted) setLoading(false)
   }, [filters, page, pageSize])
 
   useEffect(() => {
     load()
+    return () => request.current?.abort()
   }, [load])
 
   const setFilter = (k) => (e) => {
@@ -384,7 +406,7 @@ function ClassesTab({ catalog, onViewSessions }) {
     <div className="flex flex-col gap-4">
       <div className="bg-surface-container rounded-xl shadow-sm p-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Field label="Tìm theo tên lớp">
+          <Field label="Tìm theo tên khóa học">
             <input className={inputCls} placeholder="Tìm theo tên…" value={filters.q} onChange={setFilter('q')} />
           </Field>
           <Field label="Bộ môn">
@@ -405,10 +427,6 @@ function ClassesTab({ catalog, onViewSessions }) {
             Đặt lại
           </button>
           <Link className={btnPrimary} to="/manager/courses/new">Tạo khóa học</Link>
-          <button className={btnOutline} onClick={() => setModal({ type: 'form' })}>
-            <Icon name="add" className="text-lg" />
-            Tạo lớp legacy
-          </button>
         </div>
       </div>
 
@@ -419,7 +437,7 @@ function ClassesTab({ catalog, onViewSessions }) {
         <table className="w-full text-left">
           <thead>
             <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
-              <th className="px-4 py-3">Lớp học</th>
+              <th className="px-4 py-3">Khóa học</th>
               <th className="px-4 py-3">Bộ môn / Phòng</th>
               <th className="px-4 py-3">HLV</th>
               <th className="px-4 py-3">Thời gian</th>
@@ -459,7 +477,7 @@ function ClassesTab({ catalog, onViewSessions }) {
               </tr>
             ))}
             {!loading && !data.items.length && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Chưa có lớp học nào.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-secondary">Chưa có khóa học phù hợp. Bấm “Tạo khóa học” để thêm khóa mới.</td></tr>
             )}
           </tbody>
         </table>
@@ -489,20 +507,26 @@ function SessionsTab({ catalog, initialFilters }) {
   const [cancelling, setCancelling] = useState(null)
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const request = useRef(null)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
     try {
-      setData(await api(`/sessions${query({ ...filters, page, pageSize })}`))
+      const items = await courseSessions(filters, controller.signal)
+      if (!controller.signal.aborted) setData({ items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length })
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
+    if (!controller.signal.aborted) setLoading(false)
   }, [filters, page, pageSize])
 
   useEffect(() => {
     load()
+    return () => request.current?.abort()
   }, [load])
 
   const setFilter = (k) => (e) => {
@@ -529,7 +553,7 @@ function SessionsTab({ catalog, initialFilters }) {
         {classNameFilter && (
           <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-primary-container/15 border border-primary-container/40 w-fit">
             <Icon name="filter_alt" className="text-primary text-lg" />
-            <span className="font-label-md text-label-md">Đang lọc theo lớp: <b>{classNameFilter}</b></span>
+            <span className="font-label-md text-label-md">Đang lọc theo khóa: <b>{classNameFilter}</b></span>
             <button
               type="button"
               className="text-on-surface-variant hover:text-on-surface"
@@ -629,7 +653,7 @@ function SessionsTab({ catalog, initialFilters }) {
               </tr>
             ))}
             {!loading && !data.items.length && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-secondary">Không có buổi học phù hợp.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-secondary">Không có buổi học thuộc khóa phù hợp.</td></tr>
             )}
           </tbody>
         </table>
@@ -673,12 +697,12 @@ export default function ManagerClassesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Lịch & lớp học</h1>
-        <p className="text-secondary">Tạo lớp, phân bổ HLV, sinh buổi học theo chu kỳ và quản lý từng buổi.</p>
+        <h1 className="font-headline-xl text-headline-xl">Lịch & khóa học</h1>
+        <p className="text-secondary">Quản lý khóa học và các buổi trong khóa. Chỉ hiển thị khóa đăng ký nguyên khóa.</p>
       </div>
 
       <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['classes', 'Lớp học'], ['sessions', 'Buổi học']].map(([v, l]) => (
+        {[['classes', 'Khóa học'], ['sessions', 'Buổi trong khóa']].map(([v, l]) => (
           <button
             key={v}
             className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}

@@ -12,7 +12,7 @@ const NAV = {
     { to: '/manager/dashboard', label: 'Tổng quan', icon: 'dashboard' },
     { to: '/manager/users', label: 'Quản lý người dùng', icon: 'group' },
     { to: '/manager/sports-rooms', label: 'Bộ môn & phòng tập', icon: 'category' },
-    { to: '/manager/classes', label: 'Lịch & lớp học', icon: 'calendar_month' },
+    { to: '/manager/classes', label: 'Lịch & khóa học', icon: 'calendar_month' },
     { to: '/manager/courses', label: 'Khóa nhóm & học phí', icon: 'school' },
     { to: '/manager/pt-bookings', label: 'Lịch PT trung tâm', icon: 'fitness_center' },
     { to: '/manager/packages', label: 'Gói tập', icon: 'sell' },
