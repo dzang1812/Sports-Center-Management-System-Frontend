@@ -3,6 +3,8 @@ import { api, query } from '../api'
 import { CommerceConfirm } from './commerce'
 import { Link } from 'react-router-dom'
 import { useFlow2TimeRules } from '../flow2TimeRules'
+import { useAuth } from '../auth'
+import PtCounterCheckout from './PtCounterCheckout'
 import { OpenCheckInCodeButton } from './classCheckIn'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { LEVEL_LABEL } from '../labels'
@@ -225,6 +227,7 @@ export function PtBrowser({ requireMemberId = false }) {
 }
 
 function PtBookingBrowser({ requireMemberId, memberId }) {
+  const { auth } = useAuth()
   const { enforceTimeRules } = useFlow2TimeRules()
   const today = toDateOnly()
   const [coaches, setCoaches] = useState([])
@@ -232,7 +235,17 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
   const [sportId, setSportId] = useState('')
   const [range, setRange] = useState({ from: today, to: addDays(today, 7) })
   const [slots, setSlots] = useState([])
-  const [fundingSource, setFundingSource] = useState('PackageCredit')
+  const [fundingSource, setFundingSource] = useState(requireMemberId ? 'Cash' : 'PackageCredit')
+  const counterStorage = `sc_pt_counter:${auth.userId}:${memberId}`
+  const [counterIntent, setCounterIntent] = useState(() => {
+    if (!requireMemberId) return null
+    try { const saved = JSON.parse(sessionStorage.getItem(counterStorage)); return saved?.key && saved?.body?.memberId === Number(memberId) ? saved : null } catch { return null }
+  })
+  const [counterOpen, setCounterOpen] = useState(false)
+  const rememberCounter = value => {
+    setCounterIntent(value)
+    try { if (value) sessionStorage.setItem(counterStorage, JSON.stringify(value)); else sessionStorage.removeItem(counterStorage) } catch { /* Replay protection still works for this open page. */ }
+  }
   const [intent, setIntent] = useState(null)
   const [wallet, setWallet] = useState(null)
   const [prices, setPrices] = useState([])
@@ -267,8 +280,16 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
     return () => { active = false; request.current?.abort() }
   }, [loadSlots, enforceTimeRules])
   const book = (slot) => {
+    if (requireMemberId && counterIntent) { setCounterOpen(true); return }
     const rate = prices.find(p => p.id === slot.sportId)?.ptSinglePrice
-    if (fundingSource === 'Wallet' && rate == null) { setError('Trung tâm chưa cấu hình giá PT lẻ.'); return }
+    if (['Cash', 'BankTransfer', 'Wallet'].includes(fundingSource) && rate == null) { setError('Trung tâm chưa cấu hình giá PT lẻ.'); return }
+    if (requireMemberId && ['Cash', 'BankTransfer'].includes(fundingSource)) {
+      rememberCounter({ key: crypto.randomUUID(), description: `${coach.fullName} • ${slot.date} ${fromTimeOnly(slot.startTime)} • hội viên #${memberId}`,
+        body: { memberId: Number(memberId), coachId: slot.coachId, sportId: slot.sportId, date: slot.date,
+          startTime: slot.startTime, roomId: null, method: fundingSource, expectedPrice: rate } })
+      setCounterOpen(true)
+      return
+    }
     setIntent({
       title: fundingSource === 'Wallet' ? 'Thanh toán PT buổi lẻ' : 'Đặt PT bằng gói',
       description: coach.fullName + ' • ' + slot.date + ' ' + fromTimeOnly(slot.startTime) + (requireMemberId ? ' cho hội viên #' + memberId : ''),
@@ -282,12 +303,19 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}</Alert>}
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{coaches.map(c => <button key={c.id} onClick={() => { setCoach(c); setSportId(c.sports[0]?.id ?? ''); setSlots([]); setIntent(null) }} className={'text-left rounded-xl p-4 bg-surface-container-lowest shadow-sm ' + (coach?.id === c.id ? 'ring-2 ring-primary-container' : '')}><div className="flex gap-3"><Avatar src={c.avatarUrl} className="w-14 h-14" /><div><h3 className="font-semibold">{c.fullName}</h3><p>{c.sports.map(s => s.name).join(' • ')}</p></div></div><p className="text-secondary">{c.certifications}</p><p>{c.bio}</p></button>)}</div>
     {!coaches.length && <p>Chưa có Coach nhận PT.</p>}
-    <label className="flex flex-wrap gap-3 items-center">Phương thức đặt PT<select className={inputCls + ' !w-auto'} value={fundingSource} onChange={e => { setFundingSource(e.target.value); setIntent(null) }}><option value="PackageCredit">Dùng gói PT — 1 credit, không trừ ví</option><option value="Wallet">Trả buổi lẻ — trừ số dư, không trừ credit</option></select></label>
+    <label className="flex flex-wrap gap-3 items-center">Phương thức đặt PT<select className={inputCls + ' !w-auto'} value={fundingSource} onChange={e => { setFundingSource(e.target.value); setIntent(null) }}>{requireMemberId && <><option value="Cash">Thu tiền mặt tại quầy</option><option value="BankTransfer">Chuyển khoản — khách quét mã QR</option></>}<option value="PackageCredit">Dùng gói PT — 1 credit, không trừ ví</option><option value="Wallet">Trả buổi lẻ — trừ số dư, không trừ credit</option></select></label>
+    {requireMemberId && counterIntent && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-outline-variant p-3"><span>Đang có yêu cầu PT tại quầy: {counterIntent.description}</span><button type="button" className={btnPrimary} onClick={() => setCounterOpen(true)}>Tiếp tục thanh toán{counterIntent.paymentId ? ` #${counterIntent.paymentId}` : ''}</button></div>}
     {wallet && <p>Số dư: <b>{wallet.balance.toLocaleString('vi-VN')}đ</b>. {subscriptions.filter(s => s.totalPtSessions > 0).map(s => s.planName + ': ' + s.remainingPtSessions + ' credit (' + s.startDate + ' → ' + s.endDate + ')').join(' • ')}</p>}
     <Link className={btnOutline} to={requireMemberId ? '/reception/members/' + memberId : '/member/wallet'}>Số dư / mua gói PT</Link>
     {coach && <section className="rounded-xl bg-surface-container p-4 space-y-3"><div className="flex flex-wrap gap-3"><select className={inputCls + ' !w-auto'} value={sportId} onChange={e => { setSportId(e.target.value); setIntent(null) }}>{coach.sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input className={inputCls + ' !w-auto'} type="date" value={range.from} onChange={e => setRange({ ...range, from: e.target.value })} /><input className={inputCls + ' !w-auto'} type="date" value={range.to} onChange={e => setRange({ ...range, to: e.target.value })} /><button className={btnOutline} disabled={loading} onClick={loadSlots}>Làm mới slot / số dư</button></div>
       {loading && <p>Đang tải…</p>}<div className="flex flex-wrap gap-2">{slots.map(s => <button key={s.date + s.startTime} className={btnOutline} disabled={loading} onClick={() => book(s)}>{s.date} • {fromTimeOnly(s.startTime)}</button>)}</div>{!loading && !slots.length && <p>Không có khung giờ trống.</p>}
     </section>}
     {intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={() => { setIntent(null); setNotice('Backend đã xác nhận booking. Đang tải lại số dư, credit và slots.'); loadSlots() }} />}
+    {counterOpen && counterIntent && <PtCounterCheckout intent={counterIntent}
+      onClose={() => { if (!counterIntent.attempted && !counterIntent.paymentId) rememberCounter(null); setCounterOpen(false) }}
+      onAttempt={attempted => rememberCounter({ ...counterIntent, attempted })}
+      onPayment={paymentId => rememberCounter({ ...counterIntent, paymentId })}
+      onRelease={() => { rememberCounter(null); setCounterOpen(false); setNotice('Đã đóng yêu cầu tại quầy. Tiền đã thanh toán vẫn thuộc ví hội viên nếu chưa dùng đặt lịch.'); loadSlots() }}
+      onDone={booking => { rememberCounter(null); setCounterOpen(false); setNotice(`Đã thu tiền và xác nhận booking PT #${booking.id}.`); loadSlots() }} />}
   </div>
 }
