@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import { businessDateTimeInput, businessDateTimeToUtc, formatTimestamp, fromTimeOnly } from '../dateUtils'
 import { Alert, Badge, Field, Modal, Pagination, btnOutline, btnPrimary, inputCls } from './ui'
 import { PaymentPendingPanel } from './payment'
+import CourseScheduleCalendar from './CourseScheduleCalendar'
 
 const vnd = (amount) => `${Number(amount ?? 0).toLocaleString('vi-VN')}đ`
 
@@ -26,19 +27,19 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
     } catch (err) { if (active.current) setError(err.message) }
     finally { pending.current = false; if (active.current) setBusy(false) }
   }
-  return <Modal title={intent.title} onClose={close}>
+  return <Modal title={intent.title} onClose={close} size={intent.sessions ? 'wide' : 'default'}>
     <div className="space-y-4">
       <p>{intent.description}</p>
       {intent.price != null && <p>Thanh toán: <b>{vnd(intent.price)}</b><br />Số dư hiện tại: {vnd(intent.balance)}<br />Dự kiến sau mua: {vnd(intent.balance - intent.price)}. Backend kiểm tra lại khi xác nhận.</p>}
       <p className="text-secondary whitespace-pre-line">{intent.policy}</p>
-      {intent.sessions && <div className="max-h-60 overflow-auto space-y-1"><h3 className="font-semibold">Lịch toàn khóa trước khi thanh toán</h3>{intent.sessions.map(s => <p key={s.id}>{s.date} {fromTimeOnly(s.startTime)}–{fromTimeOnly(s.endTime)} • {s.coach} • {s.room}</p>)}</div>}
+      {intent.sessions && <div className="space-y-2"><h3 className="font-semibold">Lịch toàn khóa trước khi thanh toán</h3><CourseScheduleCalendar title={intent.courseName ?? intent.title} sessions={intent.sessions} /></div>}
       {error && <Alert>{error}</Alert>}
-      <div className="flex justify-end gap-2"><button className={btnOutline} disabled={busy} onClick={close}>Quay lại</button><button className={btnPrimary} disabled={busy} onClick={submit}>{busy ? 'Đang xác nhận…' : 'Xác nhận'}</button></div>
+      <div className="flex justify-end gap-2"><button className={btnOutline} disabled={busy} onClick={close}>Quay lại</button><button className={btnPrimary} disabled={busy} onClick={submit}>{busy ? 'Đang xác nhận…' : intent.confirmLabel ?? 'Xác nhận'}</button></div>
     </div>
   </Modal>
 }
 
-export function MemberCommerce({ memberId = null }) {
+export function MemberCommerce({ memberId = null, coursesOnly = false }) {
   const { auth } = useAuth()
   const staff = auth.role === 'Receptionist'
   const [data, setData] = useState(null)
@@ -61,14 +62,14 @@ export function MemberCommerce({ memberId = null }) {
     try {
       const suffix = query({ memberId, page })
       const [wallet, ledger, courses, enrollments, subs, plans] = await Promise.all([
-        api(`/wallet${query({ memberId })}`, { signal: c.signal }), api(`/wallet/ledger${suffix}`, { signal: c.signal }),
+        api(`/wallet${query({ memberId })}`, { signal: c.signal }), coursesOnly ? null : api(`/wallet/ledger${suffix}`, { signal: c.signal }),
         api('/courses', { signal: c.signal }), api(`/courses/enrollments${query({ memberId })}`, { signal: c.signal }),
-        api(memberId ? `/members/${memberId}/subscriptions` : '/me/subscriptions', { signal: c.signal }), api('/membership-plans', { signal: c.signal }),
+        coursesOnly ? [] : api(memberId ? `/members/${memberId}/subscriptions` : '/me/subscriptions', { signal: c.signal }), coursesOnly ? [] : api('/membership-plans', { signal: c.signal }),
       ])
       if (!c.signal.aborted) setData({ wallet, ledger, courses, enrollments, subs, plans })
     } catch (err) { if (!c.signal.aborted) setError(err.message) }
     finally { if (!c.signal.aborted) setLoading(false) }
-  }, [memberId, page])
+  }, [memberId, page, coursesOnly])
   useEffect(() => {
     let active = true
     const refresh = () => { if (active) load() }
@@ -90,7 +91,7 @@ export function MemberCommerce({ memberId = null }) {
     try {
       const d = await api(`/courses/${course.id}`, { signal: c.signal })
       if (!c.signal.aborted) setIntent({ title: 'Đăng ký toàn khóa', description: `${d.name}: toàn bộ ${d.expectedSessions} buổi${memberId ? ` cho hội viên #${memberId}` : ''}.`,
-        price: d.courseFee, balance: data.wallet.balance, sessions: d.sessions.filter(s => s.status !== 'Cancelled'),
+        price: d.courseFee, balance: data.wallet.balance, courseName: d.name, sessions: d.sessions.filter(s => s.status !== 'Cancelled'),
         policy: 'Trừ ví một lần cho toàn khóa, không thu lại từng buổi. Hệ thống kiểm tra lại hạn đăng ký, khai giảng, sức chứa, trùng lịch và số dư khi xác nhận. Chính sách hủy/hoàn theo khóa đã mua.',
         path: `/courses/${course.id}/enrollments`, body: { ...target, expectedPrice: d.courseFee } })
     } catch (err) { if (!c.signal.aborted) setError(err.message) }
@@ -98,14 +99,14 @@ export function MemberCommerce({ memberId = null }) {
   }
   const done = (result) => { const online = intent?.path === '/wallet/online-top-ups'; setIntent(null); setNotice(online ? 'Yêu cầu nạp đã tạo. Số dư chỉ tăng sau khi Backend xác minh thanh toán.' : 'Backend đã xác nhận giao dịch. Đang tải lại dữ liệu.'); if (online) setPayment(result); load() }
   return <section className="space-y-5">
-    <h2 className="font-headline-lg text-headline-lg">Số dư & đăng ký dịch vụ{memberId ? ` — hội viên #${memberId}` : ''}</h2>
+    <h2 className="font-headline-lg text-headline-lg">{coursesOnly ? 'Đăng ký nguyên khóa' : 'Số dư & đăng ký dịch vụ'}{memberId ? ` — hội viên #${memberId}` : ''}</h2>
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}</Alert>}{loading && <p role="status">Đang tải số dư và quyền lợi…</p>}
     {data && <>
       <div className="rounded-xl bg-surface-container p-5 space-y-3">
         <p>Số dư trả trước: <b className="text-headline-md">{vnd(data.wallet.balance)}</b></p>
         {data.wallet.balance !== data.wallet.ledgerBalance && <Alert>Cần đối chiếu số dư; liên hệ trung tâm trước khi giao dịch.</Alert>}
         <p className="text-secondary">Số dư nội bộ VND. Không hỗ trợ chuyển tiền hoặc rút tiền.</p>
-        <div className="grid sm:grid-cols-3 gap-3 items-end">
+        {coursesOnly ? <Link className={btnOutline} to={`/reception/members/${memberId}`}>Xem số dư / nạp tiền cho hội viên</Link> : <div className="grid sm:grid-cols-3 gap-3 items-end">
           <Field label="Số tiền nạp (VND)"><input className={inputCls} type="number" min="1" max="1000000000" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
           {staff && <Field label="Mã biên nhận đã thu tiền"><input className={inputCls} value={receipt} maxLength={100} onChange={(e) => setReceipt(e.target.value)} /></Field>}
           <button className={btnPrimary} disabled={loading || !Number.isInteger(Number(amount)) || Number(amount) <= 0 || (staff && !receipt.trim())} onClick={() => setIntent({
@@ -113,14 +114,14 @@ export function MemberCommerce({ memberId = null }) {
             policy: staff ? 'Chỉ xác nhận sau khi đã nhận đủ tiền. Mã biên nhận không được dùng hai lần.' : 'Trang success không cộng tiền. Chỉ webhook được xác minh mới ghi có số dư.',
             path: staff ? '/wallet/cash-top-ups' : '/wallet/online-top-ups', body: staff ? { memberId: Number(memberId), amount: Number(amount), receiptReference: receipt.trim() } : { amount: Number(amount) },
           })}>{staff ? 'Nạp tại quầy' : 'Nạp online'}</button>
-        </div>
+        </div>}
       </div>
       {payment && <PaymentPendingPanel payment={payment} />}
-      <div className="rounded-xl bg-surface-container-lowest p-4 space-y-3"><h3 className="font-semibold">Lịch sử nạp / chi / hoàn</h3>
+      {!coursesOnly && <div className="rounded-xl bg-surface-container-lowest p-4 space-y-3"><h3 className="font-semibold">Lịch sử nạp / chi / hoàn</h3>
         {data.ledger.items.map((e) => <div className="border-b border-outline-variant py-2" key={e.id}><b>{e.kind}: {vnd(e.amount)}</b> — còn {vnd(e.balanceAfter)}<p className="text-secondary">{formatTimestamp(e.createdAt)} • {e.reference}</p></div>)}
         {!data.ledger.items.length && <p>Chưa có giao dịch.</p>}
         <Pagination page={page} pageSize={20} total={data.ledger.total} onPage={setPage} onPageSize={() => {}} />
-      </div>
+      </div>}
       <h3 className="font-headline-md text-headline-md">Khóa nhóm nhiều tuần</h3>
       <div className="grid lg:grid-cols-2 gap-4">{data.courses.map(({ course: c, canEnroll }) => <article key={c.id} className="rounded-xl border border-outline-variant p-4 space-y-2">
         <h4 className="font-semibold">{c.name} • {vnd(c.courseFee)}</h4><p>{c.description}</p><p>{c.sport} • {c.level} • HLV {c.coach} • {c.room}</p><p>{c.firstSessionDate ?? c.startDate} → {c.lastSessionDate ?? c.endDate} • {c.durationWeeks} tuần / {c.expectedSessions} buổi • còn {Math.max(0, c.capacity - c.enrolled)} chỗ</p><p>{c.sessionPrice != null ? `${vnd(c.sessionPrice)}/buổi • thanh toán toàn khóa một lần` : 'Giá và phân bổ từng buổi theo quyền lợi toàn khóa.'}</p>
@@ -131,12 +132,12 @@ export function MemberCommerce({ memberId = null }) {
       {data.enrollments.map(e => <div key={e.id} className="rounded-xl bg-surface-container p-4 flex flex-wrap gap-3 justify-between"><div>{e.course} • <Badge>{e.status}</Badge><p>Đã trả {vnd(e.paidAmount)} • đã hoàn {vnd(e.refundedAmount)}</p></div>{e.status === 'Confirmed' && <button className={btnOutline} disabled={loading} onClick={() => setIntent({ title: 'Hủy toàn bộ enrollment', description: e.course, policy: 'Backend chỉ cho phép trước khai giảng; hoàn phần thực trả chưa hoàn, hủy toàn bộ quyền tham gia. Sau khai giảng cần hỗ trợ.', path: `/courses/enrollments/${e.id}/cancel`, body: { reason: 'Hội viên xác nhận hủy toàn khóa' } })}>Yêu cầu hủy toàn khóa</button>}</div>)}
       <Field label="Nội dung cần hỗ trợ về khóa đã mua"><textarea className={inputCls} maxLength={500} value={supportReason} onChange={e => setSupportReason(e.target.value)} /></Field>
       <div className="flex flex-wrap gap-2">{data.enrollments.map(e => <button key={e.id} className={btnOutline} disabled={loading || supportReason.trim().length < 2} onClick={() => setIntent({ title: 'Gửi yêu cầu hỗ trợ khóa', description: e.course, policy: 'Tạo yêu cầu cho trung tâm; không tự hủy quyền lợi hoặc hoàn tiền.', path: '/courses/enrollments/' + e.id + '/support', body: { reason: supportReason.trim() } })}>Gửi hỗ trợ: {e.course}</button>)}</div>
-      <h3 className="font-headline-md text-headline-md">Mua gói PT bằng số dư</h3><p className="text-secondary">Hiệu lực từ ngày kích hoạt theo giờ Việt Nam. Gói credit không tự giữ lịch; chọn slot sau khi mua.</p>
+      {!coursesOnly && <><h3 className="font-headline-md text-headline-md">Mua gói PT bằng số dư</h3><p className="text-secondary">Hiệu lực từ ngày kích hoạt theo giờ Việt Nam. Gói credit không tự giữ lịch; chọn slot sau khi mua.</p>
       <div className="grid lg:grid-cols-2 gap-3">{data.plans.filter(p => p.isActive && p.ptSessionCredits > 0 && !p.includesClasses && !p.includesGymAccess).map(p => <article className="rounded-xl border p-4 space-y-2" key={p.id}><h4 className="font-semibold">{p.name} • {vnd(p.price)}</h4><p>{p.ptSessionCredits} credit / {p.durationDays > 0 ? `${p.durationDays} ngày` : `${p.durationMonths} tháng`} • {p.sportName ?? 'Các bộ môn PT'}</p><button className={btnPrimary} disabled={loading} onClick={() => setIntent({ title: 'Mua gói PT', description: `${p.name}${memberId ? ` cho hội viên #${memberId}` : ''}`, price: p.price, balance: data.wallet.balance, policy: 'Trừ số dư một lần; đặt slot chỉ dùng credit. Chỉ tự hoàn toàn bộ nếu chưa từng sử dụng/giữ credit. Thời hạn tính từ ngày thanh toán thành công.', path: `/pt/packages/${p.id}/purchase`, body: { ...target, expectedPrice: p.price } })}>Mua gói bằng số dư</button></article>)}</div>
       <h3 className="font-semibold">Gói PT hiện có</h3>{data.subs.filter(s => s.totalPtSessions > 0).map(s => <article className="rounded-xl bg-surface-container p-4 space-y-2" key={s.id}><p>{s.planName}: <b>{s.remainingPtSessions}/{s.totalPtSessions}</b> credit • {s.startDate} → {s.endDate} • {s.status}</p>{s.purchaseOrderId && s.status !== 'Cancelled' && <button className={btnOutline} disabled={loading} onClick={() => setIntent({ title: 'Yêu cầu hoàn gói chưa sử dụng', description: s.planName, policy: 'Backend kiểm tra chưa từng dùng credit và chưa có booking. Gói đã sử dụng cần hỗ trợ, không tự hoàn một phần.', path: `/pt/packages/subscriptions/${s.id}/refund` })}>Hoàn gói chưa sử dụng</button>}</article>)}
-      <Link className={btnOutline} to={staff ? '/reception/pt' : '/member/pt'}>Chọn slot PT — dùng gói hoặc trả buổi lẻ</Link>
+      <Link className={btnOutline} to={staff ? '/reception/pt' : '/member/pt'}>Chọn slot PT — dùng gói hoặc trả buổi lẻ</Link></>}
     </>}
-    {detail && <Modal title={detail.name} onClose={() => setDetail(null)}><p>{detail.policy}</p><p className="py-2">{detail.expectedSessions} buổi • {vnd(detail.courseFee)} • đóng {formatTimestamp(detail.enrollmentClosesAt)}</p><div className="space-y-2">{detail.sessions.map(s => <p key={s.id}>{s.date} • {fromTimeOnly(s.startTime)}–{fromTimeOnly(s.endTime)} • {s.room} • {s.coach} • {s.status}{s.replacesSessionId ? ' (Buổi bù)' : ''}</p>)}</div></Modal>}
+    {detail && <Modal size="wide" title={detail.name} onClose={() => setDetail(null)}><p>{detail.policy}</p><p className="py-2">{detail.expectedSessions} buổi • {vnd(detail.courseFee)} • đóng {formatTimestamp(detail.enrollmentClosesAt)}</p><CourseScheduleCalendar key={detail.id} title={detail.name} sessions={detail.sessions} /></Modal>}
     {intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={done} />}
   </section>
 }
@@ -185,7 +186,7 @@ export function CourseManagement() {
         <Field label="Học phí nguyên khóa (VND)"><input className={inputCls} type="number" min="1" step="1" required value={form.fee} onChange={e => setForm({ ...form, fee: e.target.value })} /></Field><Field label="Số buổi công bố"><input className={inputCls} type="number" min="1" max="366" required value={form.expectedSessions} onChange={e => setForm({ ...form, expectedSessions: e.target.value })} /></Field><Field label="Hạn đăng ký (giờ Việt Nam)"><input className={inputCls} type="datetime-local" required value={form.cutoff} onChange={e => setForm({ ...form, cutoff: e.target.value })} /></Field><button className={btnOutline} disabled={loading}>Lưu điều khoản</button><button type="button" className={btnOutline} disabled={loading || !form.cutoff} onClick={() => setIntent({ title: 'Điều chỉnh riêng hạn đăng ký', description: detail.name, policy: 'Chỉ khi hạn cũ chưa qua. Không đổi giá/số buổi đã bán; không mở lại khóa đã đóng theo thời gian.', path: `/courses/${selected}/enrollment-cutoff`, method: 'PUT', body: { enrollmentClosesAt: businessDateTimeToUtc(form.cutoff) } })}>Lưu riêng hạn đăng ký</button>
       </form>
       <div className="flex gap-2">{[true, false].map(open => <button key={String(open)} className={btnPrimary} disabled={loading} onClick={() => setIntent({ title: open ? 'Mở đăng ký khóa' : 'Đóng đăng ký khóa', description: detail.name, policy: 'Backend kiểm tra lịch đủ buổi, tài nguyên, giá và cutoff. Đóng/mở không gia hạn mốc đã lưu.', path: `/courses/${selected}/publish`, method: 'PUT', body: { open } })}>{open ? 'Publish / Mở đăng ký' : 'Đóng đăng ký'}</button>)}</div>
-      <h3 className="font-semibold">Lịch cụ thể</h3>{detail.sessions.map(s => <p key={s.id}>{s.date} {fromTimeOnly(s.startTime)}–{fromTimeOnly(s.endTime)} • {s.room} • {s.coach} • {s.status}{s.replacesSessionId ? ' (Buổi bù)' : ''}</p>)}
+      <h3 className="font-semibold">Lịch toàn khóa</h3><CourseScheduleCalendar key={detail.id} title={detail.name} sessions={detail.sessions} />
       <h3 className="font-semibold">Enrollment / học viên</h3>{enrollments.map(e => <p key={e.id}>{e.member} • {e.status} • đã trả {vnd(e.paidAmount)} • đã hoàn {vnd(e.refundedAmount)}</p>)}{!enrollments.length && <p>Chưa có enrollment.</p>}
       <h3 className="font-semibold">Yêu cầu hỗ trợ khóa</h3>{supportRequests.map(r => <p key={r.id}>{r.member} • {r.status} • {r.description} • {formatTimestamp(r.createdAt)}</p>)}
       <Field label="Lý do hủy"><textarea className={inputCls} maxLength={500} value={cancel.reason} onChange={e => setCancel({ ...cancel, reason: e.target.value })} /></Field>
