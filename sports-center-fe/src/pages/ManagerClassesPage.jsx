@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, query } from '../api'
 import { OpenCheckInCodeButton } from '../components/classCheckIn'
 import { toTimeOnly, fromTimeOnly } from '../dateUtils'
@@ -74,8 +75,8 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
     <Modal title={editing ? 'Sửa lớp học' : 'Tạo lớp học'} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {error && <Alert>{error}</Alert>}
-        <Field label="Mô hình quyền lợi" hint="Khóa mới cần tạo đủ lịch, cấu hình học phí và publish tại Khóa nhóm & học phí. Lớp legacy giữ policy cũ.">
-          <select className={inputCls} disabled={editing} value={form.bookingMode} onChange={set('bookingMode')}><option value="LegacySession">Legacy — đặt từng session bằng gói</option><option value="CourseEnrollment">Đăng ký nguyên khóa</option></select>
+        <Field label="Mô hình quyền lợi" hint="Khóa nguyên khóa được tạo tại màn Tạo khóa học thống nhất. Form này giữ tương thích lớp legacy.">
+          <select className={inputCls} disabled={editing} value={form.bookingMode} onChange={set('bookingMode')}><option value="LegacySession">Legacy — đặt từng session bằng gói</option>{editing && <option value="CourseEnrollment">Đăng ký nguyên khóa</option>}</select>
         </Field>
         <Field label="Tên lớp">
           <input className={inputCls} required minLength={2} maxLength={150} value={form.name} onChange={set('name')} />
@@ -132,8 +133,8 @@ function ClassForm({ cls, catalog, onClose, onDone }) {
             <input className={inputCls} type="date" required value={form.endDate} onChange={set('endDate')} />
           </Field>
         </div>
-        <Field label="Trạng thái">
-          <select className={inputCls} value={form.status} onChange={set('status')}>
+        <Field label="Trạng thái" hint={form.bookingMode === 'CourseEnrollment' ? 'Mở/đóng đăng ký tại Quản lý khóa học để kiểm tra lịch và học phí.' : undefined}>
+          <select className={inputCls} disabled={form.bookingMode === 'CourseEnrollment'} value={form.status} onChange={set('status')}>
             {CREATABLE_STATUSES.map((v) => (
               <option key={v} value={v}>{CLASS_STATUS_LABEL[v]}</option>
             ))}
@@ -403,9 +404,10 @@ function ClassesTab({ catalog, onViewSessions }) {
           <button type="button" className={btnOutline} onClick={() => { setFilters({ q: '', sportId: '', status: '' }); setPage(1) }}>
             Đặt lại
           </button>
-          <button className={btnPrimary} onClick={() => setModal({ type: 'form' })}>
+          <Link className={btnPrimary} to="/manager/courses/new">Tạo khóa học</Link>
+          <button className={btnOutline} onClick={() => setModal({ type: 'form' })}>
             <Icon name="add" className="text-lg" />
-            Tạo lớp học
+            Tạo lớp legacy
           </button>
         </div>
       </div>
