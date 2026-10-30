@@ -49,7 +49,7 @@ function CodeModal({ sessionId, onClose }) {
             {data.code}
           </div>
           <p className={expired ? 'text-error font-semibold' : 'text-secondary'}>
-            {!enforceTimeRules ? 'Đang bỏ qua hạn mã check-in: Ràng buộc thời gian Flow 2 OFF.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
+            {!enforceTimeRules ? 'Đang bật bỏ qua thời gian check-in cho tất cả vai trò.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
           </p>
           <p className="text-body-sm text-secondary text-center max-w-xs">Đọc mã này cho hội viên/HLV để họ nhập vào ô check-in.</p>
           <p className="text-body-sm text-secondary">Hạn mã (giờ Việt Nam): {formatTimestamp(data.expiresAt)}</p>
@@ -119,13 +119,14 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
 
 // Manager/Receptionist/assigned Coach — generates a fresh short-lived check-in code for a Scheduled session.
 export function OpenCheckInCodeButton({ sessionId, className }) {
+  const { enforceTimeRules } = useFlow2TimeRules()
   const [open, setOpen] = useState(false)
   return (
     <>
       <button type="button" className={className ?? btnOutline + ' !h-8 !px-2'} title="Mở mã check-in" onClick={() => setOpen(true)}>
         <Icon name="qr_code_2" className="text-base" />
       </button>
-      {open && <CodeModal sessionId={sessionId} onClose={() => setOpen(false)} />}
+      {open && <CodeModal key={`${sessionId}:${enforceTimeRules}`} sessionId={sessionId} onClose={() => setOpen(false)} />}
     </>
   )
 }

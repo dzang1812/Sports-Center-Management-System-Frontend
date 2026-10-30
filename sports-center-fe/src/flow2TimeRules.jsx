@@ -18,7 +18,6 @@ export function Flow2TimeRulesProvider({ children }) {
   const revision = useRef(0)
 
   const refresh = useCallback(async () => {
-    if (!import.meta.env.DEV) return null
     const current = ++revision.current
     try {
       const result = await api(endpoint)
@@ -36,7 +35,6 @@ export function Flow2TimeRulesProvider({ children }) {
   }, [refresh, pathname])
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return
     const sync = () => {
       if (document.visibilityState === 'visible') refresh()
     }
@@ -64,11 +62,11 @@ export function Flow2TimeRulesProvider({ children }) {
       revision.current++
       setStatus(result)
       setNotice({ type: 'success', text: result.enforceTimeRules
-        ? 'Đã bật ràng buộc thời gian Flow 2 cho tất cả vai trò.'
-        : 'Đã tắt ràng buộc thời gian Flow 2 cho tất cả vai trò.' })
+        ? 'Đã TẮT bỏ qua thời gian: tất cả vai trò áp dụng thời gian bình thường.'
+        : 'Đã BẬT bỏ qua thời gian đặt/hủy lịch và check-in cho tất cả vai trò.' })
     } catch (err) {
       setNotice({ type: 'error', text: err.status === 403
-        ? 'Backend từ chối thay đổi ràng buộc thời gian. Tính năng chỉ dành cho Manager trong môi trường kiểm thử được cho phép.'
+        ? 'Backend từ chối thay đổi. Chỉ Manager đang hoạt động được bật/tắt khi cấu hình máy chủ cho phép.'
         : err.message })
       await refresh()
     } finally {
@@ -76,16 +74,16 @@ export function Flow2TimeRulesProvider({ children }) {
     }
   }
 
-  const available = import.meta.env.DEV && status?.available === true && status.scope === 'global'
+  const available = status?.available === true && status.scope === 'global'
   const enforceTimeRules = !(available && status.enforceTimeRules === false)
   const canManage = available && auth.role === 'Manager' && status.canManage === true
 
   return (
-    <Flow2TimeRulesContext.Provider value={{ enforceTimeRules, canManage, busy, refresh, update }}>
+    <Flow2TimeRulesContext.Provider value={{ available, enforceTimeRules, canManage, busy, refresh, update }}>
       {children}
       {available && !enforceTimeRules && (
         <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] sm:max-w-sm" role="status">
-          <Alert type="warning">Ràng buộc thời gian Flow 2: OFF — đang bỏ qua giới hạn thời gian cho tất cả vai trò. Chỉ dùng để kiểm thử.</Alert>
+          <Alert type="warning">Bỏ qua thời gian đang BẬT cho tất cả vai trò trên máy chủ này: đặt/hủy lịch và check-in. Hạn mua khóa, hạn gói đã mua và các quy tắc tiền vẫn áp dụng.</Alert>
         </div>
       )}
       {notice && <Toast type={notice.type} onClose={() => setNotice(null)}>{notice.text}</Toast>}
@@ -94,24 +92,25 @@ export function Flow2TimeRulesProvider({ children }) {
 }
 
 export function Flow2TimeRulesSwitch() {
-  const { enforceTimeRules, canManage, busy, update } = useFlow2TimeRules()
-  if (!canManage) return null
+  const { auth } = useAuth()
+  const { available, enforceTimeRules, canManage, busy, update } = useFlow2TimeRules()
+  if (auth.role !== 'Manager') return null
   return (
     <button
       type="button"
       role="switch"
-      aria-checked={enforceTimeRules}
-      aria-label="Ràng buộc thời gian Flow 2"
-      disabled={busy}
+      aria-checked={!enforceTimeRules}
+      aria-label="Bỏ qua giới hạn thời gian Flow 2 cho tất cả vai trò"
+      disabled={busy || !canManage}
       onClick={update}
-      title={enforceTimeRules ? 'ON: áp dụng thời gian bình thường cho tất cả vai trò' : 'OFF: bỏ qua giới hạn thời gian Flow 2 cho tất cả vai trò'}
+      title={!available ? 'Backend chưa hỗ trợ hoặc chưa cho phép công tắc này. Cần triển khai Backend mới và bật Flow2TimeRules:AllowGlobalSwitch.' : `${enforceTimeRules ? 'Bật bỏ qua thời gian đặt/hủy lịch và check-in cho tất cả vai trò.' : 'Tắt bỏ qua để áp dụng thời gian bình thường cho tất cả vai trò.'} Trạng thái dùng chung trên máy chủ, trở về cấu hình mặc định khi Backend khởi động lại.`}
       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-label-sm font-semibold disabled:opacity-60 ${enforceTimeRules
         ? 'bg-surface-container text-on-surface border border-outline-variant'
         : 'bg-orange-100 text-orange-900 border border-orange-400'}`}
     >
       <Icon name="science" className="text-xl shrink-0" />
-      <span className="text-left leading-tight">Ràng buộc thời gian Flow 2 <span className="whitespace-nowrap">{busy ? '…' : enforceTimeRules ? 'ON' : 'OFF'}</span></span>
-      <Icon name={enforceTimeRules ? 'toggle_on' : 'toggle_off'} className="text-2xl shrink-0" />
+      <span className="text-left leading-tight">Bỏ qua thời gian <span className="whitespace-nowrap">{busy ? '…' : !available ? 'Chưa sẵn sàng' : enforceTimeRules ? 'TẮT' : 'BẬT'}</span></span>
+      <Icon name={enforceTimeRules ? 'toggle_off' : 'toggle_on'} className="text-2xl shrink-0" />
     </button>
   )
 }

@@ -12,6 +12,7 @@ import { Forbidden, NotFound } from './pages/ErrorPages'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ManagerClassesPage from './pages/ManagerClassesPage'
+import CourseCreationPage from './pages/CourseCreationPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
 import ManagerPackagesPage from './pages/ManagerPackagesPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
@@ -88,6 +89,7 @@ export default function App() {
               <Route path="/manager/sports-rooms" element={<CatalogPage />} />
               <Route path="/manager/classes" element={<ManagerClassesPage />} />
               <Route path="/manager/courses" element={<CourseManagement />} />
+              <Route path="/manager/courses/new" element={<CourseCreationPage />} />
               <Route path="/manager/pt-bookings" element={<ManagerPtBookingsPage />} />
               <Route path="/manager/packages" element={<ManagerPackagesPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
