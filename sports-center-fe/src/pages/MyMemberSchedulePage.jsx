@@ -4,8 +4,8 @@ import { useFlow2TimeRules } from '../flow2TimeRules'
 import { SelfCheckInButton } from '../components/classCheckIn'
 import { Alert, Badge, Field, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { CancelBookingModal, PtRescheduleModal } from '../components/scheduleActions'
-import WeekTimetable from '../components/WeekTimetable'
-import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly, weekRange } from '../dateUtils'
+import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
+import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
 
 // item.date is "yyyy-MM-dd", item.endTime/startTime are "HH:mm:ss" — all local wall-clock values, safe to concatenate.
@@ -30,12 +30,13 @@ function effectiveStatus(item, enforceTimeRules = true) {
   return { label: 'Đã qua — Chưa có điểm danh', tone: 'slate' }
 }
 
-export function BookingSchedule({ memberId = null, onChanged }) {
+export function BookingSchedule({ memberId = null, onChanged, presentation = 'list' }) {
   const { enforceTimeRules, refresh } = useFlow2TimeRules()
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -7), to: addDays(today, 30) })
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [cancelItem, setCancelItem] = useState(null)
@@ -54,19 +55,19 @@ export function BookingSchedule({ memberId = null, onChanged }) {
     request.current = controller
     setLoading(true)
     setError('')
-    setItems([])
+    if (presentation === 'list') setItems([])
     try {
       const path = memberId ? `/members/${memberId}/schedule` : '/me/schedule'
       const [schedule, subs] = await Promise.all([
         api(`${path}${query({ ...range, includeCancelled })}`, { signal: controller.signal }),
-        memberId ? Promise.resolve(null) : api('/me/subscriptions', { signal: controller.signal }),
+        memberId || presentation === 'calendar' ? Promise.resolve(null) : api('/me/subscriptions', { signal: controller.signal }),
       ])
-      if (!controller.signal.aborted) { setItems(schedule); if (subs) setSubscriptions(subs) }
+      if (!controller.signal.aborted) { setItems(schedule); setHasLoaded(true); if (subs) setSubscriptions(subs) }
     } catch (err) {
       if (!controller.signal.aborted) setError(err.message)
     }
     if (!controller.signal.aborted) setLoading(false)
-  }, [range, includeCancelled, memberId])
+  }, [range, includeCancelled, memberId, presentation])
   const stop = useCallback(() => request.current?.abort(), [])
 
   useEffect(() => {
@@ -89,21 +90,29 @@ export function BookingSchedule({ memberId = null, onChanged }) {
   const paged = sorted.slice((page - 1) * pageSize, page * pageSize)
 
   const changed = (message) => { setCancelItem(null); setRescheduleItem(null); setNotice(message); load(); onChanged?.() }
+  const showRange = useCallback(next => {
+    setRange(current => current.from <= next.from && current.to >= next.to ? current : next)
+  }, [])
+  const renderActions = item => item.status === 'Confirmed' && (!enforceTimeRules || !isPastItem(item)) && <div className="flex flex-wrap gap-2">
+    {item.type === 'PT' && (!enforceTimeRules || !hasScheduleStarted(item)) && <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => { refresh(); setRescheduleItem(item) }}>Đổi lịch</button>}
+    {item.type === 'Class' && !memberId && <SelfCheckInButton sessionId={item.referenceId} className={btnOutline + ' !h-9'} onDone={load} />}
+    {!item.enrollmentId && (!enforceTimeRules || !hasScheduleStarted(item)) && <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => setCancelItem(item)}>Huỷ</button>}
+  </div>
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-surface-container rounded-xl shadow-sm p-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Field label="Từ ngày">
+      <div className={`bg-surface-container rounded-xl shadow-sm ${presentation === 'calendar' ? 'flex flex-wrap items-end gap-4 p-3' : 'p-4'}`}>
+        <div className={presentation === 'calendar' ? 'contents' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'}>
+          {presentation === 'list' && <><Field label="Từ ngày">
             <input className={inputCls} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
           </Field>
           <Field label="Đến ngày">
             <input className={inputCls} type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
-          </Field>
-          <Field label="Loại">
+          </Field></>}
+          <Field label="Loại lịch">
             <select className={inputCls} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
               <option value="all">— Tất cả —</option>
-              <option value="Class">Lớp học</option>
+              <option value="Class">Khóa / lớp học</option>
               <option value="PT">PT</option>
             </select>
           </Field>
@@ -115,29 +124,36 @@ export function BookingSchedule({ memberId = null, onChanged }) {
             </select>
           </Field>
         </div>
-        <label className="flex items-center gap-2 pt-4"><input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} /> Bao gồm lịch đã hủy</label>
-        <div className="flex justify-end gap-2 pt-4">
+        {presentation === 'list' && <label className="flex items-center gap-2 pt-4"><input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} /> Bao gồm lịch đã hủy</label>}
+        <div className={`flex justify-end gap-2 ${presentation === 'calendar' ? 'ml-auto' : 'pt-4'}`}>
           <button
             type="button"
             className={btnOutline}
             onClick={() => {
-              setRange({ from: addDays(today, -7), to: addDays(today, 30) })
+              if (presentation === 'list') setRange({ from: addDays(today, -7), to: addDays(today, 30) })
               setTypeFilter('all')
               setTimeFilter('all')
             }}
           >
             Đặt lại
           </button>
-          <button type="button" className={btnPrimary} onClick={load} disabled={loading}>Tìm kiếm</button>
+          <button type="button" className={btnPrimary} onClick={load} disabled={loading}>{presentation === 'calendar' ? 'Làm mới lịch' : 'Tìm kiếm'}</button>
         </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
-      {!memberId && subscriptions.filter((s) => s.totalPtSessions > 0).map((s) => <p key={s.id} className="text-secondary">{s.planName}: còn <b>{s.remainingPtSessions}</b>/{s.totalPtSessions} buổi PT ({s.status}).</p>)}
+      {!memberId && presentation === 'list' && subscriptions.filter((s) => s.totalPtSessions > 0).map((s) => <p key={s.id} className="text-secondary">{s.planName}: còn <b>{s.remainingPtSessions}</b>/{s.totalPtSessions} buổi PT ({s.status}).</p>)}
       {loading && <p role="status" className="text-secondary">Đang tải lịch…</p>}
 
-      <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
+      {presentation === 'calendar' && hasLoaded && <div className={loading ? 'opacity-60' : ''}>
+        <CourseScheduleCalendar personal title="Lịch của tôi" sessions={sorted}
+          includeCancelled={includeCancelled} onIncludeCancelledChange={setIncludeCancelled}
+          onVisibleRangeChange={showRange}
+          statusLabel={item => effectiveStatus(item, enforceTimeRules).label}
+          renderEventActions={renderActions} />
+      </div>}
+      {presentation === 'list' && <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
@@ -167,17 +183,7 @@ export function BookingSchedule({ memberId = null, onChanged }) {
                   <td className="px-4 py-3 text-secondary">{item.coach}</td>
                   <td className="px-4 py-3"><Badge tone={eff.tone}>{eff.label}</Badge></td>
                   <td className="px-4 py-3 text-right">
-                    {item.status === 'Confirmed' && (!enforceTimeRules || !past) && (
-                      <div className="flex gap-2 justify-end">
-                        {item.type === 'PT' && (!enforceTimeRules || !hasScheduleStarted(item)) && (
-                          <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => { refresh(); setRescheduleItem(item) }}>Đổi lịch</button>
-                        )}
-                        {item.type === 'Class' && !memberId && (
-                          <SelfCheckInButton sessionId={item.referenceId} className={btnOutline + ' !h-9'} onDone={load} />
-                        )}
-                        {!item.enrollmentId && (!enforceTimeRules || !hasScheduleStarted(item)) && <button className={btnOutline + ' !h-9'} disabled={loading} onClick={() => setCancelItem(item)}>Huỷ</button>}
-                      </div>
-                    )}
+                    <div className="flex justify-end">{renderActions(item)}</div>
                   </td>
                 </tr>
               )
@@ -199,7 +205,7 @@ export function BookingSchedule({ memberId = null, onChanged }) {
             }}
           />
         )}
-      </div>
+      </div>}
 
       {cancelItem && (
         <CancelBookingModal item={cancelItem} onClose={() => setCancelItem(null)} onDone={() => changed('Đã hủy thành công.')} />
@@ -212,60 +218,6 @@ export function BookingSchedule({ memberId = null, onChanged }) {
         />
       )}
     </div>
-  )
-}
-
-function WeekView() {
-  const { enforceTimeRules } = useFlow2TimeRules()
-  const [weekStart, setWeekStart] = useState(weekRange()[0])
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [includeCancelled, setIncludeCancelled] = useState(false)
-  const request = useRef(null)
-
-  const load = useCallback(async () => {
-    request.current?.abort()
-    const controller = new AbortController()
-    request.current = controller
-    setLoading(true)
-    setError('')
-    setItems([])
-    try {
-      const result = await api(`/me/schedule${query({ from: weekStart, to: addDays(weekStart, 6), includeCancelled })}`, { signal: controller.signal })
-      if (!controller.signal.aborted) setItems(result)
-    } catch (err) {
-      if (!controller.signal.aborted) setError(err.message)
-    }
-    if (!controller.signal.aborted) setLoading(false)
-  }, [weekStart, includeCancelled])
-  const stop = useCallback(() => request.current?.abort(), [])
-
-  useEffect(() => {
-    load()
-    return stop
-  }, [load, stop])
-
-  return (
-    <>
-      {error && <Alert>{error}</Alert>}
-      <label className="flex items-center gap-2"><input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} /> Bao gồm lịch đã hủy</label>
-      <div className={loading ? 'opacity-50' : ''}>
-        <WeekTimetable
-          weekStart={weekStart}
-          onWeekChange={setWeekStart}
-          items={items}
-          statusLabel={(it) => effectiveStatus(it, enforceTimeRules).label}
-          statusTone={(it) => effectiveStatus(it, enforceTimeRules).tone}
-          renderMeta={(it) => (
-            <>
-              <span className="material-symbols-outlined text-sm">person</span>
-              HLV {it.coach}
-            </>
-          )}
-        />
-      </div>
-    </>
   )
 }
 
@@ -414,17 +366,17 @@ function AttendanceHistory() {
 }
 
 export default function MyMemberSchedulePage() {
-  const [tab, setTab] = useState('mine')
+  const [tab, setTab] = useState('calendar')
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="font-headline-xl text-headline-xl">Lịch của tôi</h1>
-        <p className="text-secondary">Các lớp và buổi PT đã đặt, cùng lịch sử điểm danh.</p>
+        <p className="text-secondary">Xem khóa học và PT theo ngày, giờ. Bấm một ô lịch để check-in, đổi lịch hoặc hủy theo điều kiện hiện có.</p>
       </div>
 
       <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['week', 'Thời khóa biểu'], ['mine', 'Lịch của tôi'], ['attendance', 'Điểm danh']].map(([v, l]) => (
+        {[['calendar', 'Lịch tuần / tháng'], ['mine', 'Danh sách'], ['attendance', 'Điểm danh']].map(([v, l]) => (
           <button
             key={v}
             className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
@@ -435,7 +387,7 @@ export default function MyMemberSchedulePage() {
         ))}
       </div>
 
-      {tab === 'week' && <WeekView />}
+      {tab === 'calendar' && <BookingSchedule presentation="calendar" />}
       {tab === 'mine' && <BookingSchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
     </div>
