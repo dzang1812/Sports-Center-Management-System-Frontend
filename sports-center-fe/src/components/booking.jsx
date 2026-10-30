@@ -235,7 +235,7 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
   const [sportId, setSportId] = useState('')
   const [range, setRange] = useState({ from: today, to: addDays(today, 7) })
   const [slots, setSlots] = useState([])
-  const [fundingSource, setFundingSource] = useState(requireMemberId ? 'Cash' : 'PackageCredit')
+  const [fundingSource, setFundingSource] = useState(requireMemberId ? 'Cash' : 'Wallet')
   const counterStorage = `sc_pt_counter:${auth.userId}:${memberId}`
   const [counterIntent, setCounterIntent] = useState(() => {
     if (!requireMemberId) return null
@@ -291,10 +291,11 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
       return
     }
     setIntent({
-      title: fundingSource === 'Wallet' ? 'Thanh toán PT buổi lẻ' : 'Đặt PT bằng gói',
+      title: fundingSource === 'Wallet' ? 'Đặt và thanh toán PT buổi lẻ' : 'Đặt PT bằng gói',
+      confirmLabel: fundingSource === 'Wallet' ? 'Thanh toán và đặt lịch' : 'Dùng 1 buổi trong gói',
       description: coach.fullName + ' • ' + slot.date + ' ' + fromTimeOnly(slot.startTime) + (requireMemberId ? ' cho hội viên #' + memberId : ''),
       price: fundingSource === 'Wallet' ? rate : null, balance: wallet?.balance,
-      policy: fundingSource === 'Wallet' ? 'Trả buổi lẻ, không trừ PT credit. Hủy còn ít nhất 12 giờ: hoàn tiền; hủy muộn theo cấu hình: không hoàn. Đổi cùng Coach/dịch vụ/giá không thu lại tiền.' : 'Dùng 1 credit từ gói hợp lệ tại ngày tập; không trừ số dư. Hết credit không tự chuyển sang trả tiền. Hủy đúng hạn hoàn credit về đúng gói.',
+      policy: fundingSource === 'Wallet' ? 'Trừ số dư và xác nhận lịch ngay trong một lần. Không cần mua gói PT. Nếu đặt không thành công, không trừ tiền. Hủy trước ít nhất 12 giờ được hoàn vào ví; hủy muộn theo cấu hình không hoàn.' : 'Dùng 1 buổi từ gói hợp lệ tại ngày tập; không trừ số dư. Hết buổi không tự chuyển sang trả tiền. Hủy đúng hạn hoàn buổi về đúng gói.',
       path: '/pt/bookings', body: { coachId: slot.coachId, sportId: slot.sportId, date: slot.date, startTime: slot.startTime,
         roomId: null, memberId: requireMemberId ? Number(memberId) : null, fundingSource, expectedPrice: fundingSource === 'Wallet' ? rate : null },
     })
@@ -303,14 +304,15 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}</Alert>}
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{coaches.map(c => <button key={c.id} onClick={() => { setCoach(c); setSportId(c.sports[0]?.id ?? ''); setSlots([]); setIntent(null) }} className={'text-left rounded-xl p-4 bg-surface-container-lowest shadow-sm ' + (coach?.id === c.id ? 'ring-2 ring-primary-container' : '')}><div className="flex gap-3"><Avatar src={c.avatarUrl} className="w-14 h-14" /><div><h3 className="font-semibold">{c.fullName}</h3><p>{c.sports.map(s => s.name).join(' • ')}</p></div></div><p className="text-secondary">{c.certifications}</p><p>{c.bio}</p></button>)}</div>
     {!coaches.length && <p>Chưa có Coach nhận PT.</p>}
-    <label className="flex flex-wrap gap-3 items-center">Phương thức đặt PT<select className={inputCls + ' !w-auto'} value={fundingSource} onChange={e => { setFundingSource(e.target.value); setIntent(null) }}>{requireMemberId && <><option value="Cash">Thu tiền mặt tại quầy</option><option value="BankTransfer">Chuyển khoản — khách quét mã QR</option></>}<option value="PackageCredit">Dùng gói PT — 1 credit, không trừ ví</option><option value="Wallet">Trả buổi lẻ — trừ số dư, không trừ credit</option></select></label>
+    <label className="flex flex-wrap gap-3 items-center">Phương thức thanh toán<select className={inputCls + ' !w-auto'} value={fundingSource} onChange={e => { setFundingSource(e.target.value); setIntent(null); setError('') }}>{requireMemberId && <><option value="Cash">Thu tiền mặt tại quầy</option><option value="BankTransfer">Chuyển khoản — khách quét mã QR</option></>}<option value="Wallet">Thanh toán ngay bằng số dư — không cần gói PT</option><option value="PackageCredit">Dùng gói PT đã mua — trừ 1 buổi trong gói</option></select></label>
+    {fundingSource === 'Wallet' && <p className="rounded-xl bg-indigo-50 border border-indigo-200 p-3 text-primary">Chọn giờ tập → kiểm tra số tiền → bấm “Thanh toán và đặt lịch”. Hệ thống trừ số dư và xác nhận booking cùng lúc.</p>}
     {requireMemberId && counterIntent && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-outline-variant p-3"><span>Đang có yêu cầu PT tại quầy: {counterIntent.description}</span><button type="button" className={btnPrimary} onClick={() => setCounterOpen(true)}>Tiếp tục thanh toán{counterIntent.paymentId ? ` #${counterIntent.paymentId}` : ''}</button></div>}
     {wallet && <p>Số dư: <b>{wallet.balance.toLocaleString('vi-VN')}đ</b>. {subscriptions.filter(s => s.totalPtSessions > 0).map(s => s.planName + ': ' + s.remainingPtSessions + ' credit (' + s.startDate + ' → ' + s.endDate + ')').join(' • ')}</p>}
-    <Link className={btnOutline} to={requireMemberId ? '/reception/members/' + memberId : '/member/wallet'}>Số dư / mua gói PT</Link>
+    <Link className={btnOutline} to={requireMemberId ? '/reception/members/' + memberId : '/member/wallet'}>{fundingSource === 'Wallet' ? 'Xem số dư / nạp tiền' : 'Số dư / mua gói PT'}</Link>
     {coach && <section className="rounded-xl bg-surface-container p-4 space-y-3"><div className="flex flex-wrap gap-3"><select className={inputCls + ' !w-auto'} value={sportId} onChange={e => { setSportId(e.target.value); setIntent(null) }}>{coach.sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input className={inputCls + ' !w-auto'} type="date" value={range.from} onChange={e => setRange({ ...range, from: e.target.value })} /><input className={inputCls + ' !w-auto'} type="date" value={range.to} onChange={e => setRange({ ...range, to: e.target.value })} /><button className={btnOutline} disabled={loading} onClick={loadSlots}>Làm mới slot / số dư</button></div>
-      {loading && <p>Đang tải…</p>}<div className="flex flex-wrap gap-2">{slots.map(s => <button key={s.date + s.startTime} className={btnOutline} disabled={loading} onClick={() => book(s)}>{s.date} • {fromTimeOnly(s.startTime)}</button>)}</div>{!loading && !slots.length && <p>Không có khung giờ trống.</p>}
+      {loading && <p>Đang tải…</p>}<div className="flex flex-wrap gap-2">{slots.map(s => <button key={s.date + s.startTime} className={btnOutline + ' !h-auto py-2'} disabled={loading} onClick={() => book(s)}>{s.date} • {fromTimeOnly(s.startTime)}–{fromTimeOnly(s.endTime)}{fundingSource === 'Wallet' && <span className="font-semibold text-primary"> · {prices.find(p => p.id === s.sportId)?.ptSinglePrice == null ? 'Chưa cấu hình giá' : `${Number(prices.find(p => p.id === s.sportId).ptSinglePrice).toLocaleString('vi-VN')}đ`}</span>}</button>)}</div>{!loading && !slots.length && <p>Không có khung giờ trống.</p>}
     </section>}
-    {intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={() => { setIntent(null); setNotice('Backend đã xác nhận booking. Đang tải lại số dư, credit và slots.'); loadSlots() }} />}
+    {intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={booking => { setNotice(intent.body.fundingSource === 'Wallet' ? `Đã thanh toán ${Number(intent.price).toLocaleString('vi-VN')}đ và xác nhận lịch PT #${booking.id}.` : `Đã dùng 1 buổi trong gói và xác nhận lịch PT #${booking.id}.`); setIntent(null); loadSlots() }} />}
     {counterOpen && counterIntent && <PtCounterCheckout intent={counterIntent}
       onClose={() => { if (!counterIntent.attempted && !counterIntent.paymentId) rememberCounter(null); setCounterOpen(false) }}
       onAttempt={attempted => rememberCounter({ ...counterIntent, attempted })}

@@ -4,6 +4,7 @@ import { api } from '../api'
 import { addDays, businessDateTimeToUtc, formatDate, formatTimestamp, fromTimeOnly, toDateOnly, toTimeOnly, weekRange } from '../dateUtils'
 import { DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, LEVEL_LABEL } from '../labels'
 import { Alert, Field, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
 
 const money = n => `${Number(n).toLocaleString('vi-VN')}đ`
 const initialStart = () => weekRange(addDays(toDateOnly(), 7))[0]
@@ -127,7 +128,7 @@ export default function CourseCreationPage() {
       <p>Hạn đăng ký: {formatTimestamp(p.enrollmentClosesAt)}. Xem trước không giữ chỗ; khi lưu hệ thống kiểm tra lại toàn bộ lịch.</p>
       {!p.canOpen && <Alert>Hạn đăng ký hoặc buổi đầu đã qua. Hãy sửa ngày lịch và hạn trên form trước khi lưu. Nháp có hạn đã qua sẽ không được mở đăng ký theo quy định hiện tại.</Alert>}
       {p.conflicts.length > 0 && <Alert><p>Trùng tài nguyên, chưa thể lưu:</p>{p.conflicts.map((c, i) => <p key={i}>{formatDate(c.date)} {fromTimeOnly(c.startTime)}–{fromTimeOnly(c.endTime)}: {c.resource === 'Room' ? 'Phòng' : 'HLV'} #{c.resourceId}</p>)}</Alert>}
-      <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th>Ngày / thứ</th><th>Giờ Việt Nam</th><th>HLV</th><th>Phòng</th></tr></thead><tbody>{p.sessions.map(s => <tr key={s.date} className="border-t border-outline-variant"><td className="py-2">{formatDate(s.date, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</td><td>{fromTimeOnly(s.startTime)}–{fromTimeOnly(s.endTime)}</td><td>{s.coach}</td><td>{s.room}</td></tr>)}</tbody></table></div>
+      <CourseScheduleCalendar title={form.name.trim() || 'Xem trước khóa học'} sessions={p.sessions} />
     </section>}
   </div>
 }

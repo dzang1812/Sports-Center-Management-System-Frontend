@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export const inputCls =
   'w-full h-11 px-3.5 rounded-lg font-body-md text-body-md text-on-surface bg-surface-container-lowest border border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-all disabled:bg-surface-container-low disabled:text-outline'
@@ -81,28 +82,50 @@ export function Toast({ type = 'success', children, onClose, duration = 4000 }) 
   )
 }
 
-export function Modal({ title, onClose, children }) {
+export function Modal({ title, onClose, children, size = 'default', footer }) {
+  const closeButton = useRef(null)
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const dialog = closeButton.current?.closest('[role="dialog"]')
+    if (!dialog?.contains(document.activeElement)) closeButton.current?.focus()
+    return () => {
+      document.body.style.overflow = previousOverflow
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose() }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  // Escape transformed/backdrop-filtered ancestors such as the fixed navigation header.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm" onMouseDown={onClose}>
       <div
-        className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface-container-lowest rounded-xl shadow-xl p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`w-full ${size === 'wide' ? 'max-w-[1440px]' : 'max-w-lg'} max-h-[90dvh] flex flex-col bg-surface-container-lowest rounded-xl shadow-xl`}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 p-4 sm:p-6 border-b border-outline-variant/40">
           <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg text-outline hover:bg-surface-container" aria-label="Đóng">
+          <button ref={closeButton} type="button" onClick={onClose} className="shrink-0 p-2 rounded-lg text-on-surface-variant hover:bg-surface-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" aria-label={`Đóng ${title}`}>
             <Icon name="close" />
           </button>
         </div>
-        {children}
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
+        {footer && <div className="shrink-0 flex justify-end gap-2 border-t border-outline-variant/40 px-4 py-3 sm:px-6">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

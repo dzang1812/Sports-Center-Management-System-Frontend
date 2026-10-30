@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { Flow2TimeRulesProvider, Flow2TimeRulesSwitch } from '../flow2TimeRules'
 import { ROLE_LABEL } from '../labels'
@@ -22,10 +22,10 @@ const NAV = {
   Receptionist: [
     { to: '/reception', label: 'Quầy lễ tân', icon: 'support_agent', end: true },
     { to: '/reception/check-in', label: 'Check-in', icon: 'how_to_reg' },
-    { to: '/reception/schedule', label: 'Lịch tập trung tâm', icon: 'calendar_month' },
+    { to: '/reception/schedule', label: 'Lịch khóa học', icon: 'calendar_month' },
     { to: '/reception/members', label: 'Danh sách hội viên', icon: 'badge' },
     { to: '/reception/payments', label: 'Xác nhận thanh toán', icon: 'point_of_sale' },
-    { to: '/reception/classes', label: 'Đặt lớp cho hội viên', icon: 'event_available' },
+    { to: '/reception/classes', label: 'Đăng ký khóa học', icon: 'event_available' },
     { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
   ],
   Coach: [
@@ -140,6 +140,7 @@ function StaffLayout() {
 
 // Top-nav layout for members (Stitch "Lịch lớp học" style).
 function MemberLayout() {
+  const { pathname } = useLocation()
   const link = ({ isActive }) =>
     `px-3.5 py-2 rounded-lg font-label-md text-label-md transition-all ${
       isActive ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
@@ -166,7 +167,7 @@ function MemberLayout() {
           <div className="flex items-center gap-2"><Notifications /><UserChip /></div>
         </div>
       </header>
-      <main className="pt-16 w-full max-w-7xl mx-auto px-6 lg:px-12">
+      <main className={`pt-16 w-full mx-auto ${pathname === '/member/schedule' ? 'max-w-[1800px] px-4 lg:px-6' : 'max-w-7xl px-6 lg:px-12'}`}>
         <div className="pt-space-lg">
           <Outlet />
         </div>

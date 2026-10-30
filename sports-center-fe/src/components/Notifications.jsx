@@ -84,7 +84,7 @@ export default function Notifications() {
       <Icon name="notifications" />
       {unread > 0 && <span className="absolute -top-1 -right-1 bg-error text-white rounded-full px-1.5 text-xs">{unread > 99 ? '99+' : unread}</span>}
     </button>
-    {open && <Modal title="Thông báo" onClose={() => setOpen(false)}>
+    {open && <Modal title="Thông báo" onClose={() => setOpen(false)} footer={<button type="button" className={btnOutline} onClick={() => setOpen(false)}>Đóng</button>}>
       <div className="flex items-center justify-between gap-3 pb-3">
         <label className="flex items-center gap-2"><input type="checkbox" checked={onlyUnread} onChange={(e) => { setOnlyUnread(e.target.checked); setPage(1) }} /> Chỉ chưa đọc</label>
         <button type="button" className={btnOutline} onClick={() => { load(); loadBadge() }} disabled={loading}>Làm mới</button>
