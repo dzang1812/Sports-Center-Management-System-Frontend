@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { PaymentPendingPanel } from '../components/payment'
+import { PaymentHistory } from '../components/frontDesk'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
@@ -233,10 +234,7 @@ export default function MemberSubscriptionPage() {
         </div>
       </div>
 
-      <Alert type="info">
-        Lịch sử thanh toán chi tiết theo từng giao dịch hiện chỉ xem được ngay sau khi thanh toán (trang kết quả thanh toán) — hệ thống backend chưa có API
-        liệt kê toàn bộ hoá đơn theo hội viên.
-      </Alert>
+      <PaymentHistory />
 
       {retrying && <RetryPaymentModal sub={retrying} onClose={() => setRetrying(null)} />}
     </div>

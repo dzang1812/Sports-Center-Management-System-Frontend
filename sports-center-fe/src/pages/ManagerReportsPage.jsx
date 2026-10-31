@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
 import { Alert, Field, Icon, btnPrimary, inputCls } from '../components/ui'
 import { addDays, toDateOnly } from '../dateUtils'
+import { ClassFillReport, ReportTrend } from '../components/frontDesk'
 
 const Stat = ({ icon, label, value }) => (
   <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm flex items-start justify-between">
@@ -15,11 +16,10 @@ const Stat = ({ icon, label, value }) => (
   </div>
 )
 
-// Only the "Doanh thu" tab has a backend endpoint (GET /api/reports/revenue). "Thành viên" and
-// "Đăng ký lớp" tabs from the spec have no matching API yet — not built here, see SCREEN_API_MAPPING.md.
 export default function ManagerReportsPage() {
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -29), to: today })
+  const [applied, setApplied] = useState(range)
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -29,6 +29,7 @@ export default function ManagerReportsPage() {
     setError('')
     try {
       setReport(await api(`/reports/revenue${query(range)}`))
+      setApplied(range)
     } catch (err) {
       setError(err.message)
     }
@@ -42,8 +43,8 @@ export default function ManagerReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Báo cáo doanh thu</h1>
-        <p className="text-secondary">Tổng hợp doanh thu, hội viên mới và đăng ký trong khoảng thời gian chọn.</p>
+        <h1 className="font-headline-xl text-headline-xl">Báo cáo</h1>
+        <p className="text-secondary">Doanh thu, hội viên mới, đăng ký lớp theo thời gian và tình trạng lấp đầy từng lớp.</p>
       </div>
 
       <div className="bg-surface-container rounded-xl shadow-sm p-5">
@@ -73,6 +74,9 @@ export default function ManagerReportsPage() {
           <Stat icon="event_available" label="Lượt đặt lớp mới" value={report.newClassBookings} />
         </div>
       )}
+
+      {report && <ReportTrend range={applied} />}
+      <ClassFillReport />
     </div>
   )
 }

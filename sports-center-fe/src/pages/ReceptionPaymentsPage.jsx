@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { Alert, Badge, Icon, btnPrimary } from '../components/ui'
 import { PAYMENT_METHOD_LABEL } from '../labels'
@@ -33,7 +34,7 @@ export default function ReceptionPaymentsPage() {
     setNotice('')
     try {
       await api(`/payments/${p.id}/confirm-at-counter`, { method: 'POST' })
-      setNotice(`Đã xác nhận thanh toán #${p.id} cho ${p.memberName}.`)
+      setNotice({ id: p.id, text: `Đã xác nhận thanh toán #${p.id} cho ${p.memberName}.` })
       load()
     } catch (err) {
       setError(err.message)
@@ -52,7 +53,7 @@ export default function ReceptionPaymentsPage() {
       </div>
 
       {error && <Alert>{error}</Alert>}
-      {notice && <Alert type="success">{notice}</Alert>}
+      {notice && <Alert type="success">{notice.text} <Link className="underline font-semibold" to={`/invoice/${notice.id}`} target="_blank">In hoá đơn</Link></Alert>}
 
       <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
         <table className="w-full text-left">

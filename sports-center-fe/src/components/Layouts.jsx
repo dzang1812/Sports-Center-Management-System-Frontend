@@ -25,6 +25,7 @@ const NAV = {
     { to: '/reception/schedule', label: 'Lịch khóa học', icon: 'calendar_month' },
     { to: '/reception/members', label: 'Danh sách hội viên', icon: 'badge' },
     { to: '/reception/payments', label: 'Xác nhận thanh toán', icon: 'point_of_sale' },
+    { to: '/reception/support', label: 'Yêu cầu hỗ trợ', icon: 'contact_support' },
     { to: '/reception/classes', label: 'Đăng ký khóa học', icon: 'event_available' },
     { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
   ],
@@ -39,6 +40,7 @@ const NAV = {
     { to: '/member/wallet', label: 'Số dư & khóa học', icon: 'account_balance_wallet' },
     { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
     { to: '/member/training', label: 'Lịch tập tuần', icon: 'checklist' },
+    { to: '/member/support', label: 'Hỗ trợ', icon: 'contact_support' },
   ],
 }
 
