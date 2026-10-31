@@ -187,10 +187,10 @@ const MEDIA_TABS = {
 }
 
 const SECTIONS = [
-  [detectedItems, 'Nhận diện'], [bodyObservations, 'Quan sát'], [muscles, 'Nhóm cơ'], [priorityMuscles, 'Nhóm cơ ưu tiên'],
-  [suggestedExercises, 'Bài tập gợi ý'], [movementSummary, 'Chuyển động'], [majorIssues, 'Lỗi lớn'], [minorIssues, 'Lỗi nhỏ'],
-  [correctPoints, 'Điểm đúng'], [correctiveCues, 'Cách sửa'], [suggestedFixes, 'Gợi ý chỉnh'], [formFeedback, 'Nhận xét form'],
-  [trainingAdvice, 'Lời khuyên'], [warnings, 'Lưu ý'],
+  ['detectedItems', 'Nhận diện'], ['bodyObservations', 'Quan sát'], ['muscles', 'Nhóm cơ'], ['priorityMuscles', 'Nhóm cơ ưu tiên'],
+  ['suggestedExercises', 'Bài tập gợi ý'], ['movementSummary', 'Chuyển động'], ['majorIssues', 'Lỗi lớn'], ['minorIssues', 'Lỗi nhỏ'],
+  ['correctPoints', 'Điểm đúng'], ['correctiveCues', 'Cách sửa'], ['suggestedFixes', 'Gợi ý chỉnh'], ['formFeedback', 'Nhận xét form'],
+  ['trainingAdvice', 'Lời khuyên'], ['warnings', 'Lưu ý'],
 ]
 
 function MediaResult({ r }) {
