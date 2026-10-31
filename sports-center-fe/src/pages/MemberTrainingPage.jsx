@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
+import { AiChatModal, AiGenerateModal } from '../components/AiAssistant'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
 
 const DAYS = [
@@ -146,6 +147,7 @@ export default function MemberTrainingPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [saving, setSaving] = useState(false)
+  const [ai, setAi] = useState(null) // 'generate' | 'chat'
 
   const load = () =>
     api('/member/training-plans')
@@ -213,6 +215,12 @@ export default function MemberTrainingPage() {
     }
   }
 
+  // AI apply changes the active plan server-side: reload and show it.
+  const refreshAfterAi = () => {
+    setDraft(null)
+    load()
+  }
+
   if (!plans || !draft) return <p className="text-secondary">{error || 'Đang tải…'}</p>
 
   return (
@@ -237,6 +245,12 @@ export default function MemberTrainingPage() {
         ))}
         <button className={btnOutline} onClick={() => setDraft(emptyDraft())}>
           <Icon name="add" className="text-[18px]" /> Lịch mới
+        </button>
+        <button className={btnPrimary} onClick={() => setAi('generate')}>
+          <Icon name="auto_awesome" className="text-[18px]" /> Tạo lịch bằng AI
+        </button>
+        <button className={btnOutline} onClick={() => setAi('chat')}>
+          <Icon name="chat" className="text-[18px]" /> Chat với AI
         </button>
       </div>
 
@@ -274,6 +288,8 @@ export default function MemberTrainingPage() {
         )}
       </div>
 
+      {ai === 'generate' && <AiGenerateModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
+      {ai === 'chat' && <AiChatModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(null)} />}
     </div>
   )
