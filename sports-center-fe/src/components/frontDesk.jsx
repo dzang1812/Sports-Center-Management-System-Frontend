@@ -1,40 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { api, getAuth, query } from '../api'
 import { formatTimestamp } from '../dateUtils'
 import { CLASS_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../labels'
-import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from './ui'
+import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
+import usePaged from '../usePaged'
 
 const vnd = (n) => `${Number(n ?? 0).toLocaleString('vi-VN')}đ`
 
-const SUPPORT_STATUS_LABEL ={ Open: 'Chờ xử lý', InProgress: 'Đang xử lý', Resolved: 'Đã giải quyết' }
-const SUPPORT_TONE = { Open: 'amber', InProgress: 'indigo', Resolved: 'green' }
 const PAYMENT_TONE = { Pending: 'amber', Paid: 'green', Failed: 'red', Refunded: 'slate' }
 const PAYMENT_PURPOSE_LABEL = { WalletTopUp: 'Nạp số dư', LegacySubscription: 'Gói tập' }
 const paymentItem = (p) => p.planName ?? PAYMENT_PURPOSE_LABEL[p.purpose] ?? 'Thanh toán'
-
-function usePaged(path) {
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [data, setData] = useState({ items: [], total: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const load = useCallback(async (signal) => {
-    setLoading(true); setError('')
-    try {
-      const result = await api(`${path}${path.includes('?') ? '&' : '?'}page=${page}&pageSize=${pageSize}`, { signal })
-      if (!signal?.aborted) setData(result)
-    } catch (err) { if (!signal?.aborted) setError(err.message) }
-    finally { if (!signal?.aborted) setLoading(false) }
-  }, [path, page, pageSize])
-  useEffect(() => {
-    const c = new AbortController()
-    void Promise.resolve().then(() => load(c.signal))
-    return () => c.abort()
-  }, [load])
-  const pagination = <Pagination page={page} pageSize={pageSize} total={data.total} onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1) }} />
-  return { data, loading, error, reload: () => load(), pagination, setPage }
-}
 
 // Receptionist signs a member up at the desk; the temp password is shown once and must be changed on first login.
 export function NewMemberModal({ onClose, onDone }) {
@@ -164,109 +140,6 @@ export function InvoicePage() {
         )}
       </div>
     </main>
-  )
-}
-
-export function MemberSupportPage() {
-  const { data, loading, error, reload, pagination, setPage } = usePaged('/support-requests/mine')
-  const [form, setForm] = useState({ subject: '', description: '' })
-  const [busy, setBusy] = useState(false)
-  const [formError, setFormError] = useState('')
-  const [notice, setNotice] = useState('')
-  const submit = async (e) => {
-    e.preventDefault()
-    setBusy(true); setFormError(''); setNotice('')
-    try {
-      await api('/support-requests', { method: 'POST', body: { subject: form.subject.trim(), description: form.description.trim() } })
-      setForm({ subject: '', description: '' }); setNotice('Đã gửi yêu cầu. Lễ tân sẽ phản hồi qua thông báo.'); setPage(1); reload()
-    } catch (err) { setFormError(err.message) }
-    setBusy(false)
-  }
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-headline-xl text-headline-xl">Yêu cầu hỗ trợ</h1>
-        <p className="text-secondary">Gửi câu hỏi hoặc vấn đề cho trung tâm. Bạn sẽ nhận thông báo khi trạng thái thay đổi.</p>
-      </div>
-      <form onSubmit={submit} className="bg-surface-container rounded-xl shadow-sm p-5 flex flex-col gap-4">
-        {formError && <Alert>{formError}</Alert>}
-        {notice && <Alert type="success">{notice}</Alert>}
-        <Field label="Tiêu đề"><input className={inputCls} required minLength={2} maxLength={150} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></Field>
-        <Field label="Nội dung"><textarea className={inputCls + ' !h-28 py-2'} required minLength={2} maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
-        <div className="flex justify-end"><button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang gửi…' : 'Gửi yêu cầu'}</button></div>
-      </form>
-      {error && <Alert>{error}</Alert>}
-      <section className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm">
-        <h2 className="font-headline-md text-headline-md px-4 py-3 border-b border-surface-container">Yêu cầu đã gửi</h2>
-        <ul className={`divide-y divide-surface-container ${loading ? 'opacity-50' : ''}`}>
-          {data.items.map((r) => (
-            <li key={r.id} className="px-4 py-3 flex flex-col gap-1">
-              <div className="flex justify-between gap-3"><span className="font-semibold">{r.subject}</span><Badge tone={SUPPORT_TONE[r.status]}>{SUPPORT_STATUS_LABEL[r.status]}</Badge></div>
-              <p className="text-body-sm whitespace-pre-wrap">{r.description}</p>
-              <p className="text-body-sm text-secondary">Gửi {formatTimestamp(r.createdAt)}{r.handledByName ? ` • Xử lý bởi ${r.handledByName}` : ''}</p>
-            </li>
-          ))}
-          {!loading && !data.items.length && <li className="px-4 py-10 text-center text-secondary">Bạn chưa gửi yêu cầu nào.</li>}
-        </ul>
-        {pagination}
-      </section>
-    </div>
-  )
-}
-
-export function SupportDeskPage() {
-  const [status, setStatus] = useState('Open')
-  const [q, setQ] = useState('')
-  const [search, setSearch] = useState('')
-  const { data, loading, error, reload, pagination, setPage } = usePaged(`/support-requests${query({ status: status || undefined, q: search || undefined })}`)
-  const [busyId, setBusyId] = useState(null)
-  const [actionError, setActionError] = useState('')
-  useEffect(() => { const t = setTimeout(() => { setSearch(q.trim()); setPage(1) }, 300); return () => clearTimeout(t) }, [q, setPage])
-  const update = async (r, next) => {
-    setBusyId(r.id); setActionError('')
-    try { await api(`/support-requests/${r.id}/status`, { method: 'PATCH', body: { status: next } }); reload() }
-    catch (err) { setActionError(err.message) }
-    setBusyId(null)
-  }
-  return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="font-headline-xl text-headline-xl">Yêu cầu hỗ trợ</h1>
-        <p className="text-secondary">Tiếp nhận và cập nhật xử lý yêu cầu của hội viên. Hội viên được thông báo mỗi khi đổi trạng thái.</p>
-      </div>
-      <div className="bg-surface-container rounded-xl shadow-sm p-5 grid sm:grid-cols-2 gap-4">
-        <Field label="Trạng thái">
-          <select className={inputCls} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
-            <option value="">Tất cả</option>
-            {Object.entries(SUPPORT_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </Field>
-        <Field label="Tìm kiếm"><input className={inputCls} placeholder="Tiêu đề, tên hoặc email hội viên…" value={q} onChange={(e) => setQ(e.target.value)} /></Field>
-      </div>
-      {(error || actionError) && <Alert>{error || actionError}</Alert>}
-      <section className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm">
-        <ul className={`divide-y divide-surface-container ${loading ? 'opacity-50' : ''}`}>
-          {data.items.map((r) => (
-            <li key={r.id} className="px-4 py-4 flex flex-col sm:flex-row gap-3 sm:items-start sm:justify-between">
-              <div className="min-w-0 flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{r.subject}</span><Badge tone={SUPPORT_TONE[r.status]}>{SUPPORT_STATUS_LABEL[r.status]}</Badge></div>
-                <p className="text-body-sm whitespace-pre-wrap">{r.description}</p>
-                <p className="text-body-sm text-secondary">
-                  <Link className="underline" to={`/reception/members/${r.memberId}`}>{r.memberName}</Link> • {r.memberEmail} • {formatTimestamp(r.createdAt)}{r.handledByName ? ` • Xử lý: ${r.handledByName}` : ''}
-                </p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                {r.status === 'Open' && <button className={btnOutline + ' !h-9'} disabled={busyId === r.id} onClick={() => update(r, 'InProgress')}>Nhận xử lý</button>}
-                {r.status !== 'Resolved' && <button className={btnPrimary + ' !h-9'} disabled={busyId === r.id} onClick={() => update(r, 'Resolved')}>Đã giải quyết</button>}
-                {r.status === 'Resolved' && <button className={btnOutline + ' !h-9'} disabled={busyId === r.id} onClick={() => update(r, 'InProgress')}>Mở lại</button>}
-              </div>
-            </li>
-          ))}
-          {!loading && !data.items.length && <li className="px-4 py-10 text-center text-secondary">Không có yêu cầu nào.</li>}
-        </ul>
-        {pagination}
-      </section>
-    </div>
   )
 }
 

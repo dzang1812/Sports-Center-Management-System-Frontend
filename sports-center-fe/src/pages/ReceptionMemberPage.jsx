@@ -6,6 +6,7 @@ import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, i
 import { SUBSCRIPTION_STATUS_LABEL } from '../labels'
 import { BookingSchedule } from './MyMemberSchedulePage'
 import { NewMemberModal, PaymentHistory } from '../components/frontDesk'
+import { CreateSupportModal } from '../components/support'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 
@@ -163,6 +164,8 @@ function ReceptionMemberContent({ id }) {
   const [modal, setModal] = useState(false)
   const [lastPayment, setLastPayment] = useState(null)
   const [member, setMember] = useState(null)
+  const [supporting, setSupporting] = useState(false)
+  const [supportNotice, setSupportNotice] = useState('')
   const request = useRef(null)
 
   const load = async (memberId) => {
@@ -202,7 +205,15 @@ function ReceptionMemberContent({ id }) {
           <h1 className="font-headline-xl text-headline-xl">{id ? 'Chi tiết thành viên' : 'Danh sách hội viên'}</h1>
           <p className="text-secondary">{id ? `Đang thao tác: ${member?.fullName ?? 'Hội viên'} #${id}${member?.email ? ` • ${member.email}` : ''}` : 'Tìm hội viên theo mã, tên, email hoặc số điện thoại.'}</p>
         </div>
+        {id && member && (
+          <button type="button" className={btnOutline + ' ml-auto'} onClick={() => setSupporting(true)}>
+            <Icon name="contact_support" className="text-lg" />
+            Ghi nhận yêu cầu hỗ trợ
+          </button>
+        )}
       </div>
+      {supportNotice && <Alert type="success">{supportNotice} <Link className="underline font-semibold" to="/reception/support">Xem yêu cầu hỗ trợ</Link></Alert>}
+      {supporting && <CreateSupportModal staff member={member} onClose={() => setSupporting(false)} onDone={(r) => { setSupporting(false); setSupportNotice(`Đã ghi nhận yêu cầu #${r.id}.`) }} />}
 
       {!id && <MemberDirectory />}
 
