@@ -33,6 +33,7 @@ const NAV = {
     { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
     { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
     { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
+    { to: '/member/training', label: 'Lịch tập tuần', icon: 'checklist' },
   ],
 }
 

@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
+import AiChatWidget from './components/AiChatWidget'
 import AppLayout from './components/Layouts'
 import AuditLogsPage from './pages/AuditLogsPage'
 import CatalogPage from './pages/CatalogPage'
@@ -15,6 +16,7 @@ import ManagerPackagesPage from './pages/ManagerPackagesPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
 import MemberPtPage from './pages/MemberPtPage'
 import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
+import MemberTrainingPage from './pages/MemberTrainingPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import NewsPage from './pages/NewsPage'
 import PackagesPage from './pages/PackagesPage'
@@ -111,11 +113,13 @@ export default function App() {
               <Route path="/member/schedule" element={<MyMemberSchedulePage />} />
               <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
               <Route path="/member/pt" element={<MemberPtPage />} />
+              <Route path="/member/training" element={<MemberTrainingPage />} />
             </Route>
           </Route>
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <AiChatWidget />
       </AuthProvider>
     </BrowserRouter>
   )

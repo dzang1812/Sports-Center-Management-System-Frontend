@@ -46,6 +46,19 @@ export async function api(path, { method = 'GET', body } = {}) {
   return data
 }
 
+// multipart/form-data POST (the browser sets the boundary header itself).
+export async function apiForm(path, form) {
+  const auth = getAuth()
+  const res = await fetch(`/api${path}`, { method: 'POST', headers: auth ? { Authorization: `Bearer ${auth.token}` } : {}, body: form })
+  if (res.status === 401 && auth) {
+    setAuth(null)
+    window.location.assign('/login')
+  }
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new ApiError(errorMessage(data, res.status), res.status, data)
+  return data
+}
+
 // Uploads a File/Blob to the backend, which forwards it to Cloudinary and returns { url }.
 export async function apiUpload(file) {
   const auth = getAuth()
