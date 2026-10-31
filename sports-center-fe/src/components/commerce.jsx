@@ -8,6 +8,7 @@ import { PaymentPendingPanel } from './payment'
 import CourseScheduleCalendar from './CourseScheduleCalendar'
 
 const vnd = (amount) => `${Number(amount ?? 0).toLocaleString('vi-VN')}đ`
+const ledgerKinds = { CashTopUp: 'Nạp tiền tại quầy', OnlineTopUp: 'Nạp tiền online', Purchase: 'Thanh toán dịch vụ', Refund: 'Hoàn tiền', DemoBalanceAdjustment: 'Điều chỉnh số dư' }
 
 // Each confirmed intent owns one replay key. Retrying an error cannot create a second debit.
 export function CommerceConfirm({ intent, onClose, onDone }) {
@@ -118,7 +119,17 @@ export function MemberCommerce({ memberId = null, coursesOnly = false }) {
       </div>
       {payment && <PaymentPendingPanel payment={payment} />}
       {!coursesOnly && <div className="rounded-xl bg-surface-container-lowest p-4 space-y-3"><h3 className="font-semibold">Lịch sử nạp / chi / hoàn</h3>
-        {data.ledger.items.map((e) => <div className="border-b border-outline-variant py-2" key={e.id}><b>{e.kind}: {vnd(e.amount)}</b> — còn {vnd(e.balanceAfter)}<p className="text-secondary">{formatTimestamp(e.createdAt)} • {e.reference}</p></div>)}
+        <ul className="divide-y divide-outline-variant">{data.ledger.items.map((e) => <li className="flex items-start justify-between gap-4 py-3" key={e.id}>
+          <div className="min-w-0">
+            <p className="font-semibold">{ledgerKinds[e.kind] ?? e.kind}</p>
+            <p className="text-sm text-secondary">{formatTimestamp(e.createdAt)}</p>
+            <p className="text-xs text-secondary truncate" title={e.reference}>Mã: {e.reference}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className={`font-semibold ${e.amount < 0 ? 'text-error' : 'text-green-700'}`}>{e.amount < 0 ? '−' : '+'}{vnd(Math.abs(e.amount))}</p>
+            <p className="text-sm text-secondary">Số dư: {vnd(e.balanceAfter)}</p>
+          </div>
+        </li>)}</ul>
         {!data.ledger.items.length && <p>Chưa có giao dịch.</p>}
         <Pagination page={page} pageSize={20} total={data.ledger.total} onPage={setPage} onPageSize={() => {}} />
       </div>}
