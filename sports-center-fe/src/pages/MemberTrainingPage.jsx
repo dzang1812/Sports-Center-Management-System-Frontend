@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
-import { AiChatModal, AiGenerateModal } from '../components/AiAssistant'
+import { AiChatModal, AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
 
 const DAYS = [
@@ -147,7 +147,7 @@ export default function MemberTrainingPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [saving, setSaving] = useState(false)
-  const [ai, setAi] = useState(null) // 'generate' | 'chat'
+  const [ai, setAi] = useState(null) // 'generate' | 'chat' | 'media'
 
   const load = () =>
     api('/member/training-plans')
@@ -252,6 +252,9 @@ export default function MemberTrainingPage() {
         <button className={btnOutline} onClick={() => setAi('chat')}>
           <Icon name="chat" className="text-[18px]" /> Chat với AI
         </button>
+        <button className={btnOutline} onClick={() => setAi('media')}>
+          <Icon name="photo_camera" className="text-[18px]" /> Máy tập / Form tập
+        </button>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-3">
@@ -290,6 +293,7 @@ export default function MemberTrainingPage() {
 
       {ai === 'generate' && <AiGenerateModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {ai === 'chat' && <AiChatModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
+      {ai === 'media' && <AiMediaModal onClose={() => setAi(null)} />}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(null)} />}
     </div>
   )

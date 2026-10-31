@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api'
+import { api, apiForm } from '../api'
 import { Alert, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
 
 const GOALS = [
@@ -175,6 +175,96 @@ export function AiChatModal({ onClose, onApplied }) {
             <Icon name="delete" className="text-[18px]" />
           </button>
         </form>
+      </div>
+    </Modal>
+  )
+}
+
+const MEDIA_TABS = {
+  equipment_info: { label: 'Hỏi đáp máy tập', kind: 'image', hint: 'Chụp ảnh máy tập để AI cho biết tên máy, nhóm cơ và cách dùng.' },
+  body_check: { label: 'Đánh giá thể hình', kind: 'image', hint: 'Tải ảnh cơ thể để AI nhận xét nhóm cơ cần ưu tiên.' },
+  form_video: { label: 'Kiểm tra form', kind: 'video', hint: 'Quay video (MP4/MOV, tối đa 25MB) một hiệp tập để AI đánh giá kỹ thuật.' },
+}
+
+const SECTIONS = [
+  [detectedItems, 'Nhận diện'], [bodyObservations, 'Quan sát'], [muscles, 'Nhóm cơ'], [priorityMuscles, 'Nhóm cơ ưu tiên'],
+  [suggestedExercises, 'Bài tập gợi ý'], [movementSummary, 'Chuyển động'], [majorIssues, 'Lỗi lớn'], [minorIssues, 'Lỗi nhỏ'],
+  [correctPoints, 'Điểm đúng'], [correctiveCues, 'Cách sửa'], [suggestedFixes, 'Gợi ý chỉnh'], [formFeedback, 'Nhận xét form'],
+  [trainingAdvice, 'Lời khuyên'], [warnings, 'Lưu ý'],
+]
+
+function MediaResult({ r }) {
+  return (
+    <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto rounded-lg bg-surface-container p-3">
+      <p className="font-semibold">{r.title}</p>
+      {r.overallVerdict && <p><b>Kết luận:</b> {r.overallVerdict}{r.detectedExercise ? ` (${r.detectedExercise})` : ''}</p>}
+      <p>{r.summary}</p>
+      {SECTIONS.map(([k, label]) => {
+        const v = r[k]
+        if (!v || (Array.isArray(v) && v.length === 0)) return null
+        return (
+          <div key={k}>
+            <p className="font-label-md text-label-md">{label}</p>
+            {Array.isArray(v) ? <ul className="list-disc pl-5">{v.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p>{v}</p>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function AiMediaModal({ onClose }) {
+  const [tab, setTab] = useState('equipment_info')
+  const [file, setFile] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+  const t = MEDIA_TABS[tab]
+
+  const analyze = async () => {
+    const form = new FormData()
+    if (t.kind === 'video') form.append('video', file)
+    else {
+      form.append('image', file)
+      form.append('mode', tab)
+    }
+    setBusy(true)
+    setError('')
+    try {
+      setResult(await apiForm(t.kind === 'video' ? '/ai/analyze-form-video' : '/ai/analyze-image', form))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title="Phân tích ảnh / video bằng AI" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-2 flex-wrap">
+          {Object.entries(MEDIA_TABS).map(([k, v]) => (
+            <button
+              key={k}
+              onClick={() => { setTab(k); setFile(null); setResult(null); setError('') }}
+              className={`px-3 py-1.5 rounded-lg border text-label-md ${tab === k ? 'border-primary-container bg-primary-container text-on-primary' : 'border-outline-variant'}`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-body-sm text-secondary">{t.hint}</p>
+        {error && <Alert>{error}</Alert>}
+        <input
+          key={tab}
+          type="file"
+          accept={t.kind === 'video' ? 'video/mp4,video/quicktime' : 'image/jpeg,image/png,image/webp'}
+          onChange={(e) => { setFile(e.target.files[0] ?? null); setResult(null) }}
+        />
+        <button className={btnPrimary} onClick={analyze} disabled={!file || busy}>
+          {busy ? 'AI đang phân tích…' : 'Phân tích'}
+        </button>
+        {result && <MediaResult r={result} />}
       </div>
     </Modal>
   )
