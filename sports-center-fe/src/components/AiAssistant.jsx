@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { api, apiForm } from '../api'
 import AiText from './AiText'
 import { Alert, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
@@ -14,7 +14,7 @@ const INTENSITIES = [['Light', 'Nhẹ'], ['Moderate', 'Vừa'], ['High', 'Cao']]
 const DAYS = [['Monday', 'T2'], ['Tuesday', 'T3'], ['Wednesday', 'T4'], ['Thursday', 'T5'], ['Friday', 'T6'], ['Saturday', 'T7'], ['Sunday', 'CN']]
 
 // Applies the AI's suggestion batch to the member's plan; shared by the generator and the chat.
-function ApplyButton({ suggestions, onApplied }) {
+export function ApplyButton({ suggestions, onApplied }) {
   const [state, setState] = useState('idle') // idle | busy | done
   const [error, setError] = useState('')
   if (!suggestions?.length) return null
@@ -114,70 +114,6 @@ export function AiGenerateModal({ onClose, onApplied }) {
             <button className={btnOutline} onClick={() => setResult(null)}>Tạo lại</button>
           </>
         )}
-      </div>
-    </Modal>
-  )
-}
-
-export function AiChatModal({ onClose, onApplied }) {
-  const [messages, setMessages] = useState([]) // { role, content, suggestions? }
-  const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const bottom = useRef(null)
-
-  useEffect(() => {
-    api('/ai/history').then((h) => setMessages(h.map((m) => ({ role: m.role, content: m.content })))).catch((e) => setError(e.message))
-  }, [])
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'end' })
-  }, [messages, busy])
-
-  const send = async (e) => {
-    e.preventDefault()
-    const message = text.trim()
-    if (!message || busy) return
-    setText('')
-    setError('')
-    setMessages((m) => [...m, { role: 'user', content: message }])
-    setBusy(true)
-    try {
-      const r = await api('/ai/chat', { method: 'POST', body: { message } })
-      setMessages((m) => [...m, { role: 'assistant', content: r.response, suggestions: r.suggestions }])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const clear = async () => {
-    await api('/ai/history', { method: 'DELETE' }).catch(() => {})
-    setMessages([])
-  }
-
-  return (
-    <Modal title="Chat với trợ lý AI" onClose={onClose}>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 h-[50vh] overflow-y-auto pr-1">
-          {messages.length === 0 && !busy && <p className="text-secondary text-center mt-8">Hỏi về bài tập, dinh dưỡng hoặc nhờ AI chỉnh lịch tập của bạn.</p>}
-          {messages.map((m, i) => (
-            <div key={i} className={`max-w-[92%] rounded-xl px-3.5 py-2.5 ${m.role === 'user' ? 'self-end bg-primary-container text-on-primary whitespace-pre-wrap' : 'self-start bg-surface-container'}`}>
-              {m.role === 'user' ? m.content : <AiText text={m.content} />}
-              {m.suggestions?.length > 0 && <ApplyButton suggestions={m.suggestions} onApplied={onApplied} />}
-            </div>
-          ))}
-          {busy && <p className="self-start text-secondary">AI đang trả lời…</p>}
-          <div ref={bottom} />
-        </div>
-        {error && <Alert>{error}</Alert>}
-        <form onSubmit={send} className="flex gap-2">
-          <input className={`${inputCls} flex-1`} value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder="Nhập câu hỏi…" />
-          <button className={btnPrimary} disabled={busy || !text.trim()}>Gửi</button>
-          <button type="button" className={btnOutline} onClick={clear} title="Xóa lịch sử chat">
-            <Icon name="delete" className="text-[18px]" />
-          </button>
-        </form>
       </div>
     </Modal>
   )

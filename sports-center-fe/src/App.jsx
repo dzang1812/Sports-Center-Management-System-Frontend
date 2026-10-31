@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
+import AiChatWidget from './components/AiChatWidget'
 import AppLayout from './components/Layouts'
 import AuditLogsPage from './pages/AuditLogsPage'
 import CatalogPage from './pages/CatalogPage'
@@ -118,6 +119,7 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <AiChatWidget />
       </AuthProvider>
     </BrowserRouter>
   )
