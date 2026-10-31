@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, apiForm } from '../api'
+import AiText from './AiText'
 import { Alert, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
 
 const GOALS = [
@@ -106,7 +107,9 @@ export function AiGenerateModal({ onClose, onApplied }) {
           </>
         ) : (
           <>
-            <div className="whitespace-pre-wrap text-body-md max-h-[50vh] overflow-y-auto rounded-lg bg-surface-container p-3">{result.response}</div>
+            <div className="text-body-md max-h-[50vh] overflow-y-auto rounded-lg bg-surface-container p-3">
+              <AiText text={result.response} />
+            </div>
             <ApplyButton suggestions={result.suggestions} onApplied={onApplied} />
             <button className={btnOutline} onClick={() => setResult(null)}>Tạo lại</button>
           </>
@@ -159,8 +162,8 @@ export function AiChatModal({ onClose, onApplied }) {
         <div className="flex flex-col gap-2 h-[50vh] overflow-y-auto pr-1">
           {messages.length === 0 && !busy && <p className="text-secondary text-center mt-8">Hỏi về bài tập, dinh dưỡng hoặc nhờ AI chỉnh lịch tập của bạn.</p>}
           {messages.map((m, i) => (
-            <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 whitespace-pre-wrap ${m.role === 'user' ? 'self-end bg-primary-container text-on-primary' : 'self-start bg-surface-container'}`}>
-              {m.content}
+            <div key={i} className={`max-w-[92%] rounded-xl px-3.5 py-2.5 ${m.role === 'user' ? 'self-end bg-primary-container text-on-primary whitespace-pre-wrap' : 'self-start bg-surface-container'}`}>
+              {m.role === 'user' ? m.content : <AiText text={m.content} />}
               {m.suggestions?.length > 0 && <ApplyButton suggestions={m.suggestions} onApplied={onApplied} />}
             </div>
           ))}
