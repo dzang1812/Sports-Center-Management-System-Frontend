@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { ROLE_LABEL } from '../labels'
+import { AiChatModal } from './AiAssistant'
 import { Avatar, Icon } from './ui'
 
 // Menu per role. Only pages that exist are listed.
@@ -131,6 +132,23 @@ function StaffLayout() {
   )
 }
 
+// Floating AI coach on every member page. Plan changes it applies are broadcast so an open plan page reloads.
+function FloatingAiChat() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        title="Chat với trợ lý AI"
+        className="fixed bottom-6 right-6 z-40 h-14 pl-4 pr-5 rounded-full bg-primary-container text-on-primary shadow-lg hover:shadow-xl flex items-center gap-2 font-label-md text-label-md"
+      >
+        <Icon name="smart_toy" className="text-[24px]" /> Hỏi AI
+      </button>
+      {open && <AiChatModal onClose={() => setOpen(false)} onApplied={() => window.dispatchEvent(new Event('sc:plan-changed'))} />}
+    </>
+  )
+}
+
 // Top-nav layout for members (Stitch "Lịch lớp học" style).
 function MemberLayout() {
   const link = ({ isActive }) =>
@@ -164,6 +182,7 @@ function MemberLayout() {
           <Outlet />
         </div>
       </main>
+      <FloatingAiChat />
     </div>
   )
 }

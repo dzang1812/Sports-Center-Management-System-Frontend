@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
-import { AiChatModal, AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
+import { AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
 import ExerciseDetailModal from '../components/ExerciseDetail'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
 
@@ -174,6 +174,16 @@ export default function MemberTrainingPage() {
     load()
   }, [])
 
+  // The floating AI chat (member layout) announces plan changes it applied.
+  useEffect(() => {
+    const reload = () => {
+      setDraft(null)
+      load()
+    }
+    window.addEventListener('sc:plan-changed', reload)
+    return () => window.removeEventListener('sc:plan-changed', reload)
+  }, [])
+
   const active = useMemo(() => plans?.find((p) => p.isActive), [plans])
   useEffect(() => {
     if (plans && !draft) setDraft(active ? toDraft(active) : emptyDraft())
@@ -275,9 +285,6 @@ export default function MemberTrainingPage() {
         <button className={btnPrimary} onClick={() => setAi('generate')}>
           <Icon name="auto_awesome" className="text-[18px]" /> Tạo lịch bằng AI
         </button>
-        <button className={btnOutline} onClick={() => setAi('chat')}>
-          <Icon name="chat" className="text-[18px]" /> Chat với AI
-        </button>
         <button className={btnOutline} onClick={() => setAi('media')}>
           <Icon name="photo_camera" className="text-[18px]" /> Máy tập / Form tập
         </button>
@@ -318,7 +325,6 @@ export default function MemberTrainingPage() {
       </div>
 
       {ai === 'generate' && <AiGenerateModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
-      {ai === 'chat' && <AiChatModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {ai === 'media' && <AiMediaModal onClose={() => setAi(null)} />}
       {detail && <ExerciseDetailModal exercise={detail} onClose={() => setDetail(null)} />}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(null)} />}
