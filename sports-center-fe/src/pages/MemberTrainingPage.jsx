@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
 import { AiChatModal, AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
+import ExerciseDetailModal from '../components/ExerciseDetail'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
 
 const DAYS = [
@@ -40,6 +41,7 @@ function ExercisePicker({ onPick, onClose }) {
   const [group, setGroup] = useState('')
   const [q, setQ] = useState('')
   const [list, setList] = useState(null)
+  const [detail, setDetail] = useState(null)
 
   useEffect(() => {
     api('/exercises/muscle-groups').then(setGroups).catch(() => {})
@@ -70,11 +72,11 @@ function ExercisePicker({ onPick, onClose }) {
         {list?.length === 0 && <p className="text-secondary text-center">Chưa có bài tập nào. Nhờ quản lý nạp thư viện bài tập.</p>}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[55vh] overflow-y-auto pr-1">
           {list?.map((e) => (
+            <div key={e.id} className="relative">
             <button
-              key={e.id}
               type="button"
               onClick={() => onPick(e)}
-              className="text-left rounded-xl border border-outline-variant overflow-hidden hover:border-primary-container hover:shadow-sm transition"
+              className="w-full text-left rounded-xl border border-outline-variant overflow-hidden hover:border-primary-container hover:shadow-sm transition"
             >
               {e.imageUrl ? (
                 <img src={e.imageUrl} alt={e.name} loading="lazy" className="w-full h-28 object-cover bg-surface-container" />
@@ -88,14 +90,24 @@ function ExercisePicker({ onPick, onClose }) {
                 <p className="text-body-sm text-secondary">{e.muscleGroup}</p>
               </div>
             </button>
+            <button
+              type="button"
+              onClick={() => setDetail(e)}
+              title="Xem chi tiết"
+              className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-primary-container hover:bg-white"
+            >
+              <Icon name="info" className="text-[18px]" />
+            </button>
+            </div>
           ))}
         </div>
+        {detail && <ExerciseDetailModal exercise={detail} onClose={() => setDetail(null)} />}
       </div>
     </Modal>
   )
 }
 
-function DayCard({ label, day, onChange, onAdd }) {
+function DayCard({ label, day, onChange, onAdd, onDetail }) {
   if (!day)
     return (
       <div className="rounded-xl border border-dashed border-outline-variant p-4 flex flex-col gap-2 bg-surface-container-lowest">
@@ -118,9 +130,13 @@ function DayCard({ label, day, onChange, onAdd }) {
       <input className={inputCls} placeholder="Trọng tâm (vd: Ngực + Tay sau)" maxLength={100} value={day.focus} onChange={(e) => onChange({ ...day, focus: e.target.value })} />
       {day.items.map((it, idx) => (
         <div key={`${it.exerciseId}-${idx}`} className="flex items-center gap-2">
-          <Thumb src={it.imageUrl} name={it.exerciseName} />
+          <button type="button" onClick={() => onDetail(it.exerciseId)} title="Xem chi tiết" className="shrink-0">
+            <Thumb src={it.imageUrl} name={it.exerciseName} />
+          </button>
           <div className="flex-1 min-w-0">
-            <p className="text-body-sm font-semibold truncate">{it.exerciseName}</p>
+            <button type="button" onClick={() => onDetail(it.exerciseId)} className="text-body-sm font-semibold truncate max-w-full text-left hover:underline">
+              {it.exerciseName}
+            </button>
             <div className="flex items-center gap-1 text-body-sm">
               <input type="number" min={1} max={20} className={`${inputCls} !w-14 !py-1`} value={it.sets} onChange={(e) => setItem(idx, { sets: Number(e.target.value) })} />
               <span>hiệp ×</span>
@@ -147,6 +163,7 @@ export default function MemberTrainingPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [saving, setSaving] = useState(false)
+  const [detail, setDetail] = useState(null)
   const [ai, setAi] = useState(null) // 'generate' | 'chat' | 'media'
 
   const load = () =>
@@ -215,6 +232,15 @@ export default function MemberTrainingPage() {
     }
   }
 
+  const showDetail = async (id) => {
+    try {
+      const all = await api('/exercises')
+      setDetail(all.find((e) => e.id === id) ?? null)
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   // AI apply changes the active plan server-side: reload and show it.
   const refreshAfterAi = () => {
     setDraft(null)
@@ -268,7 +294,7 @@ export default function MemberTrainingPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {DAYS.map(([key, label]) => (
-          <DayCard key={key} label={label} day={draft.days[key]} onChange={(d) => setDay(key, d)} onAdd={() => setPicking(key)} />
+          <DayCard key={key} label={label} day={draft.days[key]} onChange={(d) => setDay(key, d)} onAdd={() => setPicking(key)} onDetail={showDetail} />
         ))}
       </div>
 
@@ -294,6 +320,7 @@ export default function MemberTrainingPage() {
       {ai === 'generate' && <AiGenerateModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {ai === 'chat' && <AiChatModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {ai === 'media' && <AiMediaModal onClose={() => setAi(null)} />}
+      {detail && <ExerciseDetailModal exercise={detail} onClose={() => setDetail(null)} />}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(null)} />}
     </div>
   )
