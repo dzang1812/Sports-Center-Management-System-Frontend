@@ -126,7 +126,9 @@ export function AiChatModal({ onClose, onApplied }) {
   useEffect(() => {
     api('/ai/history').then((h) => setMessages(h.map((m) => ({ role: m.role, content: m.content })))).catch((e) => setError(e.message))
   }, [])
-  useEffect(() => bottom.current?.scrollIntoView({ block: 'end' }), [messages, busy])
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: 'end' })
+  }, [messages, busy])
 
   const send = async (e) => {
     e.preventDefault()
