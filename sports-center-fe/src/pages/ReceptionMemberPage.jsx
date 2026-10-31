@@ -5,6 +5,7 @@ import { api, query } from '../api'
 import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { SUBSCRIPTION_STATUS_LABEL } from '../labels'
 import { BookingSchedule } from './MyMemberSchedulePage'
+import { NewMemberModal, PaymentHistory } from '../components/frontDesk'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 
@@ -62,6 +63,7 @@ function MemberDirectory() {
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false)
   const request = useRef(null)
 
   const load = useCallback(async () => {
@@ -92,11 +94,18 @@ function MemberDirectory() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-surface-container rounded-xl shadow-sm p-5">
-        <Field label="Tìm hội viên">
-          <input className={inputCls} placeholder="Mã hội viên, tên, email hoặc số điện thoại…" value={q} onChange={(e) => setQ(e.target.value)} />
-        </Field>
+      <div className="bg-surface-container rounded-xl shadow-sm p-5 flex flex-col sm:flex-row gap-4 sm:items-end">
+        <div className="flex-1">
+          <Field label="Tìm hội viên">
+            <input className={inputCls} placeholder="Mã hội viên, tên, email hoặc số điện thoại…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </Field>
+        </div>
+        <button type="button" className={btnPrimary} onClick={() => setCreating(true)}>
+          <Icon name="person_add" className="text-lg" />
+          Đăng ký hội viên mới
+        </button>
       </div>
+      {creating && <NewMemberModal onClose={() => setCreating(false)} onDone={(m) => navigate(`/reception/members/${m.id}`)} />}
 
       {error && <Alert>{error}</Alert>}
 
@@ -239,6 +248,7 @@ function ReceptionMemberContent({ id }) {
         </div>
       )}
 
+      {id && <PaymentHistory memberId={id} />}
       {id && <MemberCommerce key={id} memberId={id} />}
       {id && <section className="space-y-4"><h2 className="font-headline-md text-headline-md">Lịch & booking của {member?.fullName ?? `hội viên #${id}`}</h2><div className="flex gap-2"><Link className={btnOutline} to="/reception/classes">Đặt lớp cho hội viên</Link><Link className={btnOutline} to="/reception/pt">Đặt PT cho hội viên</Link></div><BookingSchedule memberId={id} onChanged={() => load(id)} /></section>}
       {modal && (

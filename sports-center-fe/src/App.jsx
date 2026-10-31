@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { AuthProvider, useAuth } from './auth'
 import AppLayout from './components/Layouts'
 import { MemberCommerce, CourseManagement } from './components/commerce'
+import { InvoicePage, MemberSupportPage, SupportDeskPage } from './components/frontDesk'
 import AuditLogsPage from './pages/AuditLogsPage'
 import CatalogPage from './pages/CatalogPage'
 import ClassesPage from './pages/ClassesPage'
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/403" element={<Forbidden />} />
+          <Route path="/invoice/:id" element={<InvoicePage />} />
 
           <Route element={<RequireAuth />}>
             <Route path="/profile" element={<ProfilePage />} />
@@ -104,6 +106,7 @@ export default function App() {
               <Route path="/reception/members/:id" element={<ReceptionMemberPage />} />
               <Route path="/reception/schedule" element={<ReceptionSchedulePage />} />
               <Route path="/reception/payments" element={<ReceptionPaymentsPage />} />
+              <Route path="/reception/support" element={<SupportDeskPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Coach']} />}>
@@ -118,6 +121,7 @@ export default function App() {
               <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
               <Route path="/member/wallet" element={<MemberCommerce />} />
               <Route path="/member/pt" element={<MemberPtPage />} />
+              <Route path="/member/support" element={<MemberSupportPage />} />
             </Route>
           </Route>
 
