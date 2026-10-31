@@ -5,6 +5,7 @@ import { Flow2TimeRulesProvider, Flow2TimeRulesSwitch } from '../flow2TimeRules'
 import { ROLE_LABEL } from '../labels'
 import { Avatar, Icon } from './ui'
 import Notifications from './Notifications'
+import { SupportBadge } from './support'
 
 // Menu per role. Only pages that exist are listed.
 const NAV = {
@@ -25,7 +26,7 @@ const NAV = {
     { to: '/reception/schedule', label: 'Lịch khóa học', icon: 'calendar_month' },
     { to: '/reception/members', label: 'Danh sách hội viên', icon: 'badge' },
     { to: '/reception/payments', label: 'Xác nhận thanh toán', icon: 'point_of_sale' },
-    { to: '/reception/support', label: 'Yêu cầu hỗ trợ', icon: 'contact_support' },
+    { to: '/reception/support', label: 'Yêu cầu hỗ trợ', icon: 'contact_support', badge: SupportBadge },
     { to: '/reception/classes', label: 'Đăng ký khóa học', icon: 'event_available' },
     { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
   ],
@@ -108,6 +109,7 @@ function StaffLayout() {
             <NavLink key={n.to} to={n.to} end={n.end} className={link} title={collapsed ? n.label : undefined}>
               <Icon name={n.icon} className="text-[20px] shrink-0" />
               <span className={collapsed ? 'lg:hidden' : ''}>{n.label}</span>
+              {n.badge && <n.badge />}
             </NavLink>
           ))}
         </nav>
