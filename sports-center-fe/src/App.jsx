@@ -18,6 +18,7 @@ import ManagerSettingsPage from './pages/ManagerSettingsPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
 import ManagerPtPage from './pages/ManagerPtPage'
 import MemberExplorePage from './pages/MemberExplorePage'
+import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
 import MemberTrainingPage from './pages/MemberTrainingPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import NewsPage from './pages/NewsPage'
@@ -124,7 +125,7 @@ export default function App() {
               <Route path="/member" element={<Navigate to="/member/schedule" replace />} />
               <Route path="/member/classes" element={<MemberExplorePage />} />
               <Route path="/member/schedule" element={<MyMemberSchedulePage />} />
-              <Route path="/member/subscription" element={<Navigate to="/member/schedule?tab=packages" replace />} />
+              <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
               <Route path="/member/wallet" element={<MemberCommerce viewMode="wallet" />} />
               <Route path="/member/pt" element={<Navigate to="/member/classes?type=pt" replace />} />
               <Route path="/member/training" element={<MemberTrainingPage />} />

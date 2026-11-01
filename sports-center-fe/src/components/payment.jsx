@@ -6,7 +6,7 @@ import { Icon, btnOutline, btnPrimary } from './ui'
 const formatVnd = (n) => `${n.toLocaleString('vi-VN')}đ`
 
 // payment.qrCode from PayOS is the raw VietQR payload string, not an image — render it client-side.
-export function PaymentQrCode({ data }) {
+export function PaymentQrCode({ data, alt = 'QR thanh toán' }) {
   const [src, setSrc] = useState(null)
   useEffect(() => {
     let cancelled = false
@@ -16,7 +16,7 @@ export function PaymentQrCode({ data }) {
     }
   }, [data])
   return src ? (
-    <img src={src} alt="QR thanh toán" className="w-56 h-56 object-contain rounded-lg border border-outline-variant" />
+    <img src={src} alt={alt} className="w-56 h-56 object-contain rounded-lg border border-outline-variant" />
   ) : (
     <div className="w-56 h-56 rounded-lg border border-outline-variant bg-surface-container-low animate-pulse" />
   )

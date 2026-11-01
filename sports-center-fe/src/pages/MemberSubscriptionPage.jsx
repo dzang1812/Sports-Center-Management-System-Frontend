@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { PaymentPendingPanel } from '../components/payment'
+import { toDateOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
@@ -47,11 +48,12 @@ function CurrentPlanHero({ sub }) {
   const total = dayCount(sub.startDate, sub.endDate)
   const pct = Math.max(0, Math.min(100, Math.round((sub.remainingDays / total) * 100)))
   const ptPct = sub.totalPtSessions > 0 ? Math.round((sub.remainingPtSessions / sub.totalPtSessions) * 100) : null
+  const upcoming = sub.startDate > toDateOnly()
 
   return (
     <div className="bg-gradient-to-br from-primary-container/15 via-surface-container-lowest to-tertiary-container/10 rounded-xl p-6 shadow-md border border-primary-container/30">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-        <span className="font-label-sm text-label-sm uppercase tracking-wide text-primary font-semibold">Gói đang sử dụng</span>
+        <span className="font-label-sm text-label-sm uppercase tracking-wide text-primary font-semibold">{upcoming ? `Sắp bắt đầu · từ ${sub.startDate}` : 'Gói đang sử dụng'}</span>
         <Badge tone="green">{PLAN_TYPE_LABEL[sub.planType] ?? sub.planType}</Badge>
       </div>
       <h2 className="font-headline-lg text-headline-lg text-on-surface mb-3">{sub.planName}</h2>
@@ -86,17 +88,18 @@ function CurrentPlanHero({ sub }) {
         )}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap mt-4 pt-4 border-t border-outline-variant/30">
-        {sub.sportName && <Badge tone="indigo">{sub.sportName}</Badge>}
-        {sub.includesClasses && <Badge tone="indigo">Lớp học nhóm</Badge>}
-        <Link to="/member/classes" className={btnOutline + ' !h-8 ml-auto'}>Khám phá khóa học & PT</Link>
-      </div>
+      {(sub.sportName || sub.includesClasses) && (
+        <div className="flex items-center gap-2 flex-wrap mt-4 pt-4 border-t border-outline-variant/30">
+          {sub.sportName && <Badge tone="indigo">{sub.sportName}</Badge>}
+          {sub.includesClasses && <Badge tone="indigo">Lớp học nhóm</Badge>}
+        </div>
+      )}
     </div>
   )
 }
 
 
-export default function MemberSubscriptionPage({ embedded = false }) {
+export default function MemberSubscriptionPage() {
   const [subs, setSubs] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -112,7 +115,11 @@ export default function MemberSubscriptionPage({ embedded = false }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const current = useMemo(() => subs.find((s) => s.status === 'Active') ?? null, [subs])
+  // Every not-yet-expired plan (the API reports past-end ones as Expired), the one in force first.
+  const current = useMemo(
+    () => subs.filter((s) => s.status === 'Active').sort((a, b) => a.startDate.localeCompare(b.startDate) || a.endDate.localeCompare(b.endDate)),
+    [subs],
+  )
 
   const filtered = useMemo(
     () =>
@@ -128,18 +135,25 @@ export default function MemberSubscriptionPage({ embedded = false }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {embedded ? <h2 className="font-headline-md text-headline-md">Gói tập đã mua trước đây</h2> : <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>}
+          <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>
           <p className="text-secondary">Tra cứu quyền lợi và lịch sử các gói tập đã mua.</p>
         </div>
-        {!embedded && <Link to="/member/classes" className={btnPrimary}>
+        <Link to="/member/classes" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
           Khám phá khóa học & PT
-        </Link>}
+        </Link>
       </div>
 
       {error && <Alert>{error}</Alert>}
 
-      <CurrentPlanHero sub={current} />
+      {current.length ? (
+        <div className="flex flex-col gap-4">
+          <h3 className="font-headline-sm text-headline-sm">Gói còn hạn ({current.length})</h3>
+          {current.map((s) => <CurrentPlanHero key={s.id} sub={s} />)}
+        </div>
+      ) : (
+        <CurrentPlanHero sub={null} />
+      )}
 
       <div className="flex flex-col gap-4">
         <h3 className="font-headline-sm text-headline-sm">Lịch sử đăng ký</h3>

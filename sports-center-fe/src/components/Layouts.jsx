@@ -30,6 +30,7 @@ const NAV = {
   Member: [
     { to: '/member/classes', label: 'Khám phá', icon: 'explore' },
     { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
+    { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
     { to: '/member/wallet', label: 'Số dư', icon: 'account_balance_wallet' },
     { to: '/profile', label: 'Hồ sơ', icon: 'person' },
   ],
@@ -153,7 +154,7 @@ function MemberLayout() {
             <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-headline-md text-headline-md font-bold text-on-surface">FitZone</span>
           </Link>
-          <nav aria-label="Điều hướng hội viên" className="order-3 lg:order-2 w-full lg:w-auto grid grid-cols-4 gap-1 p-1 bg-surface-container-low rounded-xl">
+          <nav aria-label="Điều hướng hội viên" className="order-3 lg:order-2 w-full lg:w-auto grid grid-cols-5 gap-1 p-1 bg-surface-container-low rounded-xl">
             {NAV.Member.map((n) => (
               <NavLink key={n.to} to={n.to} className={link}>
                 <Icon name={n.icon} className="hidden sm:inline text-[20px]" />{n.label}

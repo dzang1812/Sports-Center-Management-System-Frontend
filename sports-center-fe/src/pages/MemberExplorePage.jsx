@@ -27,7 +27,7 @@ export default function MemberExplorePage() {
     <details className="text-body-sm text-slate-500"><summary className="cursor-pointer w-fit">Khóa đã mua & tùy chọn khác</summary><div className="flex flex-wrap gap-x-5 gap-y-2 pt-2">
       <Link className="text-primary hover:underline" to="/member/schedule?tab=courses">Xem khóa đã đăng ký</Link>
       <Link className="hover:underline" to="/member/classes?type=single">Lớp theo buổi</Link>
-      <Link className="hover:underline" to="/member/schedule?tab=packages">Gói tập đã mua</Link>
+      <Link className="hover:underline" to="/member/subscription">Gói tập đã mua</Link>
     </div></details>
   </div>
 }
