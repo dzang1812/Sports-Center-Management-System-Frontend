@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { api, apiUpload } from '../api'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
+import { PaymentQrCode } from '../components/payment'
 import { Alert, Avatar, Badge, Field, btnPrimary, inputCls } from '../components/ui'
-import { GENDER_LABEL, GOAL_LABEL, LEVEL_LABEL, PASSWORD_HINT, PASSWORD_RULE, PHONE_HINT, PHONE_RULE, ROLE_LABEL } from '../labels'
+import { GENDER_LABEL, GOAL_LABEL, GYM_CARD_STATUS_LABEL, LEVEL_LABEL, PASSWORD_HINT, PASSWORD_RULE, PHONE_HINT, PHONE_RULE, ROLE_LABEL } from '../labels'
 
 const MIN_BIRTH_DATE = new Date(new Date().getFullYear() - 120, 0, 1).toISOString().slice(0, 10)
 
@@ -194,6 +195,30 @@ function PasswordForm() {
   )
 }
 
+// The code reception scans/types at the gym gate; the backend issues it on first open.
+function GymCard() {
+  const [gymCard, setGymCard] = useState(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    api('/me/gym-card').then(setGymCard).catch((err) => setError(err.message))
+  }, [])
+  if (error) return <Alert>{error}</Alert>
+  if (!gymCard) return null
+  return (
+    <section className={`${card} flex flex-col sm:flex-row items-center gap-6`}>
+      <PaymentQrCode data={gymCard.cardCode} alt="QR thẻ hội viên" />
+      <div className="flex flex-col gap-2 min-w-0 text-center sm:text-left">
+        <h2 className="font-headline-md text-headline-md">Thẻ hội viên</h2>
+        <span className="font-mono font-bold text-on-surface break-all">{gymCard.cardCode}</span>
+        <div>
+          <Badge tone={gymCard.status === 'Active' ? 'green' : 'amber'}>{GYM_CARD_STATUS_LABEL[gymCard.status] ?? gymCard.status}</Badge>
+        </div>
+        <p className="text-secondary text-body-sm">Đưa mã QR này cho lễ tân quét khi vào và ra khỏi phòng Gym.</p>
+      </div>
+    </section>
+  )
+}
+
 export default function ProfilePage() {
   const { auth, updateAuth } = useAuth()
   const [me, setMe] = useState(null)
@@ -224,6 +249,7 @@ export default function ProfilePage() {
         </Alert>
       )}
       {error && <Alert>{error}</Alert>}
+      {auth.role === 'Member' && <GymCard />}
       {me && <ProfileForm me={me} onSaved={saved} />}
       <PasswordForm />
     </div>
