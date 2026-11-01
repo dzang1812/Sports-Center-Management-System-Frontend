@@ -31,5 +31,5 @@ function SelectedMember({ memberId, onChange, children }) {
 
 export default function ReceptionMemberPicker({ memberId, onChange, children }) {
   return memberId ? <SelectedMember key={memberId} memberId={memberId} onChange={onChange}>{children}</SelectedMember>
-    : <div className="rounded-2xl border border-outline-variant/50 bg-white p-4 sm:p-5 space-y-2"><h2 className="font-semibold mb-3">Chọn hội viên để bắt đầu</h2><MemberLookupField onSelect={onChange} /><p className="text-body-sm text-secondary">Tìm theo tên, mã hội viên, email hoặc số điện thoại.</p></div>
+    : <div className="rounded-2xl border border-outline-variant/50 bg-white p-4 sm:p-5 space-y-2"><h2 className="font-semibold mb-3">Chọn hội viên để bắt đầu</h2><MemberLookupField onSelect={onChange} /></div>
 }

@@ -9,6 +9,9 @@ import CourseScheduleCalendar from './CourseScheduleCalendar'
 import { groupCourseRefunds } from './walletHistory'
 import { CLASS_STATUS_LABEL, LEVEL_LABEL } from '../labels'
 import { createCashReceipt, readCashReceipt, saveCashReceipt } from './cashReceipt'
+import CourseCover from './CourseCover'
+import { courseAppearance } from './courseAppearance'
+import CoachProfileButton from './CoachProfile'
 
 const vnd = (amount) => `${Number(amount ?? 0).toLocaleString('vi-VN')}đ`
 
@@ -201,11 +204,11 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
       <button type="button" className={btnPrimary} disabled={loading || supportReason.trim().length < 2} onClick={() => setIntent({ title: 'Gửi yêu cầu hỗ trợ', description: e.course, policy: 'Trung tâm sẽ tiếp nhận yêu cầu. Gửi hỗ trợ không tự hủy khóa hoặc hoàn tiền.', path: `/courses/enrollments/${e.id}/support`, body: { reason: supportReason.trim() } })}>Gửi yêu cầu</button>
     </div>}
   </article>
-  return <section className="space-y-5">
+  return <section className={viewMode === 'catalog' ? 'space-y-3' : 'space-y-5'}>
     {!embedded && <div><h1 className="font-headline-xl text-headline-xl">{viewMode === 'wallet' ? 'Số dư của tôi' : coursesOnly ? 'Đăng ký nguyên khóa' : 'Số dư & đăng ký dịch vụ'}{memberId ? ` — hội viên #${memberId}` : ''}</h1>{viewMode === 'wallet' && <p className="text-secondary mt-2">Nạp tiền và theo dõi các khoản thanh toán, hoàn tiền của bạn.</p>}</div>}
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}{showCatalog && !staff && <Link className="block font-semibold underline mt-2" to="/member/schedule?tab=courses">Xem khóa đã đăng ký</Link>}</Alert>}{loading && <p role="status" className="text-secondary">Đang cập nhật…</p>}
     {data && <>
-      {data.wallet && !showWallet && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-container px-4 py-3"><p>Số dư có thể dùng: <b>{vnd(data.wallet.balance)}</b></p><Link to={staff ? `/reception/members/${memberId}?tab=wallet` : '/member/wallet'} className="text-primary text-body-sm font-semibold inline-flex items-center gap-1">Nạp tiền<Icon name="arrow_forward" className="text-base" /></Link></div>}
+      {data.wallet && !showWallet && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-body-sm"><p className="text-emerald-900">Số dư có thể dùng: <b className="font-bold">{vnd(data.wallet.balance)}</b></p><Link to={staff ? `/reception/members/${memberId}?tab=wallet` : '/member/wallet'} className="text-emerald-800 font-semibold inline-flex items-center gap-1">Nạp tiền<Icon name="arrow_forward" className="text-base" /></Link></div>}
       {showWallet && <div className="rounded-2xl bg-surface-container p-5 sm:p-6 space-y-4">
         <div className="flex items-center gap-3"><span className="h-12 w-12 rounded-xl bg-white flex items-center justify-center text-primary"><Icon name="account_balance_wallet" /></span><div><p className="text-body-sm text-secondary">Số dư trả trước</p><p className="font-semibold text-headline-lg">{vnd(data.wallet.balance)}</p></div></div>
         {data.wallet.balance !== data.wallet.ledgerBalance && <Alert>Cần đối chiếu số dư; liên hệ trung tâm trước khi giao dịch.</Alert>}
@@ -243,32 +246,34 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
           <Pagination page={historyPage} pageSize={20} total={data.ledger.total} onPage={setPage} onPageSize={() => {}} />
         </div>
       </div>}
-      {showCatalog && <div className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-headline-md text-headline-md">Khóa học nhiều tuần</h2><p className="text-secondary text-body-sm mt-1">Xem lịch đầy đủ và thanh toán một lần cho toàn khóa.</p></div><span className="text-body-sm text-secondary">{courses.length} khóa học</span></div>
+      {showCatalog && <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-base font-bold text-slate-900">Chọn khóa học phù hợp</h2><span className="text-body-sm font-semibold rounded-full bg-slate-100 text-slate-600 px-2.5 py-1">{courses.length} khóa học</span></div>
         <div className="grid sm:grid-cols-[1fr_220px] gap-3">
-          <input aria-label="Tìm khóa học" className={inputCls} value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm tên khóa học, bộ môn hoặc HLV…" />
-          <select aria-label="Lọc bộ môn" className={inputCls} value={sport} onChange={event => setSport(event.target.value)}><option value="all">Tất cả bộ môn</option>{[...new Set(data.courses.map(item => item.course.sport))].sort().map(name => <option key={name}>{name}</option>)}</select>
+          <input aria-label="Tìm khóa học" className={inputCls + ' !h-9'} value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm khóa học hoặc HLV…" />
+          <select aria-label="Lọc bộ môn" className={inputCls + ' !h-9'} value={sport} onChange={event => setSport(event.target.value)}><option value="all">Tất cả bộ môn</option>{[...new Set(data.courses.map(item => item.course.sport))].sort().map(name => <option key={name}>{name}</option>)}</select>
         </div>
-        <div className="grid lg:grid-cols-2 gap-4">{courses.map(({ course: c, canEnroll, enrollmentUnavailableReason }) => {
+        <div className="grid lg:grid-cols-2 gap-3">{courses.map(({ course: c, canEnroll, enrollmentUnavailableReason }) => {
           const purchased = data.enrollments.some(e => e.classId === c.id && e.status === 'Confirmed')
-          return <article key={c.id} className="flex flex-col rounded-2xl border border-outline-variant/50 bg-white overflow-hidden">
-            <div className="p-5 space-y-4 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex gap-2"><Badge tone="indigo">{c.sport}</Badge><span className="text-secondary text-body-sm">{LEVEL_LABEL[c.level] ?? c.level}</span></div><Badge tone={purchased ? 'indigo' : canEnroll ? 'green' : 'slate'}>{purchased ? 'Đã đăng ký' : canEnroll ? `Còn ${Math.max(0, c.capacity - c.enrolled)} chỗ` : 'Chưa nhận đăng ký'}</Badge></div>
-              <div><h3 className="text-xl font-semibold">{c.name}</h3>{c.description && <p className="text-secondary text-body-sm mt-1 line-clamp-2">{c.description}</p>}</div>
-              <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 text-body-sm text-secondary">
-                <p className="flex items-center gap-2"><Icon name="event_repeat" className="text-lg" />{c.durationWeeks} tuần · {c.expectedSessions} buổi</p>
-                <p className="flex items-center gap-2"><Icon name="person" className="text-lg" />{c.coach ?? 'Đang cập nhật HLV'}</p>
-                <p className="flex items-center gap-2"><Icon name="calendar_month" className="text-lg" />{formatDate(c.firstSessionDate ?? c.startDate)} – {formatDate(c.lastSessionDate ?? c.endDate)}</p>
-                <p className="flex items-center gap-2"><Icon name="location_on" className="text-lg" />{c.room}</p>
+          const appearance = courseAppearance(c.sport)
+          return <article key={c.id} className={`group flex flex-col rounded-xl border border-slate-200 border-t-[3px] ${appearance.border} bg-white overflow-hidden shadow-sm transition-shadow hover:shadow-md`}>
+            <div className="flex flex-col sm:flex-row flex-1">
+            <CourseCover sport={c.sport} compact />
+            <div className="p-3 sm:p-4 space-y-3 flex-1 min-w-0">
+              <div className="flex flex-wrap items-center justify-between gap-1.5"><span className={`rounded-md px-2 py-1 text-xs font-bold ${appearance.tag}`}>{c.sport}</span><Badge tone={purchased ? 'indigo' : canEnroll ? 'green' : 'amber'}>{purchased ? 'Đã đăng ký' : canEnroll ? `Còn ${Math.max(0, c.capacity - c.enrolled)} chỗ` : 'Chưa nhận đăng ký'}</Badge></div>
+              <div><h3 className="text-lg leading-6 font-bold text-slate-900">{c.name}</h3><p className="text-xs text-slate-500 mt-1 line-clamp-1" title={c.description ?? undefined}>{LEVEL_LABEL[c.level] ?? c.level}{c.description ? ` · ${c.description}` : ''}</p></div>
+              <div className="space-y-1.5 text-xs text-slate-600">
+                <p className="flex items-center gap-1.5 font-semibold text-slate-800"><Icon name="event_repeat" className="text-base text-slate-400" />{c.durationWeeks} tuần · {c.expectedSessions} buổi</p>
+                <p className="flex items-center gap-1.5"><Icon name="calendar_month" className="text-base text-slate-400" />{formatDate(c.firstSessionDate ?? c.startDate, { day: '2-digit', month: '2-digit', year: '2-digit' })} – {formatDate(c.lastSessionDate ?? c.endDate, { day: '2-digit', month: '2-digit', year: '2-digit' })}</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1"><p className="flex items-center gap-1.5"><Icon name="person" className="text-base text-slate-400" />{c.coachId ? <CoachProfileButton coachId={c.coachId} coach={{ id: c.coachId, fullName: c.coach }} className="inline-flex items-center gap-1">{c.coach}<Icon name="info" className="text-sm" /></CoachProfileButton> : <span className="font-medium text-slate-700">{c.coach ?? 'Đang cập nhật HLV'}</span>}</p><p className="flex items-center gap-1"><Icon name="location_on" className="text-base text-slate-400" />{c.room}</p></div>
               </div>
-              <div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-body-sm text-secondary">Học phí toàn khóa</p><p className="text-xl font-semibold text-primary">{vnd(c.courseFee)}</p></div><p className="text-body-sm text-secondary">{c.sessionPrice != null ? `${vnd(c.sessionPrice)}/buổi` : ''}</p></div>
-              <p className="text-body-sm text-secondary">Hạn đăng ký: {formatTimestamp(c.enrollmentClosesAt)}</p>
-              {enrollmentUnavailableReason && <p className="text-error text-body-sm" role="status">{enrollmentUnavailableReason}</p>}
+              <div className="border-t border-slate-100 pt-2"><div className="flex flex-wrap items-baseline gap-x-2"><p className={`text-2xl font-bold tracking-tight ${appearance.price}`}>{vnd(c.courseFee)}</p><span className="text-xs text-slate-500">/ toàn khóa</span></div><p className="text-[11px] text-slate-500 mt-0.5">{c.sessionPrice != null ? `${vnd(c.sessionPrice)}/buổi · ` : ''}Hạn: {formatTimestamp(c.enrollmentClosesAt)}</p></div>
             </div>
-            <div className="flex flex-wrap gap-2 border-t border-outline-variant/40 p-4 bg-surface/50">
-              <button type="button" className={btnOutline + ' flex-1'} onClick={() => view(c.id)}>Xem lịch & chi tiết</button>
-              {purchased && !staff ? <Link className={btnPrimary + ' flex-1'} to="/member/schedule?tab=courses">Khóa của tôi</Link>
-                : <button type="button" className={btnPrimary + ' flex-1'} disabled={loading || !canEnroll || purchased} onClick={() => enroll(c)}>{purchased ? 'Đã đăng ký' : canEnroll ? 'Đăng ký khóa' : 'Chưa thể đăng ký'}</button>}
+            </div>
+            {enrollmentUnavailableReason && <p className="mx-3 mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-amber-900 text-xs" role="status">{enrollmentUnavailableReason}</p>}
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3 bg-slate-50/70">
+              <button type="button" className={btnOutline + ' flex-1 !h-9 !text-xs bg-white'} onClick={() => view(c.id)}>Xem lịch & chi tiết</button>
+              {purchased && !staff ? <Link className={btnPrimary + ' flex-1 !h-9 !text-xs'} to="/member/schedule?tab=courses">Khóa của tôi</Link>
+                : <button type="button" className={btnPrimary + ' flex-1 !h-9 !text-xs'} disabled={loading || !canEnroll || purchased} onClick={() => enroll(c)}>{purchased ? 'Đã đăng ký' : canEnroll ? 'Đăng ký khóa' : 'Chưa thể đăng ký'}</button>}
             </div>
           </article>
         })}</div>

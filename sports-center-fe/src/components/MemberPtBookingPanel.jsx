@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, formatDate, fromTimeOnly } from '../dateUtils'
 import { Avatar, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
+import CoachProfileButton from './CoachProfile'
 
 const money = value => `${Number(value).toLocaleString('vi-VN')}đ`
 const card = 'rounded-2xl border border-outline-variant/50 bg-white'
@@ -36,11 +37,11 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
       </div>
       <div className="max-h-64 lg:max-h-[480px] overflow-y-auto p-2 space-y-1">
         {coachesLoading && <p role="status" className="p-4 text-body-sm text-secondary">Đang tải HLV…</p>}
-        {shownCoaches.map(item => <button type="button" key={item.id} aria-pressed={coach?.id === item.id} onClick={() => onCoachChange(item)}
-          className={`w-full flex items-center gap-3 p-3 text-left rounded-xl border transition-colors ${coach?.id === item.id ? 'border-primary-container bg-primary-container/5' : 'border-transparent hover:bg-surface-container-low'}`}>
+        {shownCoaches.map(item => <div key={item.id} className={`rounded-xl border transition-colors ${coach?.id === item.id ? 'border-primary-container bg-primary-container/5' : 'border-transparent hover:bg-surface-container-low'}`}><button type="button" aria-pressed={coach?.id === item.id} onClick={() => onCoachChange(item)}
+          className="w-full flex items-center gap-3 p-3 pb-1 text-left rounded-xl">
           <Avatar src={item.avatarUrl} className="h-10 w-10" /><span className="min-w-0 flex-1"><span className="block font-semibold truncate">{item.fullName}</span><span className="block text-body-sm text-secondary truncate">{item.sports.map(sport => sport.name).join(' · ')}</span></span>
           {coach?.id === item.id && <Icon name="check_circle" className="text-primary text-lg shrink-0" />}
-        </button>)}
+        </button><div className="pl-16 pr-3 pb-2"><CoachProfileButton coach={item} className="text-[11px]">Xem hồ sơ HLV</CoachProfileButton></div></div>)}
         {!coachesLoading && !shownCoaches.length && <p className="p-4 text-body-sm text-secondary">{coaches.length ? 'Không tìm thấy HLV phù hợp.' : 'Chưa có HLV nhận lịch PT.'}</p>}
       </div>
     </section>

@@ -165,7 +165,7 @@ function MemberLayout() {
         </div>
       </header>
       <main className={`pt-28 lg:pt-16 pb-10 w-full mx-auto ${pathname === '/member/schedule' ? 'max-w-[1800px] px-4 lg:px-6' : 'max-w-7xl px-4 sm:px-6 lg:px-10'}`}>
-        <div className="pt-6 sm:pt-8">
+        <div className={pathname === '/member/classes' ? 'pt-4' : 'pt-6 sm:pt-8'}>
           <Outlet />
         </div>
       </main>
