@@ -5,6 +5,7 @@ import { CancelBookingModal } from '../components/scheduleActions'
 import { OpenCheckInCodeButton, SelfCheckInButton } from '../components/classCheckIn'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import WeekTimetable from '../components/WeekTimetable'
+import CoachTeachingStats from '../components/CoachTeachingStats'
 import { addDays, formatTimestamp, fromTimeOnly, hasScheduleStarted, toDateOnly, weekRange } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, PT_ATTENDANCE_STATUSES, SESSION_STATUS_LABEL } from '../labels'
 
@@ -217,7 +218,7 @@ function WeekView({ setRosterItem }) {
           renderMeta={(it) => (
             <>
               <Icon name="group" className="text-sm" />
-              {it.type === 'PT' ? 'PT' : `${it.participantCount} học viên`}
+              {`${it.participantCount} học viên`}
             </>
           )}
         />
@@ -243,6 +244,8 @@ export default function CoachSessionsPage() {
           {[['week', 'Thời khóa biểu'], ['list', 'Danh sách']].map(([v, l]) => (
             <button
               key={v}
+              type="button"
+              aria-pressed={view === v}
               className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${view === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
               onClick={() => setView(v)}
             >
@@ -252,6 +255,7 @@ export default function CoachSessionsPage() {
         </div>
       </div>
 
+      <CoachTeachingStats refresh={reloadKey} />
       {view === 'week' ? <WeekView key={reloadKey} setRosterItem={setRosterItem} /> : <ListView key={reloadKey} setRosterItem={setRosterItem} />}
 
       {rosterItem && <RosterModal item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} />}

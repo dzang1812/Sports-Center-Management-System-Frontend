@@ -13,7 +13,7 @@ const NAV = {
     { to: '/manager/courses', label: 'Khóa học & lịch', icon: 'school', group: 'Vận hành' },
     { to: '/manager/pt-bookings', label: 'Lịch PT & giá buổi', icon: 'fitness_center', group: 'Vận hành' },
     { to: '/manager/users', label: 'Hội viên & nhân sự', icon: 'group', group: 'Quản trị' },
-    { to: '/manager/reports', label: 'Báo cáo doanh thu', icon: 'monitoring', group: 'Quản trị' },
+    { to: '/manager/reports', label: 'Báo cáo & thống kê', icon: 'monitoring', group: 'Quản trị' },
     { to: '/manager/settings', label: 'Danh mục & nhật ký', icon: 'tune', group: 'Quản trị' },
   ],
   Receptionist: [
