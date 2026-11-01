@@ -128,7 +128,7 @@ export default function MemberSubscriptionPage({ embedded = false }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {embedded ? <h2 className="font-headline-md text-headline-md">Gói tập đã mua trước đây</h2> : <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>}
+          {embedded ? <h2 className="font-headline-md text-headline-md">Gói tập của tôi</h2> : <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>}
           <p className="text-secondary">Tra cứu quyền lợi và lịch sử các gói tập đã mua.</p>
         </div>
         {!embedded && <Link to="/member/classes" className={btnPrimary}>

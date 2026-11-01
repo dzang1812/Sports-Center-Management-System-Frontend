@@ -392,7 +392,7 @@ export default function MyMemberSchedulePage() {
       </div>
 
       <nav aria-label="Quản lý lịch tập" className="flex flex-wrap gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['calendar', 'Lịch tập'], ['courses', 'Khóa đã đăng ký'], ['attendance', 'Điểm danh']].map(([v, l]) => (
+        {[['calendar', 'Lịch tập'], ['courses', 'Khóa đã đăng ký'], ['attendance', 'Điểm danh'], ['packages', 'Gói của tôi']].map(([v, l]) => (
           <button
             type="button"
             key={v}
@@ -414,7 +414,6 @@ export default function MyMemberSchedulePage() {
         <Link className="text-primary hover:underline" to="/member/schedule?tab=mine">Lịch dạng danh sách</Link>
         <Link className="text-primary hover:underline" to="/member/training">Kế hoạch tập cá nhân</Link>
         <Link className="text-primary hover:underline" to="/member/support">Yêu cầu hỗ trợ</Link>
-        <Link className="text-primary hover:underline" to="/member/schedule?tab=packages">Gói tập đã mua trước đây</Link>
         <Link className="text-primary hover:underline" to="/member/classes?type=single">Lớp theo buổi</Link>
       </div></details>
     </div>
