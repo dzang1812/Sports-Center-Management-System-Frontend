@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, query } from '../api'
 import { useAuth } from '../auth'
-import { businessDateTimeInput, businessDateTimeToUtc, formatDate, formatTimestamp, fromTimeOnly } from '../dateUtils'
+import { businessDateTimeInput, businessDateTimeToUtc, formatDate, formatTimestamp, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from './ui'
 import { PaymentPendingPanel } from './payment'
 import CourseScheduleCalendar from './CourseScheduleCalendar'
@@ -44,7 +44,7 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
       intent.onAttempt?.()
       const result = await api(intent.path, { method: intent.method ?? 'POST', body: intent.body, idempotencyKey: key })
       if (active.current) onDone(result)
-    } catch (err) { intent.onFailure?.(err); if (active.current) setError(err.message) }
+    } catch (err) { intent.onFailure?.(err); if (active.current) setError(intent.errorMessage?.(err) ?? err.message) }
     finally { pending.current = false; if (active.current) setBusy(false) }
   }
   return <Modal title={intent.title} onClose={close} footer={
@@ -300,6 +300,8 @@ export function CourseManagement({ embedded = false }) {
   const [section, setSection] = useState('schedule')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [quarterFilter, setQuarterFilter] = useState('all')
+  const [yearFilter, setYearFilter] = useState('all')
   const [detail, setDetail] = useState(null)
   const [enrollments, setEnrollments] = useState([])
   const [supportRequests, setSupportRequests] = useState([])
@@ -329,15 +331,34 @@ export function CourseManagement({ embedded = false }) {
   useEffect(() => { let active = true; void Promise.resolve().then(() => { if (active) load() }); return () => { active = false; request.current?.abort() } }, [load])
   const select = (c) => { const next = new URLSearchParams(params); next.set('courseId', String(c.id)); setParams(next); setSection('schedule'); setDetail(null); setEnrollments([]); setSupportRequests([]); setForm({ fee: c.courseFee || '', expectedSessions: c.expectedSessions || '', cutoff: c.enrollmentClosesAt ? businessDateTimeInput(c.enrollmentClosesAt) : '' }); setCancel({ reason: '', sessionId: '', refundWithoutMakeup: false, date: '', startTime: '', endTime: '', roomId: '' }) }
   const done = () => { setIntent(null); setNotice('Đã cập nhật thành công.'); load() }
-  const shown = courses.filter(({ course }) => (!statusFilter || course.status === statusFilter) && (!search.trim() || `${course.name} ${course.sport}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN'))))
+  const currentYear = Number(toDateOnly().slice(0, 4))
+  const years = [...new Set([currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2,
+    ...courses.flatMap(({ course }) => [course.firstSessionDate ?? course.startDate, course.lastSessionDate ?? course.endDate])
+      .filter(Boolean).map(date => Number(date.slice(0, 4)))])].sort((a, b) => b - a)
+  const firstMonth = quarterFilter === 'all' ? 1 : (Number(quarterFilter) - 1) * 3 + 1
+  const periodStart = yearFilter === 'all' ? null : `${yearFilter}-${String(firstMonth).padStart(2, '0')}-01`
+  const periodEndExclusive = periodStart ? new Date(Date.UTC(Number(yearFilter), firstMonth - 1 + (quarterFilter === 'all' ? 12 : 3), 1)).toISOString().slice(0, 10) : null
+  const shown = courses.filter(({ course }) => {
+    const start = course.firstSessionDate ?? course.startDate
+    const end = course.lastSessionDate ?? course.endDate ?? start
+    return (!statusFilter || course.status === statusFilter)
+      && (!search.trim() || `${course.name} ${course.sport}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN')))
+      && (!periodStart || (start && end && start < periodEndExclusive && end >= periodStart))
+  })
   return <div className="space-y-5">{!embedded && <h1 className="font-headline-xl text-headline-xl">Khóa học & lịch</h1>}
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}</Alert>}{loading && <p>Đang tải…</p>}
     {!selected && <>
-      <div className="grid sm:grid-cols-[1fr_220px] gap-3"><input className={inputCls} aria-label="Tìm khóa học" value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm tên khóa học, bộ môn…" /><select className={inputCls} aria-label="Trạng thái khóa học" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(CLASS_STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-      <p className="text-secondary text-body-sm">{shown.length} khóa học · Chọn một khóa để xem lịch, học viên và học phí.</p>
+      <div className="grid sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_180px_150px_150px] gap-3">
+        <input className={inputCls} aria-label="Tìm khóa học" value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm tên khóa học, bộ môn…" />
+        <select className={inputCls} aria-label="Trạng thái khóa học" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(CLASS_STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <select className={inputCls} aria-label="Lọc năm khóa học" value={yearFilter} onChange={event => { setYearFilter(event.target.value); if (event.target.value === 'all') setQuarterFilter('all') }}><option value="all">Tất cả năm</option>{years.map(year => <option key={year} value={year}>Năm {year}</option>)}</select>
+        <select className={inputCls} aria-label="Lọc quý khóa học" value={quarterFilter} onChange={event => { setQuarterFilter(event.target.value); if (event.target.value !== 'all' && yearFilter === 'all') setYearFilter(String(currentYear)) }}><option value="all">Tất cả quý</option>{[1, 2, 3, 4].map(quarter => <option key={quarter} value={quarter}>Quý {quarter}</option>)}</select>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-secondary text-body-sm">{shown.length} khóa học{periodStart ? ` · ${quarterFilter === 'all' ? 'Cả năm' : `Quý ${quarterFilter}`}/${yearFilter}` : ''} · Chọn một khóa để xem lịch, học viên và học phí.</p>{periodStart && <p className="mt-1 text-xs text-slate-500">Hiện khóa có thời gian học giao với {quarterFilter === 'all' ? 'năm' : 'quý'} đã chọn, kể cả khóa kéo dài qua nhiều quý.</p>}</div>{periodStart && <button type="button" className={btnOutline + ' !h-9 !text-xs'} onClick={() => { setYearFilter('all'); setQuarterFilter('all') }}>Xóa lọc thời gian</button>}</div>
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{shown.map(({ course: c }) => <button type="button" key={c.id} onClick={() => select(c)} className="rounded-2xl border border-outline-variant/50 bg-white p-5 text-left space-y-4 hover:border-primary-container hover:shadow-sm transition-all">
         <div className="flex items-center justify-between gap-2"><span className="text-body-sm text-primary">{c.sport}</span><Badge tone={c.status === 'Open' ? 'green' : c.status === 'Cancelled' ? 'red' : 'slate'}>{CLASS_STATUS_LABEL[c.status] ?? c.status}</Badge></div>
         <h2 className="font-semibold text-lg">{c.name}</h2><p className="text-body-sm text-secondary">{c.expectedSessions} buổi · {c.enrolled}/{c.capacity} học viên<br />HLV: {c.coach ?? 'Chưa phân công'} · {c.room}</p>
+        {(c.firstSessionDate ?? c.startDate) && <p className="text-body-sm text-secondary flex items-center gap-1.5"><Icon name="date_range" className="text-base" />{formatDate(c.firstSessionDate ?? c.startDate)} – {formatDate(c.lastSessionDate ?? c.endDate ?? c.firstSessionDate ?? c.startDate)}</p>}
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-outline-variant/40"><b>{vnd(c.courseFee)}</b><span className="text-primary text-body-sm inline-flex items-center gap-1">Quản lý khóa<Icon name="arrow_forward" className="text-base" /></span></div>
       </button>)}</div>
       {!loading && !shown.length && <p className="rounded-xl border border-dashed border-outline-variant bg-white p-8 text-center text-secondary">Không có khóa học phù hợp.</p>}
