@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, apiUpload } from '../api'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
+import CoachProfileEditor from '../components/CoachProfileEditor'
 import { Alert, Avatar, Badge, Field, btnPrimary, inputCls } from '../components/ui'
 import { GENDER_LABEL, GOAL_LABEL, LEVEL_LABEL, PASSWORD_HINT, PASSWORD_RULE, PHONE_HINT, PHONE_RULE, ROLE_LABEL } from '../labels'
 
@@ -225,6 +226,7 @@ export default function ProfilePage() {
       )}
       {error && <Alert>{error}</Alert>}
       {me && <ProfileForm me={me} onSaved={saved} />}
+      {me?.role === 'Coach' && !auth.mustChangePassword && <CoachProfileEditor key={me.id} />}
       <PasswordForm />
     </div>
   )
