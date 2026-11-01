@@ -97,7 +97,7 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
           </div> : <p className="text-body-sm text-secondary">Dùng 1 buổi từ gói PT đúng bộ môn, còn hạn tại ngày tập và còn buổi. Không trừ số dư.</p>}
           <button type="button" className={btnPrimary + ' w-full'} disabled={!canContinue} onClick={() => onContinue(selectedSlot)}>{fundingSource === 'Cash' ? 'Thu tiền mặt' : fundingSource === 'BankTransfer' ? 'Tạo mã QR' : usingWallet ? 'Tiếp tục thanh toán' : 'Xác nhận dùng gói'}<Icon name="arrow_forward" className="text-lg" /></button>
           {counterPending && <p role="status" className="text-body-sm text-secondary">Hoàn tất yêu cầu đang chờ ở trên trước khi đặt buổi mới.</p>}
-          <Link className="block text-center text-body-sm text-primary hover:underline" to={staff ? `/reception/members/${memberId}${payingMoney ? '?tab=wallet' : ''}` : usingWallet ? '/member/wallet' : '/member/schedule?tab=packages'}>{staff ? payingMoney ? 'Số dư & nạp tiền của hội viên' : 'Hồ sơ hội viên' : usingWallet ? 'Nạp tiền vào số dư' : 'Xem gói đã mua'}</Link>
+          <Link className="block text-center text-body-sm text-primary hover:underline" to={staff ? `/reception/members/${memberId}${payingMoney ? '?tab=wallet' : ''}` : usingWallet ? '/member/wallet' : '/member/subscription'}>{staff ? payingMoney ? 'Số dư & nạp tiền của hội viên' : 'Hồ sơ hội viên' : usingWallet ? 'Nạp tiền vào số dư' : 'Xem gói đã mua'}</Link>
           <p className="text-xs text-secondary leading-relaxed">Chọn giờ chưa giữ chỗ. Lịch được xác nhận sau khi hoàn tất thanh toán.</p>
         </div>
       </aside>

@@ -31,7 +31,7 @@ export default function MemberExplorePage() {
       <span>Bạn đã có đăng ký trước đây?</span>
       <Link className="text-primary hover:underline" to="/member/schedule?tab=courses">Xem khóa đã đăng ký</Link>
       <Link className="hover:underline" to="/member/classes?type=single">Lớp theo buổi</Link>
-      <Link className="hover:underline" to="/member/schedule?tab=packages">Gói tập đã mua</Link>
+      <Link className="hover:underline" to="/member/subscription">Gói tập đã mua</Link>
     </div>
   </div>
 }

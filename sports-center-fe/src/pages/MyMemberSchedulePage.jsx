@@ -8,7 +8,6 @@ import { CancelBookingModal, PtRescheduleModal } from '../components/scheduleAct
 import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
 import MemberScheduleOverview from '../components/MemberScheduleOverview'
 import { MemberCommerce } from '../components/commerce'
-import MemberSubscriptionPage from './MemberSubscriptionPage'
 import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
 
@@ -381,7 +380,7 @@ function AttendanceHistory() {
 export default function MyMemberSchedulePage() {
   const [params, setParams] = useSearchParams()
   const requestedTab = params.get('tab')
-  const tab = ['courses', 'attendance', 'mine', 'packages'].includes(requestedTab) ? requestedTab : 'calendar'
+  const tab = ['courses', 'attendance', 'mine'].includes(requestedTab) ? requestedTab : 'calendar'
 
   return (
     <div className="flex flex-col gap-5 max-w-[1440px] mx-auto">
@@ -392,7 +391,7 @@ export default function MyMemberSchedulePage() {
       </div>
 
       <nav aria-label="Quản lý lịch tập" className="flex flex-wrap gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['calendar', 'Lịch tập'], ['courses', 'Khóa đã đăng ký'], ['attendance', 'Điểm danh'], ['packages', 'Gói của tôi']].map(([v, l]) => (
+        {[['calendar', 'Lịch tập'], ['courses', 'Khóa đã đăng ký'], ['attendance', 'Điểm danh']].map(([v, l]) => (
           <button
             type="button"
             key={v}
@@ -409,7 +408,6 @@ export default function MyMemberSchedulePage() {
       {tab === 'courses' && <MemberCommerce viewMode="enrollments" embedded />}
       {tab === 'mine' && <BookingSchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
-      {tab === 'packages' && <MemberSubscriptionPage embedded />}
       <details className="border-t border-outline-variant/40 pt-4 text-body-sm text-secondary"><summary className="cursor-pointer w-fit">Xem thêm</summary><div className="flex flex-wrap gap-x-6 gap-y-3 pt-3">
         <Link className="text-primary hover:underline" to="/member/schedule?tab=mine">Lịch dạng danh sách</Link>
         <Link className="text-primary hover:underline" to="/member/training">Kế hoạch tập cá nhân</Link>

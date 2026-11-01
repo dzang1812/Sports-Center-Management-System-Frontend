@@ -99,7 +99,7 @@ function CurrentPlanHero({ sub }) {
 }
 
 
-export default function MemberSubscriptionPage({ embedded = false }) {
+export default function MemberSubscriptionPage() {
   const [subs, setSubs] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -135,13 +135,13 @@ export default function MemberSubscriptionPage({ embedded = false }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {embedded ? <h2 className="font-headline-md text-headline-md">Gói tập của tôi</h2> : <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>}
+          <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>
           <p className="text-secondary">Tra cứu quyền lợi và lịch sử các gói tập đã mua.</p>
         </div>
-        {!embedded && <Link to="/member/classes" className={btnPrimary}>
+        <Link to="/member/classes" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
           Khám phá khóa học & PT
-        </Link>}
+        </Link>
       </div>
 
       {error && <Alert>{error}</Alert>}
@@ -150,7 +150,6 @@ export default function MemberSubscriptionPage({ embedded = false }) {
         <div className="flex flex-col gap-4">
           <h3 className="font-headline-sm text-headline-sm">Gói còn hạn ({current.length})</h3>
           {current.map((s) => <CurrentPlanHero key={s.id} sub={s} />)}
-          <Link to="/member/classes" className={btnOutline + ' self-end'}>Khám phá khóa học & PT</Link>
         </div>
       ) : (
         <CurrentPlanHero sub={null} />
