@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, formatDate, fromTimeOnly } from '../dateUtils'
 import { Avatar, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
@@ -7,6 +7,67 @@ import CoachProfileButton from './CoachProfile'
 const money = value => `${Number(value).toLocaleString('vi-VN')}đ`
 const card = 'rounded-2xl border border-outline-variant/50 bg-white'
 const heading = (number, title) => <h2 className="flex items-center gap-2 font-semibold"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-container/10 text-primary text-sm">{number}</span>{title}</h2>
+
+function CoachPortrait({ coach }) {
+  const [broken, setBroken] = useState(false)
+  const initials = coach.fullName.trim().split(/\s+/).slice(-2).map(word => word[0]).join('')
+  return <div className="relative h-44 sm:h-48 overflow-hidden bg-gradient-to-br from-indigo-100 via-violet-50 to-slate-200">
+    {coach.avatarUrl && !broken
+      ? <img src={coach.avatarUrl} alt={coach.fullName} onError={() => setBroken(true)} className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105" />
+      : <div className="flex h-full flex-col items-center justify-center gap-2 text-indigo-800"><span className="flex h-20 w-20 items-center justify-center rounded-full border border-white bg-white/70 text-3xl font-bold shadow-sm">{initials}</span><span className="text-[10px] font-bold uppercase tracking-[0.2em]">Huấn luyện viên</span></div>}
+    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/35 to-transparent" />
+  </div>
+}
+
+function CoachShowcase({ coaches, loading, selected, onSelect, search, onSearch, sport, onSport, sports, total }) {
+  const gallery = useRef(null)
+  const move = direction => {
+    const element = gallery.current
+    if (element) element.scrollBy({ left: direction * element.clientWidth * 0.8, behavior: 'smooth' })
+  }
+  return <section className={card + ' overflow-hidden shadow-sm'} aria-label="Chọn huấn luyện viên">
+    <div className="relative overflow-hidden bg-slate-900 px-5 py-5 sm:px-6">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+      <div className="relative flex flex-wrap items-center justify-between gap-4">
+        <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">TẬP RIÊNG CÙNG COACH</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Chọn người đồng hành của bạn</h2>
+          <p className="mt-1.5 text-body-sm text-slate-300">Tìm hiểu HLV, xem hành trình học viên rồi chọn giờ tập phù hợp.</p>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-body-sm font-semibold text-white"><Icon name="fitness_center" className="text-lg text-indigo-300" />{loading ? 'Đang tải HLV…' : `${total} huấn luyện viên`}</span>
+      </div>
+    </div>
+    <div className="p-4 sm:p-5 space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[180px] flex-1"><Icon name="search" className="pointer-events-none absolute left-3 top-3 text-xl text-slate-400" /><input aria-label="Tìm huấn luyện viên" className={inputCls + ' !pl-10'} placeholder="Tìm tên HLV hoặc bộ môn…" value={search} onChange={event => onSearch(event.target.value)} /></div>
+        <select aria-label="Lọc bộ môn của HLV" className={inputCls + ' !w-auto max-w-full sm:min-w-44'} value={sport} onChange={event => onSport(event.target.value)}><option value="all">Tất cả bộ môn</option>{sports.map(name => <option key={name}>{name}</option>)}</select>
+        <div className="flex gap-2">
+          <button type="button" aria-label="Xem HLV phía trước" onClick={() => move(-1)} disabled={loading || !coaches.length} className={btnOutline + ' !h-10 !w-10 !p-0'}><Icon name="chevron_left" /></button>
+          <button type="button" aria-label="Xem HLV tiếp theo" onClick={() => move(1)} disabled={loading || !coaches.length} className={btnOutline + ' !h-10 !w-10 !p-0'}><Icon name="chevron_right" /></button>
+        </div>
+      </div>
+      <div ref={gallery} tabIndex={0} role="region" aria-label="Danh sách huấn luyện viên" aria-busy={loading} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 pt-1 px-1 -mx-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-xl">
+        {loading ? <p role="status" className="py-10 text-secondary">Đang tải HLV…</p> : coaches.map(item => {
+          const active = selected?.id === item.id
+          return <article key={item.id} className={`group relative flex w-[78%] shrink-0 snap-start flex-col overflow-hidden rounded-xl border bg-white sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-3rem)/4)] ${active ? 'border-primary-container ring-2 ring-primary-container shadow-md' : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'} transition-shadow`}>
+            <button type="button" aria-label={`Chọn HLV ${item.fullName}`} aria-pressed={active} onClick={() => onSelect(item)} className="flex flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2">
+              <div className="relative w-full"><CoachPortrait key={`${item.id}:${item.avatarUrl ?? ''}`} coach={item} />
+                {active && <span className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-primary-container py-1 pl-1.5 pr-2 text-[11px] font-bold text-white shadow"><Icon name="check_circle" className="text-base" />Đã chọn</span>}
+                <span className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-md bg-white/95 px-2 py-1 text-[11px] font-bold text-primary shadow-sm">{item.sports.map(specialty => specialty.name).join(' · ') || 'Huấn luyện cá nhân'}</span>
+              </div>
+              <div className="w-full p-3 space-y-1.5"><h3 className="truncate text-lg font-bold text-slate-900" title={item.fullName}>{item.fullName}</h3>
+                <p className="min-h-8 line-clamp-2 text-body-sm leading-4 text-slate-500">{item.bio || 'Xem hồ sơ để tìm hiểu thêm về huấn luyện viên.'}</p>
+              </div>
+            </button>
+            <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2.5"><CoachProfileButton coach={item} className="inline-flex items-center gap-1 text-body-sm">Hồ sơ & ảnh học viên<Icon name="arrow_outward" className="text-sm" /></CoachProfileButton><Icon name={active ? 'check_circle' : 'add_circle_outline'} className={`text-xl ${active ? 'text-primary' : 'text-slate-300'}`} /></div>
+          </article>
+        })}
+        {!loading && !coaches.length && <p className="w-full rounded-xl bg-slate-50 py-8 text-center text-body-sm text-secondary">{total ? 'Không tìm thấy HLV phù hợp. Thử tên hoặc bộ môn khác.' : 'Chưa có HLV nhận lịch PT.'}</p>}
+      </div>
+      {selected ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3"><p className="text-sm text-slate-600">Bạn đang chọn <strong className="font-bold text-primary">{selected.fullName}</strong><span className="block sm:inline sm:ml-2 text-body-sm">Tiếp tục chọn ngày và giờ tập bên dưới.</span></p><span className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-primary"><Icon name="south" className="text-base" />Bước 2 · Chọn giờ tập</span></div>
+        : <p className="flex items-center gap-2 text-body-sm text-slate-500"><Icon name="touch_app" className="text-lg text-primary" />Chạm vào thẻ HLV để chọn, hoặc mở hồ sơ để tìm hiểu trước.</p>}
+    </div>
+  </section>
+}
 
 export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, sportId, onCoachChange, onSportChange,
   range, onRangeChange, slots, loading, onRefresh, selectedSlot, onSlotChange, wallet, prices,
@@ -28,8 +89,8 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
   const canContinue = selectedSlot && !loading && !counterPending && (!payingMoney || (rate != null && (!usingWallet || (wallet != null && !insufficient))))
   const paymentMethods = staff ? [['Cash', 'Tiền mặt'], ['BankTransfer', 'Chuyển khoản'], ['Wallet', 'Số dư'], ['PackageCredit', 'Gói đã mua']] : [['Wallet', 'Số dư'], ['PackageCredit', 'Gói đã mua']]
 
-  return <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-5 items-start">
-    <section className={card + ' overflow-hidden'} aria-label="Chọn huấn luyện viên">
+  return <div className={staff ? 'grid lg:grid-cols-[260px_minmax(0,1fr)] gap-5 items-start' : 'space-y-5'}>
+    {staff ? <section className={card + ' overflow-hidden'} aria-label="Chọn huấn luyện viên">
       <div className="p-4 space-y-3 border-b border-outline-variant/40">
         {heading(1, 'Chọn huấn luyện viên')}
         <input aria-label="Tìm huấn luyện viên" className={inputCls} placeholder="Tìm tên HLV…" value={search} onChange={event => setSearch(event.target.value)} />
@@ -44,9 +105,9 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
         </button><div className="pl-16 pr-3 pb-2"><CoachProfileButton coach={item} className="text-[11px]">Xem hồ sơ HLV</CoachProfileButton></div></div>)}
         {!coachesLoading && !shownCoaches.length && <p className="p-4 text-body-sm text-secondary">{coaches.length ? 'Không tìm thấy HLV phù hợp.' : 'Chưa có HLV nhận lịch PT.'}</p>}
       </div>
-    </section>
+    </section> : <CoachShowcase coaches={shownCoaches} loading={coachesLoading} selected={coach} onSelect={onCoachChange} search={search} onSearch={setSearch} sport={sportFilter} onSport={setSportFilter} sports={sports} total={coaches.length} />}
 
-    <div className="grid xl:grid-cols-[minmax(0,1fr)_280px] gap-5 items-start min-w-0">
+    <div className={`grid ${staff ? 'xl:grid-cols-[minmax(0,1fr)_280px]' : 'lg:grid-cols-[minmax(0,1fr)_320px]'} gap-5 items-start min-w-0`}>
       <section className={card + ' min-w-0 overflow-hidden'} aria-label="Chọn ngày và giờ tập">
         <div className="p-4 sm:p-5 border-b border-outline-variant/40 space-y-4">
           {heading(2, 'Chọn ngày & giờ tập')}
@@ -58,7 +119,7 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
               <Field label="Đến ngày"><input className={inputCls} type="date" value={range.to} min={range.from} max={range.from ? addDays(range.from, 31) : undefined} onChange={event => onRangeChange({ ...range, to: event.target.value })} /></Field>
             </div>
             <p className="text-xs text-secondary">Tìm giờ trống trong khoảng tối đa 31 ngày. Giờ Việt Nam.</p>
-          </> : <p className="text-body-sm text-secondary">Chọn một HLV bên trái để xem các giờ còn trống.</p>}
+          </> : <p className="text-body-sm text-secondary">Chọn một HLV {staff ? 'bên trái' : 'phía trên'} để xem các giờ còn trống.</p>}
         </div>
         {coach ? <div className="p-4 sm:p-5 space-y-4" aria-busy={loading}>
           <div className="flex items-center justify-between gap-2"><p className="text-body-sm font-semibold">Giờ còn trống</p><button type="button" className="inline-flex items-center gap-1 text-primary text-body-sm disabled:opacity-50" disabled={loading} onClick={onRefresh}><Icon name="refresh" className="text-lg" />Làm mới</button></div>

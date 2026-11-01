@@ -5,6 +5,7 @@ import { Alert, Field, Icon, btnPrimary, inputCls } from '../components/ui'
 import { addDays, toDateOnly } from '../dateUtils'
 import RevenueTrendChart from '../components/RevenueTrendChart'
 import ManagerWalletReceipts from '../components/ManagerWalletReceipts'
+import CoachTeachingStats from '../components/CoachTeachingStats'
 
 const Stat = ({ icon, label, value }) => (
   <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm flex items-start justify-between">
@@ -21,6 +22,7 @@ const Stat = ({ icon, label, value }) => (
 export default function ManagerReportsPage() {
   const [params, setParams] = useSearchParams()
   const receipts = params.get('tab') === 'receipts'
+  const teaching = params.get('tab') === 'coaches'
   const [refresh, setRefresh] = useState(0)
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -29), to: today })
@@ -29,7 +31,7 @@ export default function ManagerReportsPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    if (receipts) return
+    if (receipts || teaching) return
     setLoading(true)
     setError('')
     try {
@@ -38,7 +40,7 @@ export default function ManagerReportsPage() {
       setError(err.message)
     }
     setLoading(false)
-  }, [range, receipts])
+  }, [range, receipts, teaching])
 
   useEffect(() => {
     load()
@@ -47,15 +49,16 @@ export default function ManagerReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Doanh thu & biên nhận</h1>
-        <p className="text-secondary">Theo dõi doanh thu dịch vụ và đối chiếu tiền hội viên nạp vào ví.</p>
+        <h1 className="font-headline-xl text-headline-xl">Báo cáo & thống kê</h1>
+        <p className="text-secondary">Theo dõi doanh thu, biên nhận và số buổi giảng dạy của HLV.</p>
       </div>
-      <nav aria-label="Báo cáo" className="flex gap-1 rounded-xl bg-surface-container-low p-1 w-fit">
-        {[[false, 'Doanh thu dịch vụ'], [true, 'Biên nhận nạp ví']].map(([value, label]) => <button type="button" key={label} aria-pressed={receipts === value}
-          className={`px-4 py-2 rounded-lg text-body-sm font-semibold ${receipts === value ? 'bg-primary-container text-white' : 'text-secondary'}`}
-          onClick={() => { const next = new URLSearchParams(params); if (value) next.set('tab', 'receipts'); else next.delete('tab'); setParams(next) }}>{label}</button>)}
+      <nav aria-label="Báo cáo" className="flex flex-wrap gap-1 rounded-xl bg-surface-container-low p-1 w-fit">
+        {[['', 'Doanh thu dịch vụ'], ['receipts', 'Biên nhận nạp ví'], ['coaches', 'Giảng dạy HLV']].map(([value, label]) => <button type="button" key={label} aria-pressed={(teaching ? 'coaches' : receipts ? 'receipts' : '') === value}
+          className={`px-4 py-2 rounded-lg text-body-sm font-semibold ${(teaching ? 'coaches' : receipts ? 'receipts' : '') === value ? 'bg-primary-container text-white' : 'text-secondary'}`}
+          onClick={() => { const next = new URLSearchParams(params); if (value) next.set('tab', value); else next.delete('tab'); setParams(next) }}>{label}</button>)}
       </nav>
 
+      {teaching ? <CoachTeachingStats manager /> : <>
       <div className="bg-surface-container rounded-xl shadow-sm p-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Từ ngày">
@@ -85,6 +88,7 @@ export default function ManagerReportsPage() {
         </div>
       )}
       <RevenueTrendChart />
+      </>}
       </>}
     </div>
   )

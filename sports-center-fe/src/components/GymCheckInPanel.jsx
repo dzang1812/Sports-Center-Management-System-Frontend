@@ -4,6 +4,7 @@ import { api, query } from '../api'
 import { formatDate, formatTimestamp, toDateOnly } from '../dateUtils'
 import { GYM_CARD_STATUS_LABEL } from '../labels'
 import { MemberSuggestions, useMemberSuggestions } from './memberSearch'
+import GymQrCamera from './GymQrCamera'
 import { Alert, Badge, Icon, btnOutline, btnPrimary, inputCls } from './ui'
 
 const EXPIRY_DAYS = 7
@@ -23,6 +24,7 @@ export default function GymCheckInPanel() {
   const [visitError, setVisitError] = useState('')
   const [alreadyInId, setAlreadyInId] = useState(null)
   const [expiring, setExpiring] = useState(null)
+  const [scanning, setScanning] = useState(false)
   const lookup = useRef(null)
   const visitRequest = useRef(null)
   const pending = useRef(false)
@@ -90,7 +92,8 @@ export default function GymCheckInPanel() {
   return <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
     <section className="rounded-2xl border border-outline-variant/50 bg-white p-4 sm:p-5 space-y-4">
       <div><h2 className="font-semibold text-lg">Tra cứu hội viên & check-in Gym</h2><p className="text-body-sm text-secondary mt-1">Tìm theo tên, SĐT, email hoặc quét mã thẻ, kiểm tra hội viên rồi xác nhận vào/ra Gym.</p></div>
-      <form onSubmit={find} className="flex flex-col sm:flex-row gap-2"><div className="relative flex-1"><input aria-label="Tìm hội viên hoặc mã thẻ" className={inputCls} placeholder="Tên, SĐT, email hoặc mã thẻ GYM-…" value={code} disabled={busy} onChange={event => { lookup.current?.abort(); setCode(event.target.value); setCard(null); setLooking(false); setError(''); setNotice(null) }} /><MemberSuggestions state={suggestions} onPick={pick} /></div><button className={btnPrimary + ' shrink-0'} disabled={busy || looking || !code.trim()}>{looking ? 'Đang tra cứu…' : 'Tra cứu'}</button></form>
+      <form onSubmit={find} className="flex flex-col xl:flex-row gap-2"><div className="relative min-w-0 flex-1"><input aria-label="Tìm hội viên hoặc mã thẻ" className={inputCls} placeholder="Tên, SĐT, email hoặc mã thẻ GYM-…" value={code} disabled={busy} onChange={event => { lookup.current?.abort(); setCode(event.target.value); setCard(null); setLooking(false); setError(''); setNotice(null) }} /><MemberSuggestions state={suggestions} onPick={pick} /></div><div className="flex flex-wrap gap-2"><button type="button" className={btnOutline + ' shrink-0'} disabled={busy || looking} onClick={() => setScanning(true)}><Icon name="qr_code_scanner" className="text-lg" />Quét QR bằng camera</button><button className={btnPrimary + ' shrink-0'} disabled={busy || looking || !code.trim()}>{looking ? 'Đang tra cứu…' : 'Tra cứu'}</button></div></form>
+      {scanning && <GymQrCamera onClose={() => setScanning(false)} onScan={value => { setScanning(false); setCode(value); void loadCard(`/gym-access/cards/${encodeURIComponent(value)}`) }} />}
       {error && <Alert>{error}</Alert>}{notice && <Alert type={notice.type}>{notice.text}</Alert>}
       {card ? <div className="rounded-xl border border-outline-variant/50 p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold text-lg">{card.memberName}</h3><p className="text-body-sm text-secondary">Hội viên #{card.memberId} · {card.cardCode}</p></div><Badge tone={card.status === 'Active' ? 'green' : 'amber'}>{GYM_CARD_STATUS_LABEL[card.status] ?? card.status}</Badge></div>

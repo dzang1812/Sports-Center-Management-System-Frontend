@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { PaymentPendingPanel } from '../components/payment'
@@ -107,6 +107,8 @@ export default function MemberSubscriptionPage() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [retrying, setRetrying] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const historyId = useId()
 
   useEffect(() => {
     api('/me/subscriptions')
@@ -156,8 +158,16 @@ export default function MemberSubscriptionPage() {
       )}
 
       <div className="flex flex-col gap-4">
-        <h3 className="font-headline-sm text-headline-sm">Lịch sử đăng ký</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant/40 bg-white p-4">
+          <div><h3 className="font-headline-sm text-headline-sm">Lịch sử đăng ký</h3>
+            {!loading && !error && <p className="mt-1 text-body-sm text-secondary">{subs.length} đăng ký</p>}
+          </div>
+          <button type="button" className={btnOutline} aria-expanded={showHistory} aria-controls={historyId} onClick={() => setShowHistory(value => !value)}>
+            {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}<Icon name={showHistory ? 'expand_less' : 'expand_more'} className="text-lg" />
+          </button>
+        </div>
 
+        <div id={historyId} hidden={!showHistory} className="space-y-4">
         <div className="bg-surface-container rounded-xl shadow-sm p-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Từ khoá">
@@ -244,6 +254,7 @@ export default function MemberSubscriptionPage() {
               )}
             </tbody>
           </table>
+        </div>
         </div>
       </div>
 
