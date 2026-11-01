@@ -9,35 +9,29 @@ import Notifications from './Notifications'
 // Menu per role. Only pages that exist are listed.
 const NAV = {
   Manager: [
-    { to: '/manager/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-    { to: '/manager/users', label: 'Quản lý người dùng', icon: 'group' },
-    { to: '/manager/sports-rooms', label: 'Bộ môn & phòng tập', icon: 'category' },
-    { to: '/manager/classes', label: 'Lịch & khóa học', icon: 'calendar_month' },
-    { to: '/manager/courses', label: 'Khóa nhóm & học phí', icon: 'school' },
-    { to: '/manager/pt-bookings', label: 'Lịch PT trung tâm', icon: 'fitness_center' },
-    { to: '/manager/packages', label: 'Gói tập', icon: 'sell' },
-    { to: '/manager/reports', label: 'Báo cáo', icon: 'monitoring' },
-    { to: '/manager/audit-logs', label: 'Nhật ký thao tác', icon: 'history' },
+    { to: '/manager/dashboard', label: 'Tổng quan', icon: 'dashboard', group: 'Vận hành' },
+    { to: '/manager/courses', label: 'Khóa học & lịch', icon: 'school', group: 'Vận hành' },
+    { to: '/manager/pt-bookings', label: 'Lịch PT & giá buổi', icon: 'fitness_center', group: 'Vận hành' },
+    { to: '/manager/users', label: 'Hội viên & nhân sự', icon: 'group', group: 'Quản trị' },
+    { to: '/manager/reports', label: 'Báo cáo doanh thu', icon: 'monitoring', group: 'Quản trị' },
+    { to: '/manager/settings', label: 'Danh mục & nhật ký', icon: 'tune', group: 'Quản trị' },
   ],
   Receptionist: [
-    { to: '/reception', label: 'Quầy lễ tân', icon: 'support_agent', end: true },
-    { to: '/reception/check-in', label: 'Check-in', icon: 'how_to_reg' },
-    { to: '/reception/schedule', label: 'Lịch khóa học', icon: 'calendar_month' },
-    { to: '/reception/members', label: 'Danh sách hội viên', icon: 'badge' },
-    { to: '/reception/payments', label: 'Xác nhận thanh toán', icon: 'point_of_sale' },
-    { to: '/reception/classes', label: 'Đăng ký khóa học', icon: 'event_available' },
-    { to: '/reception/pt', label: 'Đặt PT cho hội viên', icon: 'fitness_center' },
+    { to: '/reception', label: 'Quầy lễ tân', icon: 'support_agent', end: true, group: 'Tiếp đón' },
+    { to: '/reception/members', label: 'Hội viên', icon: 'group', group: 'Tiếp đón' },
+    { to: '/reception/schedule', label: 'Khóa học & lịch', icon: 'school', group: 'Dịch vụ' },
+    { to: '/reception/pt', label: 'Đặt PT', icon: 'fitness_center', group: 'Dịch vụ' },
+    { to: '/reception/payments', label: 'Thanh toán', icon: 'payments', group: 'Thu ngân' },
   ],
   Coach: [
     { to: '/coach/schedule', label: 'Lịch dạy', icon: 'calendar_month' },
     { to: '/coach/availability', label: 'Khung giờ nhận PT', icon: 'schedule' },
   ],
   Member: [
-    { to: '/member/classes', label: 'Đặt lớp mới', icon: 'calendar_month' },
+    { to: '/member/classes', label: 'Khám phá', icon: 'explore' },
     { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
-    { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
-    { to: '/member/wallet', label: 'Số dư & khóa học', icon: 'account_balance_wallet' },
-    { to: '/member/pt', label: 'Đặt PT', icon: 'fitness_center' },
+    { to: '/member/wallet', label: 'Số dư', icon: 'account_balance_wallet' },
+    { to: '/profile', label: 'Hồ sơ', icon: 'person' },
   ],
 }
 
@@ -62,6 +56,7 @@ function UserChip() {
 // Dark sidebar layout for Manager / Receptionist / Coach (Stitch dashboard style).
 function StaffLayout() {
   const { auth } = useAuth()
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   // Desktop collapse (icon-only rail), remembered across reloads. Separate from the mobile overlay toggle above.
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sc_sidebar_collapsed') === '1')
@@ -101,11 +96,14 @@ function StaffLayout() {
           </span>
         </div>
         <nav className="flex-1 px-space-md py-space-sm space-y-1 overflow-y-auto overflow-x-hidden" onClick={() => setOpen(false)}>
-          {NAV[auth.role].map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={link} title={collapsed ? n.label : undefined}>
+          {NAV[auth.role].map((n, index) => (
+            <div key={n.to}>
+            {n.group && (index === 0 || NAV[auth.role][index - 1].group !== n.group) && <p className={`px-3 pt-4 pb-2 text-[10px] font-semibold tracking-wider uppercase text-slate-500 ${collapsed ? 'lg:hidden' : ''}`}>{n.group}</p>}
+            <NavLink to={n.to} end={n.end} className={link} title={collapsed ? n.label : undefined}>
               <Icon name={n.icon} className="text-[20px] shrink-0" />
               <span className={collapsed ? 'lg:hidden' : ''}>{n.label}</span>
             </NavLink>
+            </div>
           ))}
         </nav>
         <div className="p-space-md">
@@ -121,6 +119,7 @@ function StaffLayout() {
           <button className="lg:hidden p-2 rounded-lg hover:bg-surface-container-high" onClick={() => setOpen(true)} aria-label="Mở menu">
             <Icon name="menu" />
           </button>
+          {auth.role !== 'Coach' && <span className="hidden md:block text-body-sm text-secondary truncate mr-3">{ROLE_LABEL[auth.role]}<span className="mx-2 text-outline">/</span><b className="text-on-surface">{NAV[auth.role].find(item => item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + '/'))?.label ?? 'Hồ sơ'}</b></span>}
           <div className="ml-auto flex items-center gap-2">
             <Flow2TimeRulesSwitch />
             <Notifications />
@@ -128,7 +127,7 @@ function StaffLayout() {
           </div>
         </header>
         <main className="pt-16 px-space-lg py-space-lg min-h-screen">
-          <div className="pt-space-lg">
+          <div className={`pt-space-lg ${auth.role !== 'Coach' ? 'max-w-[1600px] mx-auto pb-8' : ''}`}>
             <Outlet />
           </div>
         </main>
@@ -141,33 +140,30 @@ function StaffLayout() {
 function MemberLayout() {
   const { pathname } = useLocation()
   const link = ({ isActive }) =>
-    `px-3.5 py-2 rounded-lg font-label-md text-label-md transition-all ${
+    `min-w-0 flex items-center justify-center gap-2 px-1.5 sm:px-4 py-2 rounded-lg font-label-md text-xs sm:text-label-md whitespace-nowrap transition-all ${
       isActive ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
     }`
 
   return (
     <div className="min-h-screen bg-surface">
       <header className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-primary-container/15 via-surface/90 to-tertiary-container/15 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b-2 border-primary-container/40">
-        <div className="h-16 w-full max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-3">
+        <div className="h-28 lg:h-16 w-full max-w-[1440px] mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 lg:py-0">
+          <Link to="/member/classes" className="flex items-center gap-2 lg:order-1" aria-label="FitZone — Khám phá">
             <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-headline-md text-headline-md font-bold text-on-surface">FitZone</span>
           </Link>
-          <nav className="flex items-center gap-1 p-1 bg-surface-container-low rounded-xl">
+          <nav aria-label="Điều hướng hội viên" className="order-3 lg:order-2 w-full lg:w-auto grid grid-cols-4 gap-1 p-1 bg-surface-container-low rounded-xl">
             {NAV.Member.map((n) => (
               <NavLink key={n.to} to={n.to} className={link}>
-                {n.label}
+                <Icon name={n.icon} className="hidden sm:inline text-[20px]" />{n.label}
               </NavLink>
             ))}
-            <NavLink to="/profile" className={link}>
-              Hồ sơ
-            </NavLink>
           </nav>
-          <div className="flex items-center gap-2"><Notifications /><UserChip /></div>
+          <div className="lg:order-3 flex items-center gap-1"><Notifications /><UserChip /></div>
         </div>
       </header>
-      <main className={`pt-16 w-full mx-auto ${pathname === '/member/schedule' ? 'max-w-[1800px] px-4 lg:px-6' : 'max-w-7xl px-6 lg:px-12'}`}>
-        <div className="pt-space-lg">
+      <main className={`pt-28 lg:pt-16 pb-10 w-full mx-auto ${pathname === '/member/schedule' ? 'max-w-[1800px] px-4 lg:px-6' : 'max-w-7xl px-4 sm:px-6 lg:px-10'}`}>
+        <div className="pt-6 sm:pt-8">
           <Outlet />
         </div>
       </main>

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, query } from '../api'
 import { Alert, Field, Icon, btnPrimary, inputCls } from '../components/ui'
 import { addDays, toDateOnly } from '../dateUtils'
+import RevenueTrendChart from '../components/RevenueTrendChart'
+import ManagerWalletReceipts from '../components/ManagerWalletReceipts'
 
 const Stat = ({ icon, label, value }) => (
   <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm flex items-start justify-between">
@@ -15,9 +18,10 @@ const Stat = ({ icon, label, value }) => (
   </div>
 )
 
-// Only the "Doanh thu" tab has a backend endpoint (GET /api/reports/revenue). "Thành viên" and
-// "Đăng ký lớp" tabs from the spec have no matching API yet — not built here, see SCREEN_API_MAPPING.md.
 export default function ManagerReportsPage() {
+  const [params, setParams] = useSearchParams()
+  const receipts = params.get('tab') === 'receipts'
+  const [refresh, setRefresh] = useState(0)
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -29), to: today })
   const [report, setReport] = useState(null)
@@ -25,6 +29,7 @@ export default function ManagerReportsPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (receipts) return
     setLoading(true)
     setError('')
     try {
@@ -33,7 +38,7 @@ export default function ManagerReportsPage() {
       setError(err.message)
     }
     setLoading(false)
-  }, [range])
+  }, [range, receipts])
 
   useEffect(() => {
     load()
@@ -42,9 +47,14 @@ export default function ManagerReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Báo cáo doanh thu</h1>
-        <p className="text-secondary">Tổng hợp doanh thu, hội viên mới và đăng ký trong khoảng thời gian chọn.</p>
+        <h1 className="font-headline-xl text-headline-xl">Doanh thu & biên nhận</h1>
+        <p className="text-secondary">Theo dõi doanh thu dịch vụ và đối chiếu tiền hội viên nạp vào ví.</p>
       </div>
+      <nav aria-label="Báo cáo" className="flex gap-1 rounded-xl bg-surface-container-low p-1 w-fit">
+        {[[false, 'Doanh thu dịch vụ'], [true, 'Biên nhận nạp ví']].map(([value, label]) => <button type="button" key={label} aria-pressed={receipts === value}
+          className={`px-4 py-2 rounded-lg text-body-sm font-semibold ${receipts === value ? 'bg-primary-container text-white' : 'text-secondary'}`}
+          onClick={() => { const next = new URLSearchParams(params); if (value) next.set('tab', 'receipts'); else next.delete('tab'); setParams(next) }}>{label}</button>)}
+      </nav>
 
       <div className="bg-surface-container rounded-xl shadow-sm p-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -56,10 +66,11 @@ export default function ManagerReportsPage() {
           </Field>
         </div>
         <div className="flex justify-end pt-4">
-          <button type="button" className={btnPrimary} onClick={load}>Tìm kiếm</button>
+          <button type="button" className={btnPrimary} onClick={() => receipts ? setRefresh(value => value + 1) : load()}>Làm mới báo cáo</button>
         </div>
       </div>
 
+      {receipts ? <ManagerWalletReceipts key={`${range.from}:${range.to}`} range={range} refresh={refresh} /> : <>
       {error && <Alert>{error}</Alert>}
 
       {report && (
@@ -73,6 +84,8 @@ export default function ManagerReportsPage() {
           <Stat icon="event_available" label="Lượt đặt lớp mới" value={report.newClassBookings} />
         </div>
       )}
+      <RevenueTrendChart />
+      </>}
     </div>
   )
 }

@@ -120,7 +120,7 @@ function PlanForm({ plan, sports, onClose, onDone }) {
   )
 }
 
-export default function ManagerPackagesPage() {
+export default function ManagerPackagesPage({ embedded = false }) {
   const [plans, setPlans] = useState([])
   const [sports, setSports] = useState([])
   const [error, setError] = useState('')
@@ -163,7 +163,7 @@ export default function ManagerPackagesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-headline-xl text-headline-xl">Gói tập</h1>
+          {embedded ? <h2 className="font-headline-md text-headline-md">Gói tập</h2> : <h1 className="font-headline-xl text-headline-xl">Gói tập</h1>}
           <p className="text-secondary">Các gói thành viên hội viên có thể đăng ký ở trang Bảng giá.</p>
         </div>
         <button className={btnPrimary} onClick={() => setModal({})}>

@@ -27,7 +27,7 @@ export class ApiError extends Error {
 const errorMessage = (data, status) =>
   data?.error ?? Object.values(data?.errors ?? {})[0]?.[0] ?? data?.message ?? (status === 403 ? 'Bạn không có quyền thực hiện thao tác này' : 'Có lỗi xảy ra, vui lòng thử lại')
 
-export async function api(path, { method = 'GET', body, signal, idempotencyKey } = {}) {
+export async function api(path, { method = 'GET', body, signal, idempotencyKey, notify = true } = {}) {
   const auth = getAuth()
   const res = await fetch(`/api${path}`, {
     method,
@@ -41,7 +41,7 @@ export async function api(path, { method = 'GET', body, signal, idempotencyKey }
     window.location.assign('/login')
   }
   const notifyMutation = () => {
-    if (method !== 'GET' && auth && getAuth()?.token === auth.token)
+    if (notify && method !== 'GET' && auth && getAuth()?.token === auth.token)
       window.dispatchEvent(new CustomEvent('sc:api-mutated', { detail: { path, method } }))
   }
   if (res.status === 204) { notifyMutation(); return null }

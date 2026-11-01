@@ -64,7 +64,14 @@ export default function PtCounterCheckout({ intent, onClose, onAttempt, onPaymen
     finally { pending.current = false; if (alive.current) setBusy(false) }
   }
   const cash = intent.body.method === 'Cash'
-  return <Modal title={cash ? 'Thu tiền mặt và đặt PT' : 'Chuyển khoản và đặt PT'} onClose={() => { if (!pending.current) onClose() }}>
+  const footer = <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" className={btnOutline} disabled={busy} onClick={onClose}>{intent.paymentId ? 'Đóng — tiếp tục sau' : 'Quay lại'}</button>
+        {!intent.paymentId && <button type="button" className={btnPrimary} disabled={busy} onClick={submit}>{busy ? 'Đang xử lý…' : cash ? 'Đã nhận tiền mặt — hoàn tất' : 'Tạo mã QR chuyển khoản'}</button>}
+        {intent.paymentId && payment?.status === 'Pending' && !payment.qrCode && <button type="button" className={btnOutline} disabled={busy} onClick={submit}>Tải lại mã QR</button>}
+        {intent.paymentId && payment && ['Pending', 'Paid'].includes(payment.status) && <button type="button" className={btnPrimary} disabled={busy} onClick={complete}>{busy ? 'Đang kiểm tra…' : 'Hoàn thành'}</button>}
+        {payment && (payment.status === 'Failed' || payment.status === 'Paid' && canRelease) && <button type="button" className={btnOutline} disabled={busy} onClick={onRelease}>{payment.status === 'Paid' ? 'Đóng — dùng số dư để đặt lịch khác' : 'Đóng giao dịch thất bại'}</button>}
+      </div>
+  return <Modal title={cash ? 'Thu tiền mặt và đặt PT' : 'Chuyển khoản và đặt PT'} onClose={() => { if (!pending.current) onClose() }} footer={footer}>
     <div className="space-y-4">
       <p>{intent.description}</p>
       <p>Khách cần thanh toán: <b>{vnd(intent.body.expectedPrice)}</b></p>
@@ -78,13 +85,7 @@ export default function PtCounterCheckout({ intent, onClose, onAttempt, onPaymen
       </div>}
       {intent.paymentId && !payment && <p className="text-secondary">Đang đọc trạng thái thanh toán…</p>}
       {error && <Alert>{error}</Alert>}
-      <div className="flex flex-wrap justify-end gap-2">
-        <button type="button" className={btnOutline} disabled={busy} onClick={onClose}>{intent.paymentId ? 'Đóng — tiếp tục sau' : 'Quay lại'}</button>
-        {!intent.paymentId && <button type="button" className={btnPrimary} disabled={busy} onClick={submit}>{busy ? 'Đang xử lý…' : cash ? 'Đã nhận tiền mặt — hoàn tất' : 'Tạo mã QR chuyển khoản'}</button>}
-        {intent.paymentId && payment?.status === 'Pending' && !payment.qrCode && <button type="button" className={btnOutline} disabled={busy} onClick={submit}>Tải lại mã QR</button>}
-        {intent.paymentId && payment && ['Pending', 'Paid'].includes(payment.status) && <button type="button" className={btnPrimary} disabled={busy} onClick={complete}>{busy ? 'Đang kiểm tra…' : 'Hoàn thành'}</button>}
-        {payment && (payment.status === 'Failed' || payment.status === 'Paid' && canRelease) && <button type="button" className={btnOutline} disabled={busy} onClick={onRelease}>{payment.status === 'Paid' ? 'Đóng — dùng số dư để đặt lịch khác' : 'Đóng giao dịch thất bại'}</button>}
-      </div>
+
     </div>
   </Modal>
 }

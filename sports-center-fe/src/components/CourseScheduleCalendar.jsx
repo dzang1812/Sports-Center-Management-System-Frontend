@@ -12,7 +12,7 @@ const statusClass = event => event.status === 'Cancelled' ? 'bg-slate-100 text-s
     : event.replacesSessionId ? 'bg-amber-50 text-amber-950 border-amber-400'
       : event.type === 'PT' ? 'bg-sky-100 text-sky-950 border-sky-400' : 'bg-indigo-100 text-indigo-950 border-indigo-400'
 
-export default function CourseScheduleCalendar({ sessions = [], title = 'Khóa học', personal = false,
+export default function CourseScheduleCalendar({ sessions = [], title = 'Khóa học', personal = false, compact = false,
   statusLabel, renderEventActions, onVisibleRangeChange, includeCancelled, onIncludeCancelledChange }) {
   const events = useMemo(() => sessions.map((s, i) => ({ ...s, status: s.status ?? 'Scheduled', key: `${s.type ?? 'Course'}:${s.bookingId ?? s.id ?? `${s.date}-${s.startTime}-${i}`}` }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)), [sessions])
@@ -56,7 +56,7 @@ export default function CourseScheduleCalendar({ sessions = [], title = 'Khóa h
   return <div className="rounded-2xl border border-outline-variant/60 bg-white overflow-hidden text-on-surface">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant/50 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-white"><Icon name="calendar_month" /></span>
+        {!compact && <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-white"><Icon name="calendar_month" /></span>}
         <button type="button" className={btnOutline} onClick={() => { setAnchor(toDateOnly()); if (view === 'list') setView('week') }}>Hôm nay</button>
         {view !== 'list' && <><button type="button" className="p-2 rounded-full hover:bg-surface-container" aria-label={view === 'month' ? 'Tháng trước' : 'Tuần trước'} onClick={() => navigate(-1)}><Icon name="chevron_left" /></button>
           <button type="button" className="p-2 rounded-full hover:bg-surface-container" aria-label={view === 'month' ? 'Tháng sau' : 'Tuần sau'} onClick={() => navigate(1)}><Icon name="chevron_right" /></button></>}
@@ -69,7 +69,7 @@ export default function CourseScheduleCalendar({ sessions = [], title = 'Khóa h
     </div>
 
     <div className="flex flex-col lg:flex-row">
-      <aside className="hidden lg:block w-56 shrink-0 border-r border-outline-variant/50 p-4 space-y-4 bg-surface/40">
+      <aside className={`${compact ? 'hidden' : 'hidden lg:block'} w-56 shrink-0 border-r border-outline-variant/50 p-4 space-y-4 bg-surface/40`}>
         <div className="flex items-center justify-between font-semibold text-sm"><span>{formatDate(anchor, { month: 'long', year: 'numeric' })}</span>
           <div className="flex"><button type="button" className="p-1 rounded hover:bg-surface-container" aria-label="Lịch nhỏ: tháng trước" onClick={() => setAnchor(shiftMonth(anchor, -1))}><Icon name="chevron_left" className="text-base" /></button><button type="button" className="p-1 rounded hover:bg-surface-container" aria-label="Lịch nhỏ: tháng sau" onClick={() => setAnchor(shiftMonth(anchor, 1))}><Icon name="chevron_right" className="text-base" /></button></div>
         </div>
@@ -127,7 +127,7 @@ export default function CourseScheduleCalendar({ sessions = [], title = 'Khóa h
               </div>
             </div>
           </div>
-          {!weekEvents.length && <p className="px-4 py-2 text-sm text-secondary border-t">Tuần này không có buổi học. Dùng nút chuyển tuần hoặc chọn ngày trên lịch nhỏ.</p>}
+          {!weekEvents.length && <p className="px-4 py-2 text-sm text-secondary border-t">Tuần này không có buổi học. Dùng nút chuyển tuần hoặc chọn ngày{compact ? ' phía trên.' : ' trên lịch nhỏ.'}</p>}
         </>}
 
         {view === 'month' && <div className="overflow-auto" style={{ maxHeight: personal ? '68vh' : '58vh' }}><div className="min-w-[700px]">

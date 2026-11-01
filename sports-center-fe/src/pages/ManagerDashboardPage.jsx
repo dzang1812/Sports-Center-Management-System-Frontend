@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../api'
-import { Alert, Badge, Icon } from '../components/ui'
+import { Alert, Badge, Icon, btnOutline, btnPrimary } from '../components/ui'
+import RevenueTrendChart from '../components/RevenueTrendChart'
 import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
 
 const Stat = ({ icon, label, value }) => (
@@ -16,72 +17,20 @@ const Stat = ({ icon, label, value }) => (
   </div>
 )
 
-const QuickLink = ({ to, icon, label }) => (
+const QuickLink = ({ to, icon, label, description }) => (
   <Link to={to} className="flex items-center gap-3 p-4 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center text-primary">
       <Icon name={icon} className="text-xl" />
     </div>
-    <span className="font-label-lg text-label-lg text-on-surface">{label}</span>
+    <span><span className="block font-semibold text-on-surface">{label}</span><span className="block text-body-sm text-secondary mt-1">{description}</span></span>
     <Icon name="chevron_right" className="ml-auto text-on-surface-variant" />
   </Link>
 )
 
-const MONTH_FMT = new Intl.NumberFormat('vi-VN')
-const shortMoney = (n) => (n >= 1_000_000 ? `${MONTH_FMT.format(Math.round(n / 1_000_000))}tr` : MONTH_FMT.format(n))
-
-// 6 real GET /reports/revenue calls (one per calendar month) — the backend has no time-series endpoint,
-// so this is the honest way to get a trend without inventing numbers.
-function RevenueTrendChart() {
-  const [months, setMonths] = useState(null)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    const now = new Date()
-    const ranges = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
-      const from = toDateOnly(d)
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      const isCurrent = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-      const to = toDateOnly(isCurrent ? now : monthEnd)
-      return { label: `T${d.getMonth() + 1}`, from, to, isCurrent }
-    })
-    Promise.all(ranges.map((r) => api(`/reports/revenue${query({ from: r.from, to: r.to })}`)))
-      .then((reports) => setMonths(ranges.map((r, i) => ({ ...r, totalRevenue: reports[i].totalRevenue }))))
-      .catch((err) => setError(err.message))
-  }, [])
-
-  const max = useMemo(() => Math.max(1, ...(months ?? []).map((m) => m.totalRevenue)), [months])
-
-  return (
-    <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm">
-      <h2 className="font-headline-md text-headline-md text-on-surface mb-4">Doanh thu 6 tháng gần nhất</h2>
-      {error && <Alert>{error}</Alert>}
-      {!months && !error && <p className="text-secondary">Đang tải…</p>}
-      {months && (
-        <div className="flex items-end gap-3 sm:gap-5 h-40">
-          {months.map((m) => (
-            <div key={m.from} className="flex-1 flex flex-col items-center h-full justify-end gap-1.5 group">
-              <span className="font-label-sm text-label-sm text-on-surface-variant group-hover:text-primary transition-colors">
-                {shortMoney(m.totalRevenue)}
-              </span>
-              <div
-                title={`${m.label}: ${m.totalRevenue.toLocaleString('vi-VN')}đ`}
-                className={`w-full max-w-[44px] rounded-t-md transition-all ${m.isCurrent ? 'bg-primary' : 'bg-primary-container'}`}
-                style={{ height: `${Math.max(4, (m.totalRevenue / max) * 100)}%` }}
-              />
-              <span className={`font-label-md text-label-md ${m.isCurrent ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>{m.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 const FILL_STATUS = (ratio) => (ratio >= 1 ? { label: 'Hết chỗ', tone: 'red', bar: 'bg-error' } : { label: 'Sắp đầy', tone: 'amber', bar: 'bg-amber-500' })
 
 // Real data from GET /sessions (remainingSeats/capacity already in the DTO) — just filters client-side
-// for the next 48h instead of a dedicated "near-capacity" backend endpoint.
+// across today and the next two calendar days.
 function FillingClassesTable() {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState('')
@@ -101,10 +50,10 @@ function FillingClassesTable() {
 
   return (
     <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm">
-      <h2 className="font-headline-md text-headline-md text-on-surface mb-1">Lớp sắp đầy chỗ (48 giờ tới)</h2>
-      <p className="text-body-sm text-secondary mb-4">Buổi học đã đặt từ 70% chỗ trở lên.</p>
+      <h2 className="font-headline-md text-headline-md text-on-surface mb-1">Buổi sắp đầy chỗ</h2>
+      <p className="text-body-sm text-secondary mb-4">Đã đặt từ 70% chỗ, trong hôm nay và 2 ngày tiếp theo.</p>
       {error && <Alert>{error}</Alert>}
-      {rows && !rows.length && <p className="text-secondary text-center py-6">Không có lớp nào sắp đầy chỗ trong 48 giờ tới.</p>}
+      {rows && !rows.length && <p className="text-secondary text-body-sm py-4">Chưa có buổi nào gần đầy chỗ trong khoảng này.</p>}
       {rows && rows.length > 0 && (
         <div className="flex flex-col gap-3">
           {rows.map((s) => {
@@ -137,44 +86,54 @@ function FillingClassesTable() {
 // near-capacity classes table built from GET /sessions — no invented numbers anywhere on this page.
 export default function ManagerDashboardPage() {
   const [report, setReport] = useState(null)
+  const [courses, setCourses] = useState(null)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    const now = new Date()
-    const from = toDateOnly(new Date(now.getFullYear(), now.getMonth(), 1))
-    const to = toDateOnly(now)
-    api(`/reports/revenue${query({ from, to })}`).then(setReport).catch((err) => setError(err.message))
+  const [loading, setLoading] = useState(true)
+  const [trendOpen, setTrendOpen] = useState(false)
+  const [revision, setRevision] = useState(0)
+  const request = useRef(null)
+  const load = useCallback(async () => {
+    request.current?.abort(); const controller = new AbortController(); request.current = controller
+    setLoading(true); setError('')
+    const today = toDateOnly()
+    const results = await Promise.allSettled([api(`/reports/revenue${query({ from: today.slice(0, 7) + '-01', to: today })}`, { signal: controller.signal }), api('/courses', { signal: controller.signal })])
+    if (!controller.signal.aborted) {
+      setReport(results[0].status === 'fulfilled' ? results[0].value : null)
+      setCourses(results[1].status === 'fulfilled' ? results[1].value : null)
+      setError(results.filter(result => result.status === 'rejected').map(result => result.reason.message).join(' · '))
+      setLoading(false)
+    }
   }, [])
+  useEffect(() => { let active = true; void Promise.resolve().then(() => { if (active) load() }); return () => { active = false; request.current?.abort() } }, [load])
+  const drafts = (courses ?? []).filter(item => item.course.status === 'Draft')
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-headline-xl text-headline-xl">Tổng quan</h1>
-        <p className="text-secondary">Số liệu doanh thu tháng này. Xem báo cáo chi tiết theo khoảng thời gian tuỳ chọn ở trang Báo cáo.</p>
-      </div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="font-headline-xl text-headline-xl">Tổng quan trung tâm</h1><p className="text-secondary mt-2">Theo dõi tình hình tháng này và mở nhanh công việc cần làm.</p></div><div className="flex gap-2"><button type="button" className={btnOutline} disabled={loading} onClick={() => { setRevision(value => value + 1); load() }} aria-label="Làm mới tổng quan"><Icon name="refresh" className="text-lg" /></button><Link className={btnPrimary} to="/manager/courses/new"><Icon name="add" className="text-lg" />Tạo khóa học</Link></div></div>
 
       {error && <Alert>{error}</Alert>}
 
-      {report && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Stat icon="payments" label="Doanh thu tháng này" value={`${report.totalRevenue.toLocaleString('vi-VN')}đ`} />
-          <Stat icon="person_add" label="Hội viên mới" value={report.newMembers} />
-          <Stat icon="card_membership" label="Gói đăng ký mới" value={report.newSubscriptions} />
-          <Stat icon="verified" label="Gói đang hoạt động" value={report.activeSubscriptions} />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RevenueTrendChart />
-        <FillingClassesTable />
+      <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 ${loading ? 'opacity-60' : ''}`}>
+        <Stat icon="payments" label="Doanh thu tháng này" value={report ? `${report.totalRevenue.toLocaleString('vi-VN')}đ` : '—'} />
+        <Stat icon="person_add" label="Hội viên mới trong tháng" value={report?.newMembers ?? '—'} />
+        <Stat icon="school" label="Khóa đang mở đăng ký" value={courses ? courses.filter(item => item.course.status === 'Open').length : '—'} />
+        <Stat icon="edit_note" label="Khóa bản nháp" value={courses ? drafts.length : '—'} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <QuickLink to="/manager/reports" icon="monitoring" label="Báo cáo chi tiết" />
-        <QuickLink to="/manager/users" icon="group" label="Quản lý người dùng" />
-        <QuickLink to="/manager/classes" icon="calendar_month" label="Lịch & lớp học" />
-        <QuickLink to="/manager/packages" icon="sell" label="Gói tập" />
+      <section className="space-y-3"><h2 className="font-semibold text-lg">Thao tác thường dùng</h2><div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <QuickLink to="/manager/courses" icon="school" label="Quản lý khóa học" description="Lịch học, học phí và học viên" />
+        <QuickLink to="/manager/pt-bookings" icon="fitness_center" label="Xem lịch PT" description="Lịch hẹn và giá theo bộ môn" />
+        <QuickLink to="/manager/users" icon="group" label="Hội viên & nhân sự" description="Tìm kiếm và quản lý tài khoản" />
+        <QuickLink to="/manager/settings" icon="category" label="Bộ môn & phòng" description="Cấu hình dịch vụ và không gian" />
+      </div></section>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <section className="rounded-xl bg-white shadow-sm p-5 space-y-4"><div className="flex items-center justify-between gap-3"><h2 className="font-headline-md text-headline-md">Khóa cần hoàn thiện</h2><Link className="text-primary text-body-sm" to="/manager/courses">Xem tất cả</Link></div><p className="text-body-sm text-secondary">Các khóa đang ở trạng thái bản nháp, chưa mở đăng ký.</p>
+          {drafts.slice(0, 4).map(({ course }) => <Link key={course.id} className="flex items-center justify-between gap-3 rounded-xl border border-outline-variant/50 p-3 hover:bg-surface-container-low" to={`/manager/courses?courseId=${course.id}`}><span><b>{course.name}</b><span className="block text-secondary text-body-sm">{course.expectedSessions} buổi · {course.sport}</span></span><Icon name="arrow_forward" className="text-primary text-lg" /></Link>)}
+          {courses && !drafts.length && <p className="text-body-sm text-secondary">Không có khóa bản nháp cần hoàn thiện.</p>}
+        </section>
+        <FillingClassesTable key={revision} />
       </div>
+      <details className="rounded-xl border border-outline-variant/50 bg-white p-4" onToggle={event => setTrendOpen(event.currentTarget.open)}><summary className="cursor-pointer font-semibold">Xem xu hướng doanh thu 6 tháng</summary>{trendOpen && <div className="mt-4"><RevenueTrendChart key={revision} /><Link className="inline-block mt-3 text-primary text-body-sm font-semibold" to="/manager/reports">Mở báo cáo chi tiết →</Link></div>}</details>
     </div>
   )
 }
