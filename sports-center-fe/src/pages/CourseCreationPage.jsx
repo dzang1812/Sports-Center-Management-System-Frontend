@@ -71,7 +71,7 @@ export default function CourseCreationPage() {
     pending.current = true; setBusy(true); setError(''); setFields({})
     try {
       const result = await api('/courses', { method: 'POST', body, idempotencyKey: replay.current.key })
-      if (alive.current) navigate('/manager/courses', { state: { createdCourseId: result.classId } })
+      if (alive.current) navigate(`/manager/courses?courseId=${result.classId}`)
     } catch (err) { if (alive.current) failure(err) }
     finally { pending.current = false; if (alive.current) setBusy(false) }
   }

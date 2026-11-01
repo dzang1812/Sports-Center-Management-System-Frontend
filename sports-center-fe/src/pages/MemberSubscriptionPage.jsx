@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { PaymentPendingPanel } from '../components/payment'
-import { PaymentHistory } from '../components/frontDesk'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
@@ -37,10 +36,10 @@ function CurrentPlanHero({ sub }) {
       <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-dashed border-outline-variant text-center flex flex-col items-center gap-3">
         <Icon name="card_membership" className="text-4xl text-outline" />
         <p className="text-on-surface font-semibold">Bạn chưa có gói nào đang hoạt động</p>
-        <p className="text-secondary text-body-sm">Đăng ký một gói để bắt đầu tập luyện và đặt lớp/PT.</p>
-        <Link to="/packages" className={btnPrimary}>
+        <p className="text-secondary text-body-sm">Bạn có thể đăng ký khóa nhiều tuần hoặc đặt PT riêng.</p>
+        <Link to="/member/classes" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
-          Xem bảng giá
+          Khám phá khóa học & PT
         </Link>
       </div>
     )
@@ -90,14 +89,14 @@ function CurrentPlanHero({ sub }) {
       <div className="flex items-center gap-2 flex-wrap mt-4 pt-4 border-t border-outline-variant/30">
         {sub.sportName && <Badge tone="indigo">{sub.sportName}</Badge>}
         {sub.includesClasses && <Badge tone="indigo">Lớp học nhóm</Badge>}
-        <Link to="/packages" className={btnOutline + ' !h-8 ml-auto'}>Đăng ký thêm gói khác</Link>
+        <Link to="/member/classes" className={btnOutline + ' !h-8 ml-auto'}>Khám phá khóa học & PT</Link>
       </div>
     </div>
   )
 }
 
 
-export default function MemberSubscriptionPage() {
+export default function MemberSubscriptionPage({ embedded = false }) {
   const [subs, setSubs] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -129,13 +128,13 @@ export default function MemberSubscriptionPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-headline-xl text-headline-xl">Gói của tôi</h1>
-          <p className="text-secondary">Các gói tập đã đăng ký và trạng thái sử dụng.</p>
+          {embedded ? <h2 className="font-headline-md text-headline-md">Gói tập đã mua trước đây</h2> : <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>}
+          <p className="text-secondary">Tra cứu quyền lợi và lịch sử các gói tập đã mua.</p>
         </div>
-        <Link to="/packages" className={btnPrimary}>
+        {!embedded && <Link to="/member/classes" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
-          Mua gói mới
-        </Link>
+          Khám phá khóa học & PT
+        </Link>}
       </div>
 
       {error && <Alert>{error}</Alert>}
@@ -234,7 +233,7 @@ export default function MemberSubscriptionPage() {
         </div>
       </div>
 
-      <PaymentHistory />
+      <p className="text-secondary text-body-sm">Khóa học nhiều tuần nằm trong <Link className="text-primary underline" to="/member/schedule?tab=courses">Khóa đã đăng ký</Link>. Xem các khoản thu và hoàn tiền trong <Link className="text-primary underline" to="/member/wallet">Số dư</Link>.</p>
 
       {retrying && <RetryPaymentModal sub={retrying} onClose={() => setRetrying(null)} />}
     </div>

@@ -145,9 +145,9 @@ export default function MemberSchedule() {
             <div className="space-y-3 max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container/60 text-primary font-label-sm text-label-sm tracking-wide uppercase">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                Hệ thống đặt lịch thời gian thực
+                Lớp theo buổi
               </div>
-              <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight">Lịch Lớp Học &amp; Đặt Chỗ Trực Tuyến</h1>
+              <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Đặt lớp theo buổi</h2>
               <p className="font-body-md text-body-md text-on-surface-variant">
                 Cập nhật thời gian biểu các lớp học tại FitZone. Đặt chỗ sớm để đảm bảo suất tập cùng đội ngũ HLV.
               </p>
@@ -172,7 +172,7 @@ export default function MemberSchedule() {
             </div>
           </div>
 
-          <Link to="/member/wallet" className="inline-flex rounded-lg px-4 py-3 bg-primary-container text-on-primary">Xem khóa nhiều tuần — Đăng ký nguyên khóa</Link>
+          <Link to="/member/classes" className="inline-flex rounded-lg px-4 py-3 bg-primary-container text-on-primary">Xem khóa học nhiều tuần</Link>
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               className={`px-4 py-2 rounded-xl font-label-md text-label-md shadow-sm shrink-0 transition-all flex items-center gap-2 ${filters.sport === 'all' ? 'text-on-primary bg-primary-container' : 'text-on-surface-variant bg-surface-container-lowest hover:bg-surface-container-high'}`}
@@ -368,15 +368,15 @@ export default function MemberSchedule() {
                 </div>
                 <h2 className="font-headline-lg text-headline-lg font-bold text-white tracking-tight">Chưa biết bắt đầu với bộ môn nào?</h2>
                 <p className="font-body-md text-body-md text-white/90 leading-relaxed">
-                  Xem các gói tập đang mở bán hoặc đặt một buổi PT 1-1 để HLV tư vấn lộ trình phù hợp nhất với thể trạng của bạn.
+                  Khám phá khóa học nhiều tuần hoặc chọn một buổi PT riêng phù hợp với lịch của bạn.
                 </p>
               </div>
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-3.5 shrink-0">
-                <Link to="/packages" className="w-full sm:w-auto h-11 px-5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white font-label-lg text-label-lg transition-all shadow-md flex items-center justify-center gap-2 active:scale-95">
+                <Link to="/member/classes" className="w-full sm:w-auto h-11 px-5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white font-label-lg text-label-lg transition-all shadow-md flex items-center justify-center gap-2 active:scale-95">
                   <span className="material-symbols-outlined text-[18px]">sell</span>
-                  <span>Xem bảng giá gói tập</span>
+                  <span>Xem khóa học nhiều tuần</span>
                 </Link>
-                <Link to="/member/pt" className="w-full sm:w-auto h-11 px-5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm">
+                <Link to="/member/classes?type=pt" className="w-full sm:w-auto h-11 px-5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm">
                   <span className="material-symbols-outlined text-[18px]">fitness_center</span>
                   <span>Đặt lịch PT 1-1</span>
                 </Link>

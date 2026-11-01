@@ -2,35 +2,31 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { AuthProvider, useAuth } from './auth'
 import AiChatWidget from './components/AiChatWidget'
 import AppLayout from './components/Layouts'
-import { MemberCommerce, CourseManagement } from './components/commerce'
+import { MemberCommerce } from './components/commerce'
 import { InvoicePage } from './components/frontDesk'
 import { MemberSupportPage, SupportDeskPage } from './components/support'
-import AuditLogsPage from './pages/AuditLogsPage'
-import CatalogPage from './pages/CatalogPage'
 import ClassesPage from './pages/ClassesPage'
 import CoachAvailabilityPage from './pages/CoachAvailabilityPage'
 import CoachSessionsPage from './pages/CoachSessionsPage'
 import { Forbidden, NotFound } from './pages/ErrorPages'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
-import ManagerClassesPage from './pages/ManagerClassesPage'
+import ManagerCoursesPage from './pages/ManagerCoursesPage'
 import CourseCreationPage from './pages/CourseCreationPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
-import ManagerPackagesPage from './pages/ManagerPackagesPage'
+import ManagerSettingsPage from './pages/ManagerSettingsPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
-import ManagerPtBookingsPage from './pages/ManagerPtBookingsPage'
-import MemberPtPage from './pages/MemberPtPage'
-import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
+import ManagerPtPage from './pages/ManagerPtPage'
+import MemberExplorePage from './pages/MemberExplorePage'
 import MemberTrainingPage from './pages/MemberTrainingPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import NewsPage from './pages/NewsPage'
 import PackagesPage from './pages/PackagesPage'
 import PaymentResultPage from './pages/PaymentResultPage'
 import ProfilePage from './pages/ProfilePage'
-import ReceptionClassBookingPage from './pages/ReceptionClassBookingPage'
 import ReceptionMemberPage from './pages/ReceptionMemberPage'
 import ReceptionPaymentsPage from './pages/ReceptionPaymentsPage'
-import ReceptionSchedulePage from './pages/ReceptionSchedulePage'
+import ReceptionCoursesPage from './pages/ReceptionCoursesPage'
 import ReceptionPtBookingPage from './pages/ReceptionPtBookingPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
@@ -39,9 +35,14 @@ import UsersPage from './pages/UsersPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import VerifyRequiredPage from './pages/VerifyRequiredPage'
 import HomePage from './pages/static/HomePage'
-import MemberSchedule from './pages/static/MemberSchedule'
-import ReceptionCheckIn from './pages/ReceptionCheckIn'
-import ReceptionDesk from './pages/ReceptionDesk'
+import ReceptionHomePage from './pages/ReceptionHomePage'
+
+function ReceptionRedirect({ to, tab }) {
+  const location = useLocation()
+  const search = new URLSearchParams(location.search)
+  if (tab) search.set('tab', tab)
+  return <Navigate to={`${to}${search.size ? `?${search}` : ''}`} replace />
+}
 
 // Must be logged in. A temp password has to be changed before anything else (AUTH-03).
 function RequireAuth() {
@@ -88,26 +89,27 @@ export default function App() {
               <Route path="/manager" element={<Navigate to="/manager/dashboard" replace />} />
               <Route path="/manager/dashboard" element={<ManagerDashboardPage />} />
               <Route path="/manager/users" element={<UsersPage />} />
-              <Route path="/manager/audit-logs" element={<AuditLogsPage />} />
-              <Route path="/manager/sports-rooms" element={<CatalogPage />} />
-              <Route path="/manager/classes" element={<ManagerClassesPage />} />
-              <Route path="/manager/courses" element={<CourseManagement />} />
+              <Route path="/manager/audit-logs" element={<Navigate to="/manager/settings?tab=audit" replace />} />
+              <Route path="/manager/sports-rooms" element={<Navigate to="/manager/settings" replace />} />
+              <Route path="/manager/classes" element={<Navigate to="/manager/courses?tab=sessions" replace />} />
+              <Route path="/manager/courses" element={<ManagerCoursesPage />} />
               <Route path="/manager/courses/new" element={<CourseCreationPage />} />
-              <Route path="/manager/pt-bookings" element={<ManagerPtBookingsPage />} />
-              <Route path="/manager/packages" element={<ManagerPackagesPage />} />
+              <Route path="/manager/pt-bookings" element={<ManagerPtPage />} />
+              <Route path="/manager/packages" element={<Navigate to="/manager/settings?tab=packages" replace />} />
+              <Route path="/manager/settings" element={<ManagerSettingsPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Receptionist']} />}>
-              <Route path="/reception" element={<ReceptionDesk />} />
-              <Route path="/reception/check-in" element={<ReceptionCheckIn />} />
-              {/* Dedicated sell flow lives at /reception/members (plan picker + PayOS QR) — no need to duplicate it. */}
-              <Route path="/reception/sell" element={<Navigate to="/reception/members" replace />} />
-              <Route path="/reception/classes" element={<ReceptionClassBookingPage />} />
+              <Route path="/reception" element={<ReceptionHomePage />} />
+              <Route path="/reception/check-in" element={<ReceptionRedirect to="/reception" tab="checkin" />} />
+              {/* Keep old cashier links while preserving the selected member and course. */}
+              <Route path="/reception/sell" element={<ReceptionRedirect to="/reception/schedule" tab="register" />} />
+              <Route path="/reception/classes" element={<ReceptionRedirect to="/reception/schedule" tab="register" />} />
               <Route path="/reception/pt" element={<ReceptionPtBookingPage />} />
               <Route path="/reception/members" element={<ReceptionMemberPage />} />
               <Route path="/reception/members/:id" element={<ReceptionMemberPage />} />
-              <Route path="/reception/schedule" element={<ReceptionSchedulePage />} />
+              <Route path="/reception/schedule" element={<ReceptionCoursesPage />} />
               <Route path="/reception/payments" element={<ReceptionPaymentsPage />} />
               <Route path="/reception/support" element={<SupportDeskPage />} />
             </Route>
@@ -119,11 +121,12 @@ export default function App() {
             </Route>
 
             <Route element={<RequireRole roles={['Member']} />}>
-              <Route path="/member/classes" element={<MemberSchedule />} />
+              <Route path="/member" element={<Navigate to="/member/schedule" replace />} />
+              <Route path="/member/classes" element={<MemberExplorePage />} />
               <Route path="/member/schedule" element={<MyMemberSchedulePage />} />
-              <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
-              <Route path="/member/wallet" element={<MemberCommerce />} />
-              <Route path="/member/pt" element={<MemberPtPage />} />
+              <Route path="/member/subscription" element={<Navigate to="/member/schedule?tab=packages" replace />} />
+              <Route path="/member/wallet" element={<MemberCommerce viewMode="wallet" />} />
+              <Route path="/member/pt" element={<Navigate to="/member/classes?type=pt" replace />} />
               <Route path="/member/training" element={<MemberTrainingPage />} />
               <Route path="/member/support" element={<MemberSupportPage />} />
             </Route>

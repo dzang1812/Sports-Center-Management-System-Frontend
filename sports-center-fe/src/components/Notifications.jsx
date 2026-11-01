@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, query } from '../api'
 import { formatTimestamp } from '../dateUtils'
-import { Alert, Icon, Modal, Pagination, btnOutline } from './ui'
+import { Alert, Icon, Modal, Pagination, btnOutline, btnPrimary } from './ui'
+import { markAllNotificationsRead } from './notificationActions'
 
 // Mounted inside the token-keyed authenticated layout: no user-specific cache survives account changes.
 export default function Notifications() {
@@ -17,6 +18,9 @@ export default function Notifications() {
   const reading = useRef(false)
   const listRequest = useRef(null)
   const badgeRequest = useRef(null)
+  const readAllRequest = useRef(null)
+
+  useEffect(() => () => readAllRequest.current?.abort(), [])
 
   const loadBadge = useCallback(async () => {
     badgeRequest.current?.abort()
@@ -79,15 +83,42 @@ export default function Notifications() {
     finally { reading.current = false; setReadingId(null) }
   }
 
+  const markAllRead = async () => {
+    if (reading.current) return
+    reading.current = true
+    const controller = new AbortController()
+    readAllRequest.current = controller
+    setReadingId('all')
+    setError('')
+    let failure = ''
+    try {
+      await markAllNotificationsRead(api, controller.signal)
+    } catch (err) { if (!controller.signal.aborted) failure = err.message }
+    finally {
+      if (!controller.signal.aborted) {
+        // Refresh from the server even after partial failure; never assume the count is zero.
+        await Promise.all([load(), loadBadge()])
+        if (failure) setError(failure)
+        reading.current = false
+        setReadingId(null)
+      }
+    }
+  }
+
   return <>
     <button type="button" className="relative p-2 rounded-lg hover:bg-surface-container-high shrink-0" onClick={() => setOpen(true)} aria-label={`Thông báo${unread == null ? '' : `, ${unread} chưa đọc`}`}>
       <Icon name="notifications" />
       {unread > 0 && <span className="absolute -top-1 -right-1 bg-error text-white rounded-full px-1.5 text-xs">{unread > 99 ? '99+' : unread}</span>}
     </button>
-    {open && <Modal title="Thông báo" onClose={() => setOpen(false)} footer={<button type="button" className={btnOutline} onClick={() => setOpen(false)}>Đóng</button>}>
+    {open && <Modal title="Thông báo" onClose={() => setOpen(false)} footer={<div className="flex w-full flex-wrap justify-between gap-2">
+      <button type="button" className={btnPrimary} disabled={readingId != null || unread === 0} onClick={markAllRead}>
+        <Icon name="done_all" />{readingId === 'all' ? 'Đang đánh dấu…' : 'Đánh dấu đọc tất cả'}
+      </button>
+      <button type="button" className={btnOutline} onClick={() => setOpen(false)}>Đóng</button>
+    </div>}>
       <div className="flex items-center justify-between gap-3 pb-3">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={onlyUnread} onChange={(e) => { setOnlyUnread(e.target.checked); setPage(1) }} /> Chỉ chưa đọc</label>
-        <button type="button" className={btnOutline} onClick={() => { load(); loadBadge() }} disabled={loading}>Làm mới</button>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={onlyUnread} disabled={readingId != null} onChange={(e) => { setOnlyUnread(e.target.checked); setPage(1) }} /> Chỉ chưa đọc</label>
+        <button type="button" className={btnOutline} onClick={() => { load(); loadBadge() }} disabled={loading || readingId != null}>Làm mới</button>
       </div>
       {error && <Alert>{error}</Alert>}
       {loading ? <p role="status" className="py-4 text-secondary">Đang tải thông báo…</p> : <div className="space-y-3">
@@ -99,7 +130,7 @@ export default function Notifications() {
         </article>)}
         {!data.items.length && !error && <p className="text-secondary text-center py-6">Không có thông báo.</p>}
       </div>}
-      <Pagination page={page} pageSize={pageSize} total={data.total} onPage={setPage} onPageSize={(size) => { setPageSize(size); setPage(1) }} />
+      <Pagination page={page} pageSize={pageSize} total={data.total} onPage={value => { if (!reading.current) setPage(value) }} onPageSize={(size) => { if (!reading.current) { setPageSize(size); setPage(1) } }} />
     </Modal>}
   </>
 }
