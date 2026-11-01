@@ -52,6 +52,19 @@ export async function api(path, { method = 'GET', body, signal, idempotencyKey, 
   return data
 }
 
+// Multipart requests keep the same stale-session guard as JSON requests.
+export async function apiForm(path, form) {
+  const auth = getAuth()
+  const res = await fetch(`/api${path}`, { method: 'POST', headers: auth ? { Authorization: `Bearer ${auth.token}` } : {}, body: form })
+  if (res.status === 401 && auth && getAuth()?.token === auth.token) {
+    setAuth(null)
+    window.location.assign('/login')
+  }
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new ApiError(errorMessage(data, res.status), res.status, data)
+  return data
+}
+
 // Uploads a File/Blob to the backend, which forwards it to Cloudinary and returns { url }.
 export async function apiUpload(file) {
   const auth = getAuth()

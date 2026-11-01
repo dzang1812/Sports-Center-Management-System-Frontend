@@ -102,6 +102,7 @@ function StaffLayout() {
             <NavLink to={n.to} end={n.end} className={link} title={collapsed ? n.label : undefined}>
               <Icon name={n.icon} className="text-[20px] shrink-0" />
               <span className={collapsed ? 'lg:hidden' : ''}>{n.label}</span>
+              {n.badge && <n.badge />}
             </NavLink>
             </div>
           ))}

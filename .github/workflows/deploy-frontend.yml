@@ -1,0 +1,36 @@
+name: Deploy frontend to EC2
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sports-center-fe
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build on GitHub's runner, not the 1GB EC2 box.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sports-center-fe/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Copy build output to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "sports-center-fe/dist/*"
+          target: "/var/www/sportscenter-web"
+          strip_components: 2
+          rm: true

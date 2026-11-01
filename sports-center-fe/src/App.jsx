@@ -1,7 +1,10 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
+import AiChatWidget from './components/AiChatWidget'
 import AppLayout from './components/Layouts'
 import { MemberCommerce } from './components/commerce'
+import { InvoicePage } from './components/frontDesk'
+import { MemberSupportPage, SupportDeskPage } from './components/support'
 import ClassesPage from './pages/ClassesPage'
 import CoachAvailabilityPage from './pages/CoachAvailabilityPage'
 import CoachSessionsPage from './pages/CoachSessionsPage'
@@ -15,6 +18,7 @@ import ManagerSettingsPage from './pages/ManagerSettingsPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
 import ManagerPtPage from './pages/ManagerPtPage'
 import MemberExplorePage from './pages/MemberExplorePage'
+import MemberTrainingPage from './pages/MemberTrainingPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import NewsPage from './pages/NewsPage'
 import PackagesPage from './pages/PackagesPage'
@@ -72,6 +76,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/403" element={<Forbidden />} />
+          <Route path="/invoice/:id" element={<InvoicePage />} />
 
           <Route element={<RequireAuth />}>
             <Route path="/profile" element={<ProfilePage />} />
@@ -106,6 +111,7 @@ export default function App() {
               <Route path="/reception/members/:id" element={<ReceptionMemberPage />} />
               <Route path="/reception/schedule" element={<ReceptionCoursesPage />} />
               <Route path="/reception/payments" element={<ReceptionPaymentsPage />} />
+              <Route path="/reception/support" element={<SupportDeskPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Coach']} />}>
@@ -121,11 +127,14 @@ export default function App() {
               <Route path="/member/subscription" element={<Navigate to="/member/schedule?tab=packages" replace />} />
               <Route path="/member/wallet" element={<MemberCommerce viewMode="wallet" />} />
               <Route path="/member/pt" element={<Navigate to="/member/classes?type=pt" replace />} />
+              <Route path="/member/training" element={<MemberTrainingPage />} />
+              <Route path="/member/support" element={<MemberSupportPage />} />
             </Route>
           </Route>
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <AiChatWidget />
       </AuthProvider>
     </BrowserRouter>
   )

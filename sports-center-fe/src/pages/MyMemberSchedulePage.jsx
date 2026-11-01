@@ -412,6 +412,8 @@ export default function MyMemberSchedulePage() {
       {tab === 'packages' && <MemberSubscriptionPage embedded />}
       <details className="border-t border-outline-variant/40 pt-4 text-body-sm text-secondary"><summary className="cursor-pointer w-fit">Xem thêm</summary><div className="flex flex-wrap gap-x-6 gap-y-3 pt-3">
         <Link className="text-primary hover:underline" to="/member/schedule?tab=mine">Lịch dạng danh sách</Link>
+        <Link className="text-primary hover:underline" to="/member/training">Kế hoạch tập cá nhân</Link>
+        <Link className="text-primary hover:underline" to="/member/support">Yêu cầu hỗ trợ</Link>
         <Link className="text-primary hover:underline" to="/member/schedule?tab=packages">Gói tập đã mua trước đây</Link>
         <Link className="text-primary hover:underline" to="/member/classes?type=single">Lớp theo buổi</Link>
       </div></details>
