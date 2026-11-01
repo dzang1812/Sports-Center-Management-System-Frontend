@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import { PaymentPendingPanel } from '../components/payment'
+import { PaymentPendingPanel, PaymentQrCode } from '../components/payment'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
-import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
+import { GYM_CARD_STATUS_LABEL, PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 const PAYMENT_STATUS_TONE = { Pending: 'amber', Paid: 'green', Failed: 'red', Refunded: 'slate' }
@@ -96,6 +96,30 @@ function CurrentPlanHero({ sub }) {
 }
 
 
+// The code reception scans/types at the gym gate; the backend issues it on first open.
+function GymCard() {
+  const [card, setCard] = useState(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    api('/me/gym-card').then(setCard).catch((err) => setError(err.message))
+  }, [])
+  if (error) return <Alert>{error}</Alert>
+  if (!card) return null
+  return (
+    <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant flex flex-col sm:flex-row items-center gap-6">
+      <PaymentQrCode data={card.cardCode} alt="QR thẻ hội viên" />
+      <div className="flex flex-col gap-2 min-w-0 text-center sm:text-left">
+        <span className="font-label-sm text-label-sm uppercase tracking-wide text-primary font-semibold">Thẻ hội viên</span>
+        <span className="font-mono font-bold text-on-surface break-all">{card.cardCode}</span>
+        <div>
+          <Badge tone={card.status === 'Active' ? 'green' : 'amber'}>{GYM_CARD_STATUS_LABEL[card.status] ?? card.status}</Badge>
+        </div>
+        <p className="text-secondary text-body-sm">Đưa mã QR này cho lễ tân quét khi vào và ra khỏi phòng Gym.</p>
+      </div>
+    </div>
+  )
+}
+
 export default function MemberSubscriptionPage({ embedded = false }) {
   const [subs, setSubs] = useState([])
   const [error, setError] = useState('')
@@ -140,6 +164,8 @@ export default function MemberSubscriptionPage({ embedded = false }) {
       {error && <Alert>{error}</Alert>}
 
       <CurrentPlanHero sub={current} />
+
+      <GymCard />
 
       <div className="flex flex-col gap-4">
         <h3 className="font-headline-sm text-headline-sm">Lịch sử đăng ký</h3>
