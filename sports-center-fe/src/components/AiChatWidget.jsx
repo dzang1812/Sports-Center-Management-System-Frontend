@@ -129,7 +129,7 @@ export default function AiChatWidget() {
                   <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-surface-container text-on-surface text-body-md min-w-0 break-words">
                     <AiText text={m.content} onNavigate={() => window.innerWidth < 640 && setOpen(false)} />
                     {m.suggestions?.length > 0 && (
-                      <ApplyButton suggestions={m.suggestions} onApplied={() => window.dispatchEvent(new Event('sc:plan-changed'))} />
+                      <ApplyButton suggestions={m.suggestions} onApplied={() => window.dispatchEvent(new Event('sc:plan-changed'))} onNavigate={() => window.innerWidth < 640 && setOpen(false)} />
                     )}
                   </div>
                 </div>

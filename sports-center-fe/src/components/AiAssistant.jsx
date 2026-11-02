@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, apiForm } from '../api'
 import AiText from './AiText'
 import { Alert, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
@@ -14,7 +15,7 @@ const INTENSITIES = [['Light', 'Nhẹ'], ['Moderate', 'Vừa'], ['High', 'Cao']]
 const DAYS = [['Monday', 'T2'], ['Tuesday', 'T3'], ['Wednesday', 'T4'], ['Thursday', 'T5'], ['Friday', 'T6'], ['Saturday', 'T7'], ['Sunday', 'CN']]
 
 // Applies the AI's suggestion batch to the member's plan; shared by the generator and the chat.
-export function ApplyButton({ suggestions, onApplied }) {
+export function ApplyButton({ suggestions, onApplied, onNavigate }) {
   const [state, setState] = useState('idle') // idle | busy | done
   const [error, setError] = useState('')
   if (!suggestions?.length) return null
@@ -36,6 +37,11 @@ export function ApplyButton({ suggestions, onApplied }) {
       <button className={btnPrimary} onClick={apply} disabled={state !== 'idle'}>
         {state === 'done' ? 'Đã áp dụng vào lịch tập' : state === 'busy' ? 'Đang áp dụng…' : `Áp dụng ${suggestions.length} thay đổi vào lịch tập`}
       </button>
+      {state === 'done' && (
+        <Link to="/member/training" onClick={onNavigate} className="text-primary-container font-semibold underline underline-offset-2 hover:opacity-80">
+          Xem lịch tập tuần →
+        </Link>
+      )}
     </div>
   )
 }
@@ -110,7 +116,7 @@ export function AiGenerateModal({ onClose, onApplied }) {
             <div className="text-body-md max-h-[50vh] overflow-y-auto rounded-lg bg-surface-container p-3">
               <AiText text={result.response} />
             </div>
-            <ApplyButton suggestions={result.suggestions} onApplied={onApplied} />
+            <ApplyButton suggestions={result.suggestions} onApplied={onApplied} onNavigate={onClose} />
             <button className={btnOutline} onClick={() => setResult(null)}>Tạo lại</button>
           </>
         )}
