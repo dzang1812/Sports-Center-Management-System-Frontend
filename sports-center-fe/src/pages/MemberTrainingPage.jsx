@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
 import { AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
 import ExerciseDetailModal from '../components/ExerciseDetail'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
+
+const ExerciseGuideModal = lazy(() => import('../components/ExerciseGuide'))
 
 const DAYS = [
   ['Monday', 'Thứ 2'],
@@ -107,7 +109,7 @@ function ExercisePicker({ onPick, onClose }) {
   )
 }
 
-function DayCard({ label, day, onChange, onAdd, onDetail }) {
+function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
   if (!day)
     return (
       <div className="rounded-xl border border-dashed border-outline-variant p-4 flex flex-col gap-2 bg-surface-container-lowest">
@@ -143,6 +145,10 @@ function DayCard({ label, day, onChange, onAdd, onDetail }) {
               <input className={`${inputCls} !w-16 !py-1`} maxLength={20} value={it.reps} onChange={(e) => setItem(idx, { reps: e.target.value })} />
               <span>lần</span>
             </div>
+            <button type="button" onClick={() => onGuide(it)} aria-label={`Hướng dẫn ${it.exerciseName}`}
+              className="mt-1 inline-flex items-center gap-1 text-body-sm font-semibold text-primary-container hover:underline">
+              <Icon name="play_circle" className="text-[16px]" /> Hướng dẫn
+            </button>
           </div>
           <button className="text-secondary hover:text-error" title="Xóa bài" onClick={() => onChange({ ...day, items: day.items.filter((_, i) => i !== idx) })}>
             <Icon name="close" className="text-[20px]" />
@@ -157,6 +163,7 @@ function DayCard({ label, day, onChange, onAdd, onDetail }) {
 }
 
 export default function MemberTrainingPage() {
+  const [guide, setGuide] = useState(null)
   const [plans, setPlans] = useState(null)
   const [draft, setDraft] = useState(null)
   const [picking, setPicking] = useState(null) // day key the picker is adding to
@@ -301,7 +308,7 @@ export default function MemberTrainingPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {DAYS.map(([key, label]) => (
-          <DayCard key={key} label={label} day={draft.days[key]} onChange={(d) => setDay(key, d)} onAdd={() => setPicking(key)} onDetail={showDetail} />
+          <DayCard key={key} label={label} day={draft.days[key]} onChange={(d) => setDay(key, d)} onAdd={() => setPicking(key)} onDetail={showDetail} onGuide={setGuide} />
         ))}
       </div>
 
@@ -327,6 +334,9 @@ export default function MemberTrainingPage() {
       {ai === 'generate' && <AiGenerateModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {ai === 'media' && <AiMediaModal onClose={() => setAi(null)} />}
       {detail && <ExerciseDetailModal exercise={detail} onClose={() => setDetail(null)} />}
+      {guide && <Suspense fallback={<Modal title="Hướng dẫn tập" onClose={() => setGuide(null)}><p role="status">Đang mở hướng dẫn…</p></Modal>}>
+        <ExerciseGuideModal key={guide.exerciseId} exercise={guide} onClose={() => setGuide(null)} />
+      </Suspense>}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(null)} />}
     </div>
   )

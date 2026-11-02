@@ -103,6 +103,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
   const [search, setSearch] = useState('')
   const [sport, setSport] = useState('all')
   const [supportFor, setSupportFor] = useState(null)
+  const [supportRequestId, setSupportRequestId] = useState(null)
   const request = useRef(null)
   const detailRequest = useRef(null)
   const receiptRequest = useRef(null)
@@ -174,6 +175,8 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
   const done = (result) => {
     const online = intent?.path === '/wallet/online-top-ups'
     const cash = intent?.path === '/wallet/cash-top-ups'
+    const support = intent?.path.endsWith('/support')
+    setSupportRequestId(support && Number.isSafeInteger(result) && result > 0 ? result : null)
     setIntent(null); setSupportFor(null); setSupportReason('')
     if (cash) {
       try { saveCashReceipt(cashStorageKey, null) } catch { /* Replaying a retained request still cannot credit twice. */ }
@@ -182,7 +185,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
       receiptRequest.current?.abort(); const controller = new AbortController(); receiptRequest.current = controller
       api(`/payments/${result.paymentId}`, { signal: controller.signal }).then(receipt => { if (!controller.signal.aborted) setNotice(`Đã nạp ${vnd(receipt.amount)}. Biên nhận: ${receipt.invoiceNumber ?? `Giao dịch #${receipt.id}`}.`) })
         .catch(() => { if (!controller.signal.aborted) setNotice(`Đã nạp tiền thành công. Giao dịch #${result.paymentId}; có thể tra cứu biên nhận trong báo cáo Manager.`) })
-    } else setNotice(online ? 'Yêu cầu nạp tiền đã tạo. Số dư cập nhật sau khi thanh toán được xác nhận.' : 'Yêu cầu đã được xác nhận. Dữ liệu đang được cập nhật.')
+    } else setNotice(online ? 'Yêu cầu nạp tiền đã tạo. Số dư cập nhật sau khi thanh toán được xác nhận.' : support ? 'Đã gửi yêu cầu hỗ trợ. Theo dõi phản hồi tại mục Hỗ trợ.' : 'Yêu cầu đã được xác nhận. Dữ liệu đang được cập nhật.')
     if (online) setPayment(result)
     load()
   }
@@ -206,7 +209,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
   </article>
   return <section className={viewMode === 'catalog' ? 'space-y-3' : 'space-y-5'}>
     {!embedded && <div><h1 className="font-headline-xl text-headline-xl">{viewMode === 'wallet' ? 'Số dư của tôi' : coursesOnly ? 'Đăng ký nguyên khóa' : 'Số dư & đăng ký dịch vụ'}{memberId ? ` — hội viên #${memberId}` : ''}</h1>{viewMode === 'wallet' && <p className="text-secondary mt-2">Nạp tiền và theo dõi các khoản thanh toán, hoàn tiền của bạn.</p>}</div>}
-    {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}{showCatalog && !staff && <Link className="block font-semibold underline mt-2" to="/member/schedule?tab=courses">Xem khóa đã đăng ký</Link>}</Alert>}{loading && <p role="status" className="text-secondary">Đang cập nhật…</p>}
+    {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}{supportRequestId && !staff && <Link className="block font-semibold underline mt-2" to={`/member/support?requestId=${supportRequestId}`}>Xem yêu cầu vừa gửi</Link>}{showCatalog && !staff && <Link className="block font-semibold underline mt-2" to="/member/schedule?tab=courses">Xem khóa đã đăng ký</Link>}</Alert>}{loading && <p role="status" className="text-secondary">Đang cập nhật…</p>}
     {data && <>
       {data.wallet && !showWallet && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-body-sm"><p className="text-emerald-900">Số dư có thể dùng: <b className="font-bold">{vnd(data.wallet.balance)}</b></p><Link to={staff ? `/reception/members/${memberId}?tab=wallet` : '/member/wallet'} className="text-emerald-800 font-semibold inline-flex items-center gap-1">Nạp tiền<Icon name="arrow_forward" className="text-base" /></Link></div>}
       {showWallet && <div className="rounded-2xl bg-surface-container p-5 sm:p-6 space-y-4">
@@ -280,7 +283,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
         {!courses.length && <div className="rounded-xl border border-dashed border-outline-variant p-8 text-center text-secondary">{data.courses.length ? 'Không có khóa phù hợp. Hãy thử bộ môn hoặc từ khóa khác.' : 'Chưa có khóa học được công bố.'}</div>}
       </div>}
       {showEnrollments && <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-headline-md text-headline-md">Khóa đã đăng ký</h2><p className="text-secondary text-body-sm mt-1">Xem lịch toàn khóa, yêu cầu hỗ trợ hoặc quản lý đăng ký.</p></div>{!staff && <Link className={btnOutline} to="/member/classes">Tìm khóa mới</Link>}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-headline-md text-headline-md">Khóa đã đăng ký</h2><p className="text-secondary text-body-sm mt-1">Xem lịch toàn khóa, yêu cầu hỗ trợ hoặc quản lý đăng ký.</p></div>{!staff && <div className="flex flex-wrap gap-2"><Link className={btnOutline} to="/member/support">Yêu cầu hỗ trợ của tôi</Link><Link className={btnOutline} to="/member/classes">Tìm khóa mới</Link></div>}</div>
         <div className="grid lg:grid-cols-2 gap-4">{registered.map(renderEnrollment)}</div>
         {!registered.length && <p className="rounded-xl bg-white border border-dashed border-outline-variant p-6 text-secondary text-center">{staff ? 'Hội viên' : 'Bạn'} chưa có khóa học đang đăng ký.</p>}
         {previous.length > 0 && <details className="rounded-xl bg-white border border-outline-variant/50 p-4"><summary className="cursor-pointer font-semibold">Lịch sử khóa đã hủy ({previous.length})</summary><div className="grid lg:grid-cols-2 gap-4 mt-4">{previous.map(renderEnrollment)}</div></details>}
@@ -373,7 +376,7 @@ export function CourseManagement({ embedded = false }) {
       <div className="flex flex-wrap gap-2">{[true, false].map(open => <button key={String(open)} className={open ? btnPrimary : btnOutline} disabled={loading || detail.status === 'Cancelled'} onClick={() => setIntent({ title: open ? 'Mở đăng ký khóa' : 'Đóng đăng ký khóa', description: detail.name, policy: 'Backend kiểm tra lịch đủ buổi, tài nguyên, giá và cutoff. Đóng/mở không gia hạn mốc đã lưu.', path: `/courses/${selected}/publish`, method: 'PUT', body: { open } })}>{open ? 'Mở đăng ký' : 'Đóng đăng ký'}</button>)}</div></div>}
       {section === 'schedule' && <CourseScheduleCalendar key={detail.id} title={detail.name} sessions={detail.sessions} />}
       {section === 'people' && <div className="space-y-4"><h3 className="font-semibold">Học viên ({enrollments.length})</h3>{enrollments.map(e => <div className="rounded-lg bg-surface-container-low p-3" key={e.id}><b>{e.member}</b><p className="text-secondary text-body-sm">{e.status === 'Confirmed' ? 'Đã đăng ký' : 'Đã hủy'} · Đã thanh toán {vnd(e.paidAmount)} · Đã hoàn {vnd(e.refundedAmount)}</p></div>)}{!enrollments.length && <p className="text-secondary text-body-sm">Chưa có học viên đăng ký.</p>}
-      <h3 className="font-semibold">Yêu cầu hỗ trợ khóa</h3>{supportRequests.map(r => <p key={r.id}>{r.member} • {r.status} • {r.description} • {formatTimestamp(r.createdAt)}</p>)}
+      <h3 className="font-semibold">Yêu cầu hỗ trợ khóa ({supportRequests.length})</h3>{supportRequests.map(r => <div key={r.id} className="rounded-lg border border-outline-variant/40 p-3 space-y-2"><p>{r.member} • {r.status} • {formatTimestamp(r.createdAt)}</p><p className="text-body-sm whitespace-pre-wrap">{r.description}</p><Link className="inline-flex items-center gap-1 text-primary text-body-sm font-semibold" to={`/manager/support?requestId=${r.id}`}>Xem / phản hồi<Icon name="arrow_forward" className="text-sm" /></Link></div>)}
       {!supportRequests.length && <p className="text-body-sm text-secondary">Không có yêu cầu hỗ trợ.</p>}</div>}
       {section === 'cancel' && <div className="space-y-4"><p className="text-body-sm text-secondary">Chọn hủy toàn khóa hoặc xử lý một buổi. Khoản hoàn và quyền lợi được kiểm tra lại khi xác nhận.</p><Field label="Lý do hủy"><textarea className={inputCls} maxLength={500} value={cancel.reason} onChange={e => setCancel({ ...cancel, reason: e.target.value })} /></Field>
       <button className={btnOutline} disabled={loading || cancel.reason.trim().length < 2 || detail.status === 'Cancelled'} onClick={() => setIntent({ title: 'Trung tâm hủy toàn khóa', description: detail.name, policy: 'Trước khai giảng: hoàn phần thực trả chưa hoàn. Sau khai giảng: chỉ hoàn các buổi chưa cung cấp theo học phí phân bổ lúc đăng ký. Giữ lịch sử buổi đã diễn ra.', path: `/courses/${selected}/cancel`, body: { reason: cancel.reason.trim() } })}>Hủy toàn khóa</button>

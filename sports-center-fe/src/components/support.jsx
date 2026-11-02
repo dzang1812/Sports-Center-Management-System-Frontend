@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api, query } from '../api'
 import { useAuth } from '../auth'
 import { formatTimestamp } from '../dateUtils'
 import { ROLE_LABEL } from '../labels'
 import usePaged from '../usePaged'
-import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
+import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from './ui'
 
 const STATUS = {
   Open: ['Chờ xử lý', 'amber'],
@@ -25,6 +25,21 @@ const CATEGORY = {
 const statusLabel = (s, staff) => (!staff && s === 'WaitingForMember' ? 'Chờ bạn phản hồi' : STATUS[s]?.[0] ?? s)
 // Course enrollment support is filed by another flow with a machine subject.
 const subjectText = (s) => s.replace(/^Course:\d+:Enrollment:(\d+)$/, 'Hỗ trợ khóa học đã mua (đăng ký #$1)')
+const searchable = text => String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').toLocaleLowerCase('vi-VN')
+
+async function loadOwnSupportRequests(signal) {
+  const readPage = page => api(`/support-requests/mine${query({ page, pageSize: 50 })}`, { signal })
+  const first = await readPage(1)
+  const items = [...first.items]
+  const pages = Math.ceil(first.total / first.pageSize)
+  // Own requests only. Collect API pages before filtering/counting so older requests remain searchable.
+  for (let page = 2; page <= pages; page += 4) {
+    if (signal.aborted) return []
+    const batch = await Promise.all(Array.from({ length: Math.min(4, pages - page + 1) }, (_, i) => readPage(page + i)))
+    items.push(...batch.flatMap(result => result.items))
+  }
+  return [...new Map(items.map(item => [item.id, item])).values()]
+}
 
 function StatusBadge({ status, staff }) {
   return <Badge tone={STATUS[status]?.[1] ?? 'slate'}>{statusLabel(status, staff)}</Badge>
@@ -55,20 +70,29 @@ function SupportThread({ id, staff, onChanged }) {
   const [body, setBody] = useState('')
   const [internal, setInternal] = useState(false)
   const [busy, setBusy] = useState(false)
-
-  const load = useCallback(() => api(`/support-requests/${id}`).then(setDetail).catch((err) => setError(err.message)), [id])
-  useEffect(() => { void Promise.resolve().then(load) }, [load])
+  const pending = useRef(false), active = useRef(false)
+  useEffect(() => {
+    active.current = true
+    const controller = new AbortController()
+    api(`/support-requests/${id}`, { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setDetail(data) })
+      .catch(err => { if (!controller.signal.aborted) setError(err.message) })
+    return () => { active.current = false; controller.abort() }
+  }, [id])
 
   const run = async (fn) => {
+    if (pending.current) return
+    pending.current = true
     setBusy(true); setError('')
-    try { setDetail(await fn()); onChanged?.() } catch (err) { setError(err.message) }
-    setBusy(false)
+    try { const result = await fn(); if (active.current) { setDetail(result); onChanged?.() } }
+    catch (err) { if (active.current) setError(err.message) }
+    finally { pending.current = false; if (active.current) setBusy(false) }
   }
   const reply = (e) => {
     e.preventDefault()
     run(async () => {
       const d = await api(`/support-requests/${id}/messages`, { method: 'POST', body: { body: body.trim(), isInternal: staff && internal } })
-      setBody(''); setInternal(false)
+      if (active.current) { setBody(''); setInternal(false) }
       return d
     })
   }
@@ -89,19 +113,20 @@ function SupportThread({ id, staff, onChanged }) {
       </div>
       {staff && (
         <p className="text-body-sm">
-          Hội viên: <Link className="underline font-semibold" to={`/reception/members/${r.memberId}`}>{r.memberName}</Link> ({r.memberEmail})
+          Hội viên: {auth.role === 'Manager' ? <b>{r.memberName} #{r.memberId}</b> : <Link className="underline font-semibold" to={`/reception/members/${r.memberId}`}>{r.memberName}</Link>} ({r.memberEmail})
           {r.createdByName && <> • Ghi nhận tại quầy bởi {r.createdByName}</>}
           {r.handledByName && <> • Phụ trách: {r.handledByName}</>}
         </p>
       )}
+      {staff && auth.role === 'Manager' && /^Course:\d+:Enrollment:\d+$/.test(r.subject) && <Link className="text-primary text-body-sm underline" to={`/manager/courses?courseId=${r.subject.split(':')[1]}`}>Mở khóa học liên quan</Link>}
       {error && <Alert>{error}</Alert>}
 
       <ol className="flex flex-col gap-3">
         <li className="rounded-lg border border-outline-variant p-3">
-          <p className="text-body-sm text-secondary pb-1">{r.memberName}{r.createdByName ? ` (lễ tân ${r.createdByName} ghi nhận)` : ''}</p>
+          <p className="text-body-sm text-secondary pb-1">{r.memberName}{r.createdByName ? ` (${r.createdByName} ghi nhận)` : ''}</p>
           <p className="whitespace-pre-wrap">{r.description}</p>
         </li>
-        {detail.messages.map((m) => {
+        {detail.messages.filter(m => staff || !m.isInternal).map((m) => {
           const mine = m.authorId === auth.userId
           const fromStaff = m.authorRole !== 'Member'
           return (
@@ -172,23 +197,29 @@ function MemberPicker({ value, onChange }) {
 
 // Member files their own; staff log one on behalf of a member (e.g. a question asked at the desk).
 export function CreateSupportModal({ staff, member = null, onClose, onDone }) {
+  const formId = useId()
   const [form, setForm] = useState({ category: 'Other', subject: '', description: '' })
   const [target, setTarget] = useState(member)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const pending = useRef(false), active = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const close = () => { if (!pending.current) onClose() }
   const submit = async (e) => {
     e.preventDefault()
+    if (pending.current) return
     if (staff && !target) { setError('Chọn hội viên trước.'); return }
+    pending.current = true
     setBusy(true); setError('')
     try {
       const created = await api('/support-requests', { method: 'POST', body: { ...form, subject: form.subject.trim(), description: form.description.trim(), memberId: staff ? target.id : null } })
-      onDone(created)
-    } catch (err) { setError(err.message); setBusy(false) }
+      if (active.current) onDone(created)
+    } catch (err) { if (active.current) setError(err.message) }
+    finally { pending.current = false; if (active.current) setBusy(false) }
   }
   return (
-    <Modal title={staff ? 'Ghi nhận yêu cầu cho hội viên' : 'Gửi yêu cầu hỗ trợ'} onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        {error && <Alert>{error}</Alert>}
+    <Modal title={staff ? 'Ghi nhận yêu cầu cho hội viên' : 'Gửi yêu cầu hỗ trợ'} onClose={close} footer={<div className="w-full space-y-3">{error && <Alert>{error}</Alert>}<div className="flex justify-end gap-2"><button type="button" className={btnOutline} disabled={busy} onClick={close}>Huỷ</button><button type="submit" form={formId} disabled={busy} className={btnPrimary}>{busy ? 'Đang gửi…' : staff ? 'Ghi nhận' : 'Gửi yêu cầu'}</button></div></div>}>
+      <form id={formId} onSubmit={submit}><fieldset disabled={busy} className="flex flex-col gap-4">
         {staff && <Field label="Hội viên"><MemberPicker value={target} onChange={setTarget} /></Field>}
         <Field label="Loại yêu cầu">
           <select className={inputCls} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
@@ -197,51 +228,81 @@ export function CreateSupportModal({ staff, member = null, onClose, onDone }) {
         </Field>
         <Field label="Tiêu đề"><input className={inputCls} required minLength={2} maxLength={150} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></Field>
         <Field label="Nội dung"><textarea className={inputCls + ' !h-28 py-2'} required minLength={2} maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
-        <div className="flex justify-end gap-2 pt-2">
-          <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang gửi…' : staff ? 'Ghi nhận' : 'Gửi yêu cầu'}</button>
-        </div>
-      </form>
+      </fieldset></form>
     </Modal>
   )
 }
 
 export function MemberSupportPage() {
-  const { data, loading, error, reload, pagination, setPage } = usePaged('/support-requests/mine')
+  const [requests, setRequests] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState('')
+  const [status, setStatus] = useState(''), [category, setCategory] = useState(''), [search, setSearch] = useState('')
+  const [page, setPage] = useState(1), [pageSize, setPageSize] = useState(10), [revision, setRevision] = useState(0)
+  const [params, setParams] = useSearchParams()
+  const rawId = params.get('requestId') ?? ''
+  const openId = /^\d+$/.test(rawId) && Number.isSafeInteger(Number(rawId)) && Number(rawId) > 0 ? Number(rawId) : null
+  const setOpenId = id => setParams(current => { const next = new URLSearchParams(current); if (id) next.set('requestId', String(id)); else next.delete('requestId'); return next })
   const [creating, setCreating] = useState(false)
-  const [openId, setOpenId] = useState(null)
+  const reload = useCallback(() => setRevision(value => value + 1), [])
+  useEffect(() => {
+    const controller = new AbortController()
+    const load = async () => {
+      if (controller.signal.aborted) return
+      setLoading(true); setError('')
+      try { const items = await loadOwnSupportRequests(controller.signal); if (!controller.signal.aborted) setRequests(items) }
+      catch (err) { if (!controller.signal.aborted) { setRequests([]); setError(err.message) } }
+      finally { if (!controller.signal.aborted) setLoading(false) }
+    }
+    void Promise.resolve().then(load)
+    return () => controller.abort()
+  }, [revision])
+  const filtered = requests.filter(r => (!status || r.status === status) && (!category || r.category === category)
+    && searchable(`${r.id} ${r.subject} ${subjectText(r.subject)} ${r.description}`).includes(searchable(search.trim().replace(/^#/, ''))))
+  const shownPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / pageSize)))
+  const visible = filtered.slice((shownPage - 1) * pageSize, shownPage * pageSize)
+  const chip = (key, label) => <button key={key} type="button" aria-pressed={status === key} onClick={() => { setStatus(status === key ? '' : key); setPage(1) }} className={`rounded-xl px-4 py-3 text-left border ${status === key ? 'border-primary bg-primary-container/10' : 'border-outline-variant/40 bg-surface-container-lowest'}`}><span className="block text-body-sm text-secondary">{label}</span><span className="font-headline-md text-headline-md">{loading || error ? '—' : requests.filter(r => r.status === key).length}</span></button>
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-headline-xl text-headline-xl">Hỗ trợ</h1>
-          <p className="text-secondary">Gửi câu hỏi hoặc vấn đề cho trung tâm và trao đổi trực tiếp với lễ tân. Bạn sẽ nhận thông báo khi có phản hồi.</p>
+          <h1 className="font-headline-xl text-headline-xl">Yêu cầu hỗ trợ của tôi</h1>
+          <p className="text-secondary">Gửi câu hỏi hoặc vấn đề cho trung tâm và theo dõi phản hồi. Bạn sẽ nhận thông báo khi có trả lời.</p>
         </div>
-        <button className={btnPrimary} onClick={() => setCreating(true)}><Icon name="add" className="text-lg" />Gửi yêu cầu mới</button>
+        <div className="flex flex-wrap gap-2"><button type="button" className={btnOutline} disabled={loading} onClick={reload}><Icon name="refresh" className="text-lg" />Làm mới</button><button className={btnPrimary} onClick={() => { setOpenId(null); setCreating(true) }}><Icon name="add" className="text-lg" />Gửi yêu cầu mới</button></div>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{chip('Open', 'Chờ xử lý')}{chip('InProgress', 'Đang xử lý')}{chip('WaitingForMember', 'Chờ bạn phản hồi')}</div>
+      <div className="bg-surface-container rounded-xl p-4 sm:p-5 space-y-3"><div className="grid sm:grid-cols-3 gap-4">
+        <Field label="Trạng thái"><select className={inputCls} value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}><option value="">Tất cả</option>{Object.keys(STATUS).map(value => <option key={value} value={value}>{statusLabel(value, false)}</option>)}</select></Field>
+        <Field label="Loại"><select className={inputCls} value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}><option value="">Tất cả</option>{Object.entries(CATEGORY).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+        <Field label="Tìm kiếm"><input className={inputCls} placeholder="Tiêu đề, nội dung hoặc mã yêu cầu…" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} /></Field>
+      </div><div className="flex items-center justify-between gap-3"><p className="text-body-sm text-secondary">{!loading && !error ? `${filtered.length} / ${requests.length} yêu cầu của bạn` : ''}</p><button type="button" className={btnOutline + ' !h-9'} onClick={() => { setStatus(''); setCategory(''); setSearch(''); setPage(1) }}>Đặt lại</button></div></div>
       {error && <Alert>{error}</Alert>}
+      {loading && <p role="status" className="text-body-sm text-secondary">Đang tải yêu cầu hỗ trợ…</p>}
       <section className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm">
         <ul className={`divide-y divide-surface-container ${loading ? 'opacity-50' : ''}`}>
-          {data.items.map((r) => <RequestRow key={r.id} r={r} staff={false} onOpen={setOpenId} />)}
-          {!loading && !data.items.length && <li className="px-4 py-10 text-center text-secondary">Bạn chưa gửi yêu cầu nào.</li>}
+          {visible.map((r) => <RequestRow key={r.id} r={r} staff={false} onOpen={setOpenId} />)}
+          {!loading && !error && !visible.length && <li className="px-4 py-10 text-center text-secondary">{requests.length ? 'Không có yêu cầu phù hợp với bộ lọc.' : 'Bạn chưa gửi yêu cầu nào.'}</li>}
         </ul>
-        {pagination}
+        <Pagination page={shownPage} pageSize={pageSize} total={filtered.length} onPage={setPage} onPageSize={value => { setPageSize(value); setPage(1) }} />
       </section>
-      {creating && <CreateSupportModal staff={false} onClose={() => setCreating(false)} onDone={(r) => { setCreating(false); setPage(1); reload(); setOpenId(r.id) }} />}
-      {openId && <Modal title="Yêu cầu hỗ trợ" onClose={() => setOpenId(null)}><SupportThread id={openId} staff={false} onChanged={reload} /></Modal>}
+      {creating && <CreateSupportModal staff={false} onClose={() => setCreating(false)} onDone={(r) => { setCreating(false); setStatus(''); setCategory(''); setSearch(''); setPage(1); reload(); setOpenId(r.id) }} />}
+      {openId && <Modal title="Yêu cầu hỗ trợ" onClose={() => setOpenId(null)}><SupportThread key={openId} id={openId} staff={false} onChanged={reload} /></Modal>}
     </div>
   )
 }
 
 export function SupportDeskPage() {
-  const [status, setStatus] = useState('')
+  const { auth } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const rawId = params.get('requestId') ?? ''
+  const openId = /^\d+$/.test(rawId) && Number.isSafeInteger(Number(rawId)) && Number(rawId) > 0 ? Number(rawId) : null
+  const setOpenId = id => setParams(current => { const next = new URLSearchParams(current); if (id) next.set('requestId', String(id)); else next.delete('requestId'); return next })
+  const [status, setStatus] = useState(() => auth.role === 'Manager' ? 'Open' : '')
   const [category, setCategory] = useState('')
   const [q, setQ] = useState('')
   const [search, setSearch] = useState('')
   const { data, loading, error, reload, pagination, setPage } = usePaged(`/support-requests${query({ status, category, q: search })}`)
   const [summary, setSummary] = useState(null)
   const [creating, setCreating] = useState(false)
-  const [openId, setOpenId] = useState(null)
   const loadSummary = useCallback(() => api('/support-requests/summary').then(setSummary).catch(() => {}), [])
   useEffect(() => { void Promise.resolve().then(loadSummary) }, [loadSummary])
   useEffect(() => { const t = setTimeout(() => { setSearch(q.trim()); setPage(1) }, 300); return () => clearTimeout(t) }, [q, setPage])
@@ -260,7 +321,7 @@ export function SupportDeskPage() {
           <h1 className="font-headline-xl text-headline-xl">Yêu cầu hỗ trợ</h1>
           <p className="text-secondary">Trả lời, ghi chú nội bộ và cập nhật trạng thái. Hội viên được thông báo khi có phản hồi.</p>
         </div>
-        <button className={btnPrimary} onClick={() => setCreating(true)}><Icon name="add" className="text-lg" />Ghi nhận yêu cầu tại quầy</button>
+        <div className="flex flex-wrap gap-2"><button type="button" className={btnOutline} disabled={loading} onClick={changed}><Icon name="refresh" className="text-lg" />Làm mới</button><button className={btnPrimary} onClick={() => setCreating(true)}><Icon name="add" className="text-lg" />{auth.role === 'Manager' ? 'Ghi nhận cho hội viên' : 'Ghi nhận yêu cầu tại quầy'}</button></div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {chip('Open', 'Chờ xử lý', summary?.open)}
@@ -291,7 +352,7 @@ export function SupportDeskPage() {
         {pagination}
       </section>
       {creating && <CreateSupportModal staff onClose={() => setCreating(false)} onDone={(r) => { setCreating(false); changed(); setOpenId(r.id) }} />}
-      {openId && <Modal title="Yêu cầu hỗ trợ" onClose={() => setOpenId(null)}><SupportThread id={openId} staff onChanged={changed} /></Modal>}
+      {openId && <Modal title="Yêu cầu hỗ trợ" onClose={() => setOpenId(null)}><SupportThread key={openId} id={openId} staff onChanged={changed} /></Modal>}
     </div>
   )
 }
