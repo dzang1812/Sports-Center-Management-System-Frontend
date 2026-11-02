@@ -250,7 +250,7 @@ export default function UsersPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-headline-xl text-headline-xl">Quản lý người dùng</h1>
+          <h1 className="font-headline-xl text-headline-xl">Hội viên & nhân sự</h1>
           <p className="text-secondary">Thành viên, huấn luyện viên và lễ tân của trung tâm.</p>
         </div>
         <button className={btnPrimary} onClick={() => setModal({ type: 'form' })}>

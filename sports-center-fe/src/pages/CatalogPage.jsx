@@ -163,7 +163,7 @@ function RoomForm({ room, onClose, onDone }) {
   )
 }
 
-export default function CatalogPage() {
+export default function CatalogPage({ embedded = false }) {
   const [sports, setSports] = useState([])
   const [rooms, setRooms] = useState([])
   const [error, setError] = useState('')
@@ -206,7 +206,7 @@ export default function CatalogPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Danh mục trung tâm</h1>
+        {embedded ? <h2 className="font-headline-md text-headline-md">Bộ môn & phòng tập</h2> : <h1 className="font-headline-xl text-headline-xl">Danh mục trung tâm</h1>}
         <p className="text-secondary">Bộ môn và phòng tập dùng để xếp lớp, đặt lịch PT.</p>
       </div>
 

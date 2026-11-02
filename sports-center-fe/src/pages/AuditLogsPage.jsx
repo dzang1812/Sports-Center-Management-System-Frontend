@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, query } from '../api'
+import { formatTimestamp } from '../dateUtils'
 import { Alert, Badge, Field, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { AUDIT_ACTIONS } from '../labels'
 
-const fmt = (iso) => new Date(iso).toLocaleString('vi-VN', { hour12: false })
+const fmt = (iso) => formatTimestamp(iso, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
-export default function AuditLogsPage() {
+export default function AuditLogsPage({ embedded = false }) {
   const [filters, setFilters] = useState({ from: '', to: '', user: '', action: '' })
   const [user, setUser] = useState('')
   const [page, setPage] = useState(1)
@@ -45,7 +46,7 @@ export default function AuditLogsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Nhật ký thao tác</h1>
+        {embedded ? <h2 className="font-headline-md text-headline-md">Nhật ký thao tác</h2> : <h1 className="font-headline-xl text-headline-xl">Nhật ký thao tác</h1>}
         <p className="text-secondary">Lịch sử các thao tác quan trọng, chỉ đọc.</p>
       </div>
 

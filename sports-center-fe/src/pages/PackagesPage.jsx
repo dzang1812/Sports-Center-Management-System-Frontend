@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { useNavigate } from 'react-router-dom'
@@ -11,33 +11,41 @@ const formatVnd = (n) => `${n.toLocaleString('vi-VN')}đ`
 
 const CARD_BANNERS = ['/images/banner-home-1.jpg', '/images/banner-home-2.jpg', '/images/banner-home-3.jpg', '/images/banner-home-4.jpg']
 
-function SubscribeModal({ plan, onClose }) {
+export function SubscribeModal({ plan, onClose }) {
   const [payment, setPayment] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const pending = useRef(false)
+  const active = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  const close = () => { if (!pending.current) onClose() }
 
   const subscribe = async () => {
+    if (pending.current) return
+    pending.current = true
     setBusy(true)
     setError('')
     try {
-      setPayment(await api('/subscriptions', { method: 'POST', body: { planId: plan.id, memberId: null } }))
+      const result = await api('/subscriptions', { method: 'POST', body: { planId: plan.id, memberId: null } })
+      if (active.current) setPayment(result)
     } catch (err) {
-      setError(err.message)
+      if (active.current) setError(err.message)
     }
-    setBusy(false)
+    pending.current = false
+    if (active.current) setBusy(false)
   }
 
   return (
-    <Modal title={payment ? 'Quét mã để thanh toán' : `Đăng ký "${plan.name}"`} onClose={onClose}>
+    <Modal title={payment ? 'Quét mã để thanh toán' : `Đăng ký "${plan.name}"`} onClose={close}>
       {!payment ? (
         <div className="flex flex-col gap-4">
           {error && <Alert>{error}</Alert>}
           <p className="text-secondary">
-            Bạn sẽ đăng ký gói <b>{plan.name}</b> — <b>{formatVnd(plan.price)}</b> / {plan.durationDays} ngày. Sau khi xác nhận, hệ thống sẽ tạo link
+            Bạn sẽ đăng ký gói <b>{plan.name}</b> — <b>{formatVnd(plan.price)}</b> / {plan.durationMonths > 0 ? `${plan.durationMonths} tháng` : `${plan.durationDays} ngày`}. Sau khi xác nhận, hệ thống sẽ tạo link
             thanh toán PayOS kèm mã QR.
           </p>
           <div className="flex justify-end gap-2">
-            <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
+            <button type="button" className={btnOutline} disabled={busy} onClick={close}>Huỷ</button>
             <button className={btnPrimary} disabled={busy} onClick={subscribe}>{busy ? 'Đang tạo đơn…' : 'Xác nhận đăng ký'}</button>
           </div>
         </div>
@@ -67,6 +75,7 @@ export default function PackagesPage() {
     if (!auth) return navigate('/login', { state: { from: { pathname: '/packages' } } })
     if (auth.role !== 'Member') return setError('Chỉ tài khoản hội viên mới tự đăng ký gói ở đây. Lễ tân vui lòng bán gói tại trang quản lý hội viên.')
     setError('')
+    if (plan.ptSessionCredits > 0 && !plan.includesClasses && !plan.includesGymAccess) return navigate('/member/classes?type=pt')
     setModalPlan(plan)
   }
 

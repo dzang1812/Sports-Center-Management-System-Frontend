@@ -1,140 +1,72 @@
-import { addDays, fromDateOnly, fromTimeOnly, toDateOnly, toIsoWeek, fromIsoWeek, weekRange } from '../dateUtils'
-import { Badge, Icon, btnOutline, btnPrimary } from './ui'
+import { addDays, formatDate, fromTimeOnly, toDateOnly, toIsoWeek, fromIsoWeek, weekRange } from '../dateUtils'
+import { Badge, Icon, btnOutline } from './ui'
 
 const DAY_LABELS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
-
-const TYPE_TONE = { PT: 'amber', Class: 'indigo' }
-// Color-code the item card itself by type, so a glance at the grid tells Lớp học apart from PT.
 const TYPE_CARD = {
-  PT: 'bg-amber-50 border-l-4 border-amber-400',
-  Class: 'bg-indigo-50 border-l-4 border-indigo-400',
+  PT: 'border-l-amber-400 bg-amber-50/70 hover:bg-amber-100/70',
+  Class: 'border-l-indigo-400 bg-indigo-50/70 hover:bg-indigo-100/70',
 }
-const TYPE_TITLE = { PT: 'text-amber-700', Class: 'text-indigo-700' }
 
-// Table-based weekly timetable (rows = time slots found in the week's data, columns = Mon-Sun),
-// styled like a university-style "thời khóa biểu". `items` need
-// { date: "yyyy-MM-dd", startTime/endTime: "HH:mm:ss", title, type, room?, status?, statusLabel? }.
+// A compact weekly agenda: equally sized days, with sessions in time order inside each day.
 export default function WeekTimetable({ weekStart, onWeekChange, items, statusLabel, statusTone, renderMeta, onItemClick }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const today = toDateOnly(new Date())
+  const today = toDateOnly()
+  const weekItems = items.filter(item => item.date >= weekStart && item.date <= days[6])
+  const ptCount = weekItems.filter(item => item.type === 'PT').length
 
-  const slots = [...new Map(items.map((it) => [`${it.startTime}-${it.endTime}`, { start: it.startTime, end: it.endTime }])).values()].sort((a, b) =>
-    a.start.localeCompare(b.start),
-  )
-  const cellOf = (date, slot) => items.find((it) => it.date === date && it.startTime === slot.start && it.endTime === slot.end)
-
-  const goWeek = (delta) => onWeekChange(addDays(weekStart, delta * 7))
-  const goToday = () => onWeekChange(weekRange()[0])
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="bg-gradient-to-r from-primary-container/10 via-surface-container-lowest to-tertiary-container/10 rounded-xl shadow-sm border border-outline-variant/40 p-4 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1.5">
-          <span className="font-label-md text-label-md text-primary font-semibold">Chọn tuần</span>
-          <input
-            type="week"
-            className="h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-lowest"
-            value={toIsoWeek(weekStart)}
-            onChange={(e) => e.target.value && onWeekChange(fromIsoWeek(e.target.value))}
-          />
-        </label>
-        <button className={btnOutline + ' !h-10'} onClick={() => goWeek(-1)}>
-          <Icon name="arrow_back" className="text-lg" /> Tuần trước
-        </button>
-        <button className={btnPrimary + ' !h-10'} onClick={goToday}>
-          <Icon name="event" className="text-lg" /> Tuần hiện tại
-        </button>
-        <button className={btnOutline + ' !h-10'} onClick={() => goWeek(1)}>
-          Tuần sau <Icon name="arrow_forward" className="text-lg" />
-        </button>
-      </div>
-
-      <div className="bg-surface-container-lowest rounded-xl shadow-md border border-outline-variant/40 overflow-hidden">
-        <div className="px-4 pt-4 pb-3 bg-gradient-to-r from-primary-container/15 to-tertiary-container/15 border-b border-outline-variant/40">
-          <h3 className="font-headline-sm text-headline-sm text-primary flex items-center gap-2">
-            <Icon name="calendar_month" className="text-xl" />
-            Thời khóa biểu tuần
-          </h3>
-          <p className="text-secondary text-body-sm">
-            Tuần ({fromDateOnly(weekStart).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} - {fromDateOnly(days[6]).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })})
-          </p>
-          <div className="flex items-center gap-4 pt-2 font-body-sm text-body-sm">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-indigo-400 inline-block" /> Lớp học</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-amber-400 inline-block" /> PT</span>
-          </div>
+  return <section className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-white shadow-sm" aria-label="Lịch dạy theo tuần">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-3 sm:px-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1">
+          <button type="button" aria-label="Tuần trước" className={btnOutline + ' !h-9 !w-9 !p-0'} onClick={() => onWeekChange(addDays(weekStart, -7))}><Icon name="chevron_left" className="text-xl" /></button>
+          <button type="button" className={btnOutline + ' !h-9 !px-3'} onClick={() => onWeekChange(weekRange()[0])}>Hôm nay</button>
+          <button type="button" aria-label="Tuần sau" className={btnOutline + ' !h-9 !w-9 !p-0'} onClick={() => onWeekChange(addDays(weekStart, 7))}><Icon name="chevron_right" className="text-xl" /></button>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-separate border-spacing-0 min-w-[920px]">
-            <thead>
-              <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
-                <th className="px-3 py-3 border-2 border-surface-container-low text-left w-16">Slot</th>
-                {days.map((d, i) => (
-                  <th key={d} className={`px-3 py-3 border-2 border-surface-container-low border-l border-l-outline-variant/40 text-left ${d === today ? 'bg-primary-container text-on-primary' : ''}`}>
-                    {DAY_LABELS[i]}
-                    <div className={`font-body-sm normal-case font-normal ${d === today ? 'text-on-primary/80' : 'text-secondary'}`}>
-                      {fromDateOnly(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {slots.map((slot, idx) => (
-                <tr key={`${slot.start}-${slot.end}`} className={idx % 2 ? 'bg-surface-container-low/40' : ''}>
-                  <td className="px-3 py-3 border-2 border-surface-container-low text-center align-top">
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-container text-on-primary font-semibold text-label-sm">{idx + 1}</span>
-                  </td>
-                  {days.map((d) => {
-                    const it = cellOf(d, slot)
-                    return (
-                      <td key={d} className={`px-2 py-2 border-2 border-surface-container-low border-l border-l-outline-variant/40 align-top ${d === today ? 'bg-primary-container/5' : ''}`}>
-                        {it ? (
-                          <div
-                            role={onItemClick ? 'button' : undefined}
-                            onClick={onItemClick ? () => onItemClick(it) : undefined}
-                            className={`rounded-lg p-2 shadow-sm ${TYPE_CARD[it.type] ?? TYPE_CARD.Class} ${onItemClick ? 'cursor-pointer hover:shadow-md hover:brightness-95' : ''} transition-all`}
-                          >
-                            <div className="flex items-start justify-between gap-1">
-                              <span className={`font-label-md text-label-md font-bold flex items-center gap-1 ${TYPE_TITLE[it.type] ?? TYPE_TITLE.Class}`}>
-                                <Icon name="menu_book" className="text-base" />
-                                {it.title}
-                              </span>
-                              {statusLabel && (
-                                <Badge tone={statusTone ? statusTone(it) : it.type === 'PT' ? TYPE_TONE.PT : TYPE_TONE.Class}>{statusLabel(it)}</Badge>
-                              )}
-                            </div>
-                            <div className="text-body-sm text-orange-600 font-semibold mt-1 flex items-center gap-1">
-                              <Icon name="schedule" className="text-sm" />
-                              {fromTimeOnly(it.startTime)}-{fromTimeOnly(it.endTime)}
-                            </div>
-                            {it.room && (
-                              <div className="text-body-sm text-emerald-700 flex items-center gap-1">
-                                <Icon name="place" className="text-sm" />
-                                {it.room}
-                              </div>
-                            )}
-                            {renderMeta && <div className="text-body-sm text-sky-700 flex items-center gap-1">{renderMeta(it)}</div>}
-                          </div>
-                        ) : (
-                          <span className="text-outline">-</span>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-              {!slots.length && (
-                <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-secondary">
-                    Không có buổi nào trong tuần này.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="text-sm sm:text-base font-bold text-slate-900">{formatDate(weekStart, { day: '2-digit', month: '2-digit' })} – {formatDate(days[6], { day: '2-digit', month: '2-digit', year: 'numeric' })}</h2>
       </div>
+      <label className="flex items-center gap-2 text-body-sm font-medium text-slate-500">Chọn tuần
+        <input type="week" aria-label="Chọn tuần dạy" className="h-9 min-w-0 max-w-[190px] rounded-lg border border-outline-variant bg-white px-2.5 text-sm text-slate-900" value={toIsoWeek(weekStart)} onChange={event => event.target.value && onWeekChange(fromIsoWeek(event.target.value))} />
+      </label>
     </div>
-  )
+
+    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-4 py-2.5 text-body-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1"><span className="font-bold text-slate-800">{weekItems.length} buổi trong tuần</span>
+        <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="h-2 w-2 rounded-full bg-indigo-500" />{weekItems.length - ptCount} lớp học</span>
+        <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="h-2 w-2 rounded-full bg-amber-500" />{ptCount} PT</span>
+      </div>
+      <span className="text-slate-500">Giờ Việt Nam · GMT+7</span>
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 border-t border-slate-200">
+      {days.map((date, index) => {
+        const sessions = weekItems.filter(item => item.date === date).sort((a, b) => a.startTime.localeCompare(b.startTime) || a.endTime.localeCompare(b.endTime))
+        const isToday = date === today
+        return <section key={date} aria-label={`${DAY_LABELS[index]}, ${formatDate(date)}`} className={`min-w-0 border-b border-r border-slate-200 last:border-b-0 sm:last:col-span-2 xl:last:col-span-1 xl:border-b-0 xl:last:border-r-0 ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}>
+          <div className={`flex items-center justify-between gap-1 border-b px-2 py-3 ${isToday ? 'border-indigo-200 bg-indigo-50' : 'border-slate-100'}`}>
+            <div className="flex min-w-0 items-center gap-1.5"><span aria-current={isToday ? 'date' : undefined} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold ${isToday ? 'bg-primary-container text-white' : 'text-slate-800'}`}>{Number(date.slice(8))}</span>
+              <div><h3 className={`text-body-sm font-bold ${isToday ? 'text-primary' : 'text-slate-700'}`}>{DAY_LABELS[index]}</h3><p className="text-[10px] text-slate-500">{isToday ? 'Hôm nay' : formatDate(date, { day: '2-digit', month: '2-digit' })}</p></div>
+            </div>
+            <span aria-label={`${sessions.length} buổi`} className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${sessions.length ? 'bg-slate-100 text-slate-600' : 'text-slate-400'}`}>{sessions.length || '—'}</span>
+          </div>
+          {sessions.length ? <div className="space-y-2 p-2">
+            {sessions.map((item, itemIndex) => {
+              const pt = item.type === 'PT'
+              const Container = onItemClick ? 'button' : 'div'
+              const tone = statusTone ? statusTone(item) : item.status === 'Cancelled' ? 'red' : item.status === 'Completed' ? 'slate' : pt ? 'amber' : 'indigo'
+              return <Container key={`${item.type}-${item.bookingId ?? item.referenceId ?? itemIndex}`} {...(onItemClick ? { type: 'button', onClick: () => onItemClick(item) } : {})}
+                className={`block w-full min-w-0 space-y-2 rounded-lg border border-slate-200/70 border-l-[3px] p-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${TYPE_CARD[item.type] ?? TYPE_CARD.Class} ${item.status === 'Cancelled' ? 'opacity-60' : ''}`}>
+                <div className="flex flex-wrap items-center justify-between gap-1"><span className={`text-[10px] font-bold uppercase tracking-wide ${pt ? 'text-amber-700' : 'text-indigo-700'}`}>{pt ? 'PT cá nhân' : 'Lớp học'}</span><Icon name={pt ? 'fitness_center' : 'school'} className={`text-base ${pt ? 'text-amber-600' : 'text-indigo-500'}`} /></div>
+                <p className="text-sm font-bold leading-5 text-slate-900">{fromTimeOnly(item.startTime)}–{fromTimeOnly(item.endTime)}</p>
+                <p className="break-words text-body-sm font-semibold leading-5 text-slate-800">{item.title}</p>
+                {item.room && <p className="flex items-start gap-1 text-[11px] text-slate-600"><Icon name="location_on" className="text-sm shrink-0" /><span className="break-words">{item.room}</span></p>}
+                {renderMeta && <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-600">{renderMeta(item)}</div>}
+                {statusLabel && <div><Badge tone={tone}>{statusLabel(item)}</Badge></div>}
+              </Container>
+            })}
+          </div> : <div className="hidden xl:flex min-h-40 items-center justify-center px-2 text-center text-[11px] text-slate-400">Chưa có lịch</div>}
+        </section>
+      })}
+    </div>
+    <p className="border-t border-slate-100 px-4 py-2.5 text-body-sm text-slate-500">{weekItems.length ? 'Chọn một buổi để xem học viên và điểm danh.' : 'Tuần này chưa có buổi dạy. Bạn có thể chuyển sang tuần khác để xem lịch.'}</p>
+  </section>
 }

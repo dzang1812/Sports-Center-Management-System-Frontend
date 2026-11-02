@@ -1,82 +1,44 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { MemberCommerce } from '../components/commerce'
+import { NewMemberModal } from '../components/frontDesk'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, query } from '../api'
-import { Alert, Badge, Field, Icon, Modal, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
-import { SUBSCRIPTION_STATUS_LABEL } from '../labels'
-
-const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
-
-function SellPackageModal({ memberId, onClose, onDone }) {
-  const [plans, setPlans] = useState([])
-  const [planId, setPlanId] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    api('/membership-plans').then(setPlans).catch((err) => setError(err.message))
-  }, [])
-
-  const submit = async (e) => {
-    e.preventDefault()
-    if (!planId) return
-    setBusy(true)
-    setError('')
-    try {
-      const payment = await api('/subscriptions', { method: 'POST', body: { planId: Number(planId), memberId: Number(memberId) } })
-      onDone(payment)
-    } catch (err) {
-      setError(err.message)
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal title="Bán / gia hạn gói tập" onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        {error && <Alert>{error}</Alert>}
-        <Field label="Gói tập">
-          <select className={inputCls} required value={planId} onChange={(e) => setPlanId(e.target.value)}>
-            <option value="">— Chọn gói —</option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>{p.name} — {p.price.toLocaleString('vi-VN')}đ / {p.durationDays} ngày</option>
-            ))}
-          </select>
-        </Field>
-        <div className="flex justify-end gap-2 pt-2">
-          <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-          <button type="submit" disabled={busy} className={btnPrimary}>{busy ? 'Đang tạo đơn…' : 'Tạo đơn thanh toán'}</button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
+import { Alert, Avatar, Badge, Field, Icon, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { BookingSchedule } from './MyMemberSchedulePage'
 
 // Search-only directory: ID / tên / email / SĐT đều khớp qua cùng 1 ô (GET /members?q=), chọn 1 dòng để xem chi tiết.
 function MemberDirectory() {
   const navigate = useNavigate()
+  const [creating, setCreating] = useState(false)
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const request = useRef(null)
 
   const load = useCallback(async () => {
+    request.current?.abort()
+    const controller = new AbortController()
+    request.current = controller
     setLoading(true)
     setError('')
     try {
-      setData(await api(`/members${query({ q, page, pageSize })}`))
+      const result = await api(`/members${query({ q, page, pageSize })}`, { signal: controller.signal })
+      if (!controller.signal.aborted) setData(result)
     } catch (err) {
-      setError(err.message)
+      if (!controller.signal.aborted) setError(err.message)
     }
-    setLoading(false)
+    if (!controller.signal.aborted) setLoading(false)
   }, [q, page, pageSize])
+  const stop = useCallback(() => request.current?.abort(), [])
 
   // Debounce so we don't call the API on every keystroke.
   useEffect(() => {
     const t = setTimeout(load, 300)
-    return () => clearTimeout(t)
-  }, [load])
+    return () => { clearTimeout(t); stop() }
+  }, [load, stop])
 
   useEffect(() => {
     setPage(1)
@@ -84,11 +46,18 @@ function MemberDirectory() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-surface-container rounded-xl shadow-sm p-5">
-        <Field label="Tìm hội viên">
-          <input className={inputCls} placeholder="Mã hội viên, tên, email hoặc số điện thoại…" value={q} onChange={(e) => setQ(e.target.value)} />
-        </Field>
+      <div className="bg-surface-container rounded-xl shadow-sm p-5 flex flex-col sm:flex-row gap-4 sm:items-end">
+        <div className="flex-1">
+          <Field label="Tìm hội viên">
+            <input className={inputCls} placeholder="Mã hội viên, tên, email hoặc số điện thoại…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </Field>
+        </div>
+        <button type="button" className={btnPrimary} onClick={() => setCreating(true)}>
+          <Icon name="person_add" className="text-lg" />
+          Đăng ký hội viên mới
+        </button>
       </div>
+      {creating && <NewMemberModal onClose={() => setCreating(false)} onDone={(m) => navigate(`/reception/members/${m.id}`)} />}
 
       {error && <Alert>{error}</Alert>}
 
@@ -139,99 +108,52 @@ function MemberDirectory() {
   )
 }
 
-export default function ReceptionMemberPage() {
-  const { id } = useParams()
-  const [subs, setSubs] = useState(null)
+function ReceptionMemberContent({ id }) {
+  const [params, setParams] = useSearchParams()
+  const tab = ['schedule', 'wallet'].includes(params.get('tab')) ? params.get('tab') : 'courses'
+  const available = tab === 'courses' && params.get('view') === 'available'
+  const [member, setMember] = useState(null)
+  const [loading, setLoading] = useState(Boolean(id))
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [modal, setModal] = useState(false)
-  const [lastPayment, setLastPayment] = useState(null)
-
-  const load = async (memberId) => {
-    setLoading(true)
-    setError('')
-    setSubs(null)
-    try {
-      setSubs(await api(`/members/${memberId}/subscriptions`))
-    } catch (err) {
-      setError(err.message)
-    }
-    setLoading(false)
-  }
-
   useEffect(() => {
-    if (id) load(id)
+    if (!id) return
+    const controller = new AbortController()
+    api(`/members${query({ q: id, pageSize: 50 })}`, { signal: controller.signal })
+      .then(result => {
+        if (controller.signal.aborted) return
+        const person = result.items.find(item => String(item.id) === String(id))
+        if (person) setMember(person)
+        else setError('Không tìm thấy hội viên. Vui lòng quay lại danh sách để chọn lại.')
+      })
+      .catch(err => { if (!controller.signal.aborted) setError(err.message) })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
   }, [id])
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-2">
-        {id && (
-          <Link to="/reception/members" className="p-2 rounded-lg hover:bg-surface-container-low text-on-surface-variant" title="Quay lại danh sách">
-            <Icon name="arrow_back" className="text-xl" />
-          </Link>
-        )}
-        <div>
-          <h1 className="font-headline-xl text-headline-xl">{id ? 'Chi tiết thành viên' : 'Danh sách hội viên'}</h1>
-          <p className="text-secondary">{id ? 'Gói tập của hội viên, bán hoặc gia hạn tại quầy.' : 'Tìm hội viên theo mã, tên, email hoặc số điện thoại.'}</p>
-        </div>
-      </div>
+  if (!id) return <div className="space-y-5"><div><h1 className="font-headline-xl text-headline-xl">Danh sách hội viên</h1><p className="text-secondary mt-2">Tìm hội viên để xem khóa học, lịch tập hoặc nạp tiền.</p></div><MemberDirectory /></div>
+  return <div className="max-w-[1440px] mx-auto space-y-5">
+    <Link to="/reception/members" className="inline-flex items-center gap-1 text-body-sm text-secondary hover:text-primary"><Icon name="arrow_back" className="text-lg" />Danh sách hội viên</Link>
+    <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white border border-outline-variant/50 p-4 sm:p-5">
+      <div className="flex items-center gap-3 min-w-0"><Avatar src={member?.avatarUrl} className="h-12 w-12" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="font-headline-lg text-headline-lg">{member?.fullName ?? 'Chi tiết hội viên'}</h1>{member && <Badge tone={member.isActive ? 'green' : 'red'}>{member.isActive ? 'Hoạt động' : 'Đã khóa'}</Badge>}</div><p className="text-body-sm text-secondary break-words mt-1">Mã hội viên #{id}{member?.email ? ` · ${member.email}` : ''}{member?.phone ? ` · ${member.phone}` : ''}</p></div></div>
+      {member && <div className="flex flex-wrap gap-2"><Link className={btnOutline} to={`/reception/pt?memberId=${id}`}>Đặt PT</Link><button type="button" className={btnPrimary} onClick={() => setParams({ tab: 'courses', view: 'available' })}><Icon name="add" className="text-lg" />Đăng ký khóa học</button></div>}
+    </header>
+    {error && <Alert>{error}</Alert>}{loading && <p role="status" className="text-secondary">Đang tải thông tin hội viên…</p>}
+    {member && <>
+      <nav aria-label="Chi tiết hội viên" className="flex flex-wrap gap-1 bg-surface-container-low p-1 rounded-xl w-fit">
+        {[['courses', 'school', 'Khóa học'], ['schedule', 'calendar_month', 'Lịch tập'], ['wallet', 'account_balance_wallet', 'Số dư & nạp tiền']].map(([value, icon, label]) => <button type="button" key={value} aria-pressed={tab === value} onClick={() => setParams(value === 'courses' ? {} : { tab: value })} className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-body-sm font-semibold ${tab === value ? 'bg-primary-container text-white' : 'text-secondary hover:bg-surface-container'}`}><Icon name={icon} className="text-lg" />{label}</button>)}
+      </nav>
+      {tab === 'courses' && <div className="space-y-4">
+        {available && <button type="button" className="inline-flex items-center gap-1 text-body-sm text-primary" onClick={() => setParams({})}><Icon name="arrow_back" className="text-lg" />Khóa của hội viên</button>}
+        <MemberCommerce key={`${id}:${available ? 'catalog' : 'enrollments'}`} memberId={id} viewMode={available ? 'catalog' : 'enrollments'} embedded />
+      </div>}
+      {tab === 'schedule' && <BookingSchedule memberId={id} presentation="member" />}
+      {tab === 'wallet' && <MemberCommerce key={`${id}:wallet`} memberId={id} viewMode="wallet" embedded />}
+    </>}
+  </div>
+}
 
-      {!id && <MemberDirectory />}
-
-      {error && <Alert>{error}</Alert>}
-      {lastPayment && (
-        <Alert type="success">
-          Đã tạo đơn thanh toán #{lastPayment.id} ({lastPayment.amount.toLocaleString('vi-VN')}đ). Đưa mã QR cho hội viên hoặc xác nhận khi nhận chuyển khoản.
-        </Alert>
-      )}
-
-      {id && (
-        <div className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-surface-container">
-            <h2 className="font-headline-md text-headline-md">Gói của hội viên #{id}</h2>
-            <button className={btnPrimary} onClick={() => setModal(true)}>
-              <Icon name="sell" className="text-lg" />
-              Bán / gia hạn gói
-            </button>
-          </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase">
-                <th className="px-4 py-3">Gói</th>
-                <th className="px-4 py-3">Thời hạn</th>
-                <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3">Buổi PT còn lại</th>
-              </tr>
-            </thead>
-            <tbody className={loading ? 'opacity-50' : ''}>
-              {subs?.map((s) => (
-                <tr key={s.id} className="border-t border-surface-container">
-                  <td className="px-4 py-3 font-semibold">{s.planName}</td>
-                  <td className="px-4 py-3 text-secondary">{s.startDate} → {s.endDate}</td>
-                  <td className="px-4 py-3"><Badge tone={STATUS_TONE[s.status]}>{SUBSCRIPTION_STATUS_LABEL[s.status]}</Badge></td>
-                  <td className="px-4 py-3">{s.remainingPtSessions}</td>
-                </tr>
-              ))}
-              {!loading && subs && !subs.length && (
-                <tr><td colSpan={4} className="px-4 py-10 text-center text-secondary">Hội viên chưa có gói tập nào.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {modal && (
-        <SellPackageModal
-          memberId={id}
-          onClose={() => setModal(false)}
-          onDone={(payment) => {
-            setModal(false)
-            setLastPayment(payment)
-            load(id)
-          }}
-        />
-      )}
-    </div>
-  )
+export default function ReceptionMemberPage() {
+  const { id } = useParams()
+  // Clear the selected member, forms and pending actions immediately when switching members.
+  return <ReceptionMemberContent key={id ?? 'directory'} id={id} />
 }

@@ -27,30 +27,36 @@ export class ApiError extends Error {
 const errorMessage = (data, status) =>
   data?.error ?? Object.values(data?.errors ?? {})[0]?.[0] ?? data?.message ?? (status === 403 ? 'Bạn không có quyền thực hiện thao tác này' : 'Có lỗi xảy ra, vui lòng thử lại')
 
-export async function api(path, { method = 'GET', body } = {}) {
+export async function api(path, { method = 'GET', body, signal, idempotencyKey, notify = true } = {}) {
   const auth = getAuth()
   const res = await fetch(`/api${path}`, {
     method,
-    headers: { ...(body && { 'Content-Type': 'application/json' }), ...(auth && { Authorization: `Bearer ${auth.token}` }) },
+    signal,
+    headers: { ...(idempotencyKey && { 'Idempotency-Key': idempotencyKey }), ...(body && { 'Content-Type': 'application/json' }), ...(auth && { Authorization: `Bearer ${auth.token}` }) },
     body: body && JSON.stringify(body),
   })
 
-  if (res.status === 401 && auth) {
+  if (res.status === 401 && auth && getAuth()?.token === auth.token) {
     setAuth(null)
     window.location.assign('/login')
   }
-  if (res.status === 204) return null
+  const notifyMutation = () => {
+    if (notify && method !== 'GET' && auth && getAuth()?.token === auth.token)
+      window.dispatchEvent(new CustomEvent('sc:api-mutated', { detail: { path, method } }))
+  }
+  if (res.status === 204) { notifyMutation(); return null }
 
   const data = await res.json().catch(() => null)
   if (!res.ok) throw new ApiError(errorMessage(data, res.status), res.status, data)
+  notifyMutation()
   return data
 }
 
-// multipart/form-data POST (the browser sets the boundary header itself).
+// Multipart requests keep the same stale-session guard as JSON requests.
 export async function apiForm(path, form) {
   const auth = getAuth()
   const res = await fetch(`/api${path}`, { method: 'POST', headers: auth ? { Authorization: `Bearer ${auth.token}` } : {}, body: form })
-  if (res.status === 401 && auth) {
+  if (res.status === 401 && auth && getAuth()?.token === auth.token) {
     setAuth(null)
     window.location.assign('/login')
   }

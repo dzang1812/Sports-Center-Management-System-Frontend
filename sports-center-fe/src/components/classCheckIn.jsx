@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { formatTimestamp } from '../dateUtils'
+import { useFlow2TimeRules } from '../flow2TimeRules'
 import { ATTENDANCE_STATUS_LABEL } from '../labels'
 import { Alert, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
 
 const msLeft = (expiresAt) => Math.max(0, new Date(expiresAt).getTime() - Date.now())
 
 function CodeModal({ sessionId, onClose }) {
+  const { enforceTimeRules } = useFlow2TimeRules()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [left, setLeft] = useState(0)
@@ -30,7 +33,7 @@ function CodeModal({ sessionId, onClose }) {
     return () => clearInterval(t)
   }, [data])
 
-  const expired = data && left <= 0
+  const expired = enforceTimeRules && data && left <= 0
 
   return (
     <Modal title="Mã check-in buổi học" onClose={onClose}>
@@ -46,9 +49,10 @@ function CodeModal({ sessionId, onClose }) {
             {data.code}
           </div>
           <p className={expired ? 'text-error font-semibold' : 'text-secondary'}>
-            {expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
+            {!enforceTimeRules ? 'Đang bật bỏ qua thời gian check-in cho tất cả vai trò.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
           </p>
           <p className="text-body-sm text-secondary text-center max-w-xs">Đọc mã này cho hội viên/HLV để họ nhập vào ô check-in.</p>
+          <p className="text-body-sm text-secondary">Hạn mã (giờ Việt Nam): {formatTimestamp(data.expiresAt)}</p>
         </div>
       )}
       <div className="flex justify-end pt-2">
@@ -104,7 +108,7 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
           <p className="font-semibold">{result.alreadyCheckedIn ? 'Bạn đã check-in buổi này trước đó.' : 'Check-in thành công!'}</p>
           <p className="text-secondary">
             Trạng thái: {ATTENDANCE_STATUS_LABEL[result.status] ?? result.status}
-            {result.checkedInAt && ` • lúc ${new Date(result.checkedInAt).toLocaleTimeString('vi-VN')}`}
+            {result.checkedInAt && ` • lúc ${formatTimestamp(result.checkedInAt, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
           </p>
           <button className={btnPrimary} onClick={onClose}>Đóng</button>
         </div>
@@ -115,13 +119,14 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
 
 // Manager/Receptionist/assigned Coach — generates a fresh short-lived check-in code for a Scheduled session.
 export function OpenCheckInCodeButton({ sessionId, className }) {
+  const { enforceTimeRules } = useFlow2TimeRules()
   const [open, setOpen] = useState(false)
   return (
     <>
       <button type="button" className={className ?? btnOutline + ' !h-8 !px-2'} title="Mở mã check-in" onClick={() => setOpen(true)}>
         <Icon name="qr_code_2" className="text-base" />
       </button>
-      {open && <CodeModal sessionId={sessionId} onClose={() => setOpen(false)} />}
+      {open && <CodeModal key={`${sessionId}:${enforceTimeRules}`} sessionId={sessionId} onClose={() => setOpen(false)} />}
     </>
   )
 }

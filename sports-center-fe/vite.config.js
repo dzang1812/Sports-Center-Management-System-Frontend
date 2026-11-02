@@ -4,6 +4,6 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Same-origin /api in dev, proxied to the hosted backend (EC2) instead of a local dotnet run.
-  server: { proxy: { '/api': { target: 'http://46.51.222.230' } } },
+  // Development only: preserve /api once; EC2 address is documented in the backend deploy/README.md.
+  server: { proxy: { '/api': { target: 'http://46.51.222.230', changeOrigin: true } } },
 })

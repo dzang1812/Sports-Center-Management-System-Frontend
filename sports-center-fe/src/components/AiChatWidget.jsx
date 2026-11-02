@@ -14,6 +14,11 @@ const AUTH_PAGES = /^\/(login|register|forgot-password|reset-password|verify-ema
 // Members get the full assistant; visitors can only ask a few questions about the center (nothing is stored).
 export default function AiChatWidget() {
   const { auth } = useAuth()
+  return <AiChatSession key={`${auth?.userId ?? 'guest'}:${auth?.role ?? ''}`} />
+}
+
+function AiChatSession() {
+  const { auth } = useAuth()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([]) // { role, content, suggestions? }
@@ -38,7 +43,7 @@ export default function AiChatWidget() {
   }, [messages, busy, open])
 
   // Staff have no AI features, and the auth screens stay uncluttered.
-  if ((auth && !isMember) || AUTH_PAGES.test(pathname)) return null
+  if ((auth && !isMember) || AUTH_PAGES.test(pathname) || pathname.startsWith('/invoice/')) return null
 
   const send = async (message) => {
     message = message.trim()
@@ -76,7 +81,7 @@ export default function AiChatWidget() {
       <button
         onClick={() => setOpen(true)}
         title="Chat với trợ lý AI"
-        className="fixed bottom-5 right-24 z-40 h-14 pl-4 pr-5 rounded-full bg-primary-container text-on-primary shadow-lg hover:shadow-xl flex items-center gap-2 font-label-md text-label-md"
+        className={`fixed bottom-5 ${pathname === '/' ? 'right-24' : 'right-5'} z-40 h-14 pl-4 pr-5 rounded-full bg-primary-container text-on-primary shadow-lg hover:shadow-xl flex items-center gap-2 font-label-md text-label-md`}
       >
         <Icon name="smart_toy" className="text-[24px]" /> Hỏi AI
       </button>

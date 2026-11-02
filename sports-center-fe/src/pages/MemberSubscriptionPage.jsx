@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
-import { PaymentPendingPanel } from '../components/payment'
+import { toDateOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 
@@ -9,37 +9,56 @@ const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cance
 const PAYMENT_STATUS_TONE = { Pending: 'amber', Paid: 'green', Failed: 'red', Refunded: 'slate' }
 
 const dayCount = (from, to) => Math.round((new Date(to) - new Date(from)) / 86400000) + 1
+const cancellationErrorMessage = err => err.status === 405 || err.status === 404 && err.errorCode !== 'SUBSCRIPTION_NOT_FOUND'
+  ? 'Backend đang chạy chưa hỗ trợ tự hủy gói. Cần cập nhật Backend để dùng chức năng này.' : err.message
 
-// Re-opens a fresh PayOS payment for the same plan — the subscribe endpoint now supersedes any
-// stale pending payment for that plan, so this is safe even if an earlier QR was never scanned.
-function RetryPaymentModal({ sub, onClose }) {
-  const [payment, setPayment] = useState(null)
-  const [error, setError] = useState('')
-
+function CancelSubscriptionModal({ sub, onClose, onDone }) {
+  const [preview, setPreview] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [key] = useState(() => crypto.randomUUID())
+  const pending = useRef(false), active = useRef(false)
+  const path = `/me/subscriptions/${sub.id}`
   useEffect(() => {
-    api('/subscriptions', { method: 'POST', body: { planId: sub.planId, memberId: null } })
-      .then(setPayment)
-      .catch((err) => setError(err.message))
-  }, [sub.planId])
-
-  return (
-    <Modal title="Quét mã để thanh toán lại" onClose={onClose}>
-      {error && <Alert>{error}</Alert>}
-      {!error && (payment ? <PaymentPendingPanel payment={payment} /> : <p className="text-secondary text-center">Đang tạo đơn thanh toán…</p>)}
-    </Modal>
-  )
+    active.current = true
+    const controller = new AbortController()
+    api(`${path}/cancellation`, { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setPreview(data) })
+      .catch(err => { if (!controller.signal.aborted) setError(cancellationErrorMessage(err)) })
+    return () => { active.current = false; controller.abort() }
+  }, [path])
+  const close = () => { if (!pending.current) onClose() }
+  const confirm = async () => {
+    if (pending.current || !preview?.canCancel) return
+    pending.current = true; setBusy(true); setError('')
+    try {
+      const result = await api(`${path}/cancel`, { method: 'POST',
+        body: { confirmed: true, expectedRefundAmount: preview.refundAmount, policyVersion: preview.policyVersion }, idempotencyKey: key })
+      if (active.current) onDone(result)
+    } catch (err) {
+      if (active.current) {
+        setError(cancellationErrorMessage(err))
+        if (err.errorCode === 'SUBSCRIPTION_CANCELLATION_BLOCKED') setPreview(data => ({ ...data, canCancel: false, unavailableReason: err.message }))
+      }
+    }
+    finally { pending.current = false; if (active.current) setBusy(false) }
+  }
+  return <Modal title="Hủy gói tập" onClose={close} footer={<div className="w-full space-y-3">{error && <Alert>{error}</Alert>}<div className="flex justify-end gap-2"><button type="button" className={btnOutline} disabled={busy} onClick={close}>Giữ gói</button><button type="button" className={btnPrimary + ' !bg-red-600 hover:!bg-red-700'} disabled={busy || !preview?.canCancel} onClick={confirm}>{busy ? 'Đang hủy…' : 'Xác nhận hủy gói'}</button></div></div>}>
+    <div className="space-y-4"><div><h3 className="font-semibold">{sub.planName}</h3><p className="mt-1 text-body-sm text-secondary">{sub.startDate} → {sub.endDate}</p></div>
+      {!preview && !error && <p role="status" className="text-secondary">Đang kiểm tra gói và các lịch tập liên quan…</p>}
+      {preview && <><p className="text-body-sm text-secondary">{preview.policy}</p><div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3"><span>Hoàn vào số dư</span><b>{Number(preview.refundAmount).toLocaleString('vi-VN')}đ</b></div>{preview.unavailableReason && <Alert type="warning">{preview.unavailableReason}</Alert>}{!preview.canCancel && <Link to="/member/schedule" className="inline-block text-primary underline" onClick={close}>Xem lịch tập của tôi</Link>}</>}
+    </div>
+  </Modal>
 }
 
-function CurrentPlanHero({ sub }) {
+function CurrentPlanHero({ sub, onCancel }) {
   if (!sub) {
     return (
       <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-dashed border-outline-variant text-center flex flex-col items-center gap-3">
         <Icon name="card_membership" className="text-4xl text-outline" />
         <p className="text-on-surface font-semibold">Bạn chưa có gói nào đang hoạt động</p>
-        <p className="text-secondary text-body-sm">Đăng ký một gói để bắt đầu tập luyện và đặt lớp/PT.</p>
-        <Link to="/packages" className={btnPrimary}>
+        <p className="text-secondary text-body-sm">Bạn có thể đăng ký khóa nhiều tuần hoặc đặt PT riêng.</p>
+        <Link to="/member/classes" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
-          Xem bảng giá
+          Khám phá khóa học & PT
         </Link>
       </div>
     )
@@ -47,11 +66,12 @@ function CurrentPlanHero({ sub }) {
   const total = dayCount(sub.startDate, sub.endDate)
   const pct = Math.max(0, Math.min(100, Math.round((sub.remainingDays / total) * 100)))
   const ptPct = sub.totalPtSessions > 0 ? Math.round((sub.remainingPtSessions / sub.totalPtSessions) * 100) : null
+  const upcoming = sub.startDate > toDateOnly()
 
   return (
     <div className="bg-gradient-to-br from-primary-container/15 via-surface-container-lowest to-tertiary-container/10 rounded-xl p-6 shadow-md border border-primary-container/30">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-        <span className="font-label-sm text-label-sm uppercase tracking-wide text-primary font-semibold">Gói đang sử dụng</span>
+        <span className="font-label-sm text-label-sm uppercase tracking-wide text-primary font-semibold">{upcoming ? `Sắp bắt đầu · từ ${sub.startDate}` : 'Gói đang sử dụng'}</span>
         <Badge tone="green">{PLAN_TYPE_LABEL[sub.planType] ?? sub.planType}</Badge>
       </div>
       <h2 className="font-headline-lg text-headline-lg text-on-surface mb-3">{sub.planName}</h2>
@@ -86,11 +106,13 @@ function CurrentPlanHero({ sub }) {
         )}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap mt-4 pt-4 border-t border-outline-variant/30">
-        {sub.sportName && <Badge tone="indigo">{sub.sportName}</Badge>}
-        {sub.includesClasses && <Badge tone="indigo">Lớp học nhóm</Badge>}
-        <Link to="/packages" className={btnOutline + ' !h-8 ml-auto'}>Đăng ký thêm gói khác</Link>
-      </div>
+      {(sub.sportName || sub.includesClasses) && (
+        <div className="flex items-center gap-2 flex-wrap mt-4 pt-4 border-t border-outline-variant/30">
+          {sub.sportName && <Badge tone="indigo">{sub.sportName}</Badge>}
+          {sub.includesClasses && <Badge tone="indigo">Lớp học nhóm</Badge>}
+        </div>
+      )}
+      <div className="mt-4 flex justify-end"><button type="button" aria-label={`Hủy gói ${sub.planName}`} className={btnOutline + ' !h-9 !text-red-700'} onClick={() => onCancel(sub)}><Icon name="cancel" className="text-base" />Hủy gói</button></div>
     </div>
   )
 }
@@ -103,16 +125,29 @@ export default function MemberSubscriptionPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
-  const [retrying, setRetrying] = useState(null)
+  const [cancelling, setCancelling] = useState(null), [notice, setNotice] = useState(''), [reload, setReload] = useState(0)
+  const [showHistory, setShowHistory] = useState(false)
+  const historyId = useId()
 
   useEffect(() => {
-    api('/me/subscriptions')
-      .then(setSubs)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
+    const controller = new AbortController()
+    api('/me/subscriptions', { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) { setSubs(data); setError('') } })
+      .catch(err => { if (!controller.signal.aborted) setError(err.message) })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [reload])
 
-  const current = useMemo(() => subs.find((s) => s.status === 'Active') ?? null, [subs])
+  const cancelled = result => {
+    setSubs(current => current.map(sub => sub.id === result.subscriptionId ? { ...sub, status: 'Cancelled', remainingDays: 0 } : sub))
+    setCancelling(null); setNotice(result.message ?? 'Đã hủy gói. Bạn có thể xem lại trong Lịch sử đăng ký.'); setReload(value => value + 1)
+  }
+
+  // Every not-yet-expired plan (the API reports past-end ones as Expired), the one in force first.
+  const current = useMemo(
+    () => subs.filter((s) => s.status === 'Active').sort((a, b) => a.startDate.localeCompare(b.startDate) || a.endDate.localeCompare(b.endDate)),
+    [subs],
+  )
 
   const filtered = useMemo(
     () =>
@@ -128,22 +163,38 @@ export default function MemberSubscriptionPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-headline-xl text-headline-xl">Gói của tôi</h1>
-          <p className="text-secondary">Các gói tập đã đăng ký và trạng thái sử dụng.</p>
+          <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>
+          <p className="text-secondary">Tra cứu quyền lợi và lịch sử các gói tập đã mua.</p>
         </div>
-        <Link to="/packages" className={btnPrimary}>
+        <Link to="/member/classes" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
-          Mua gói mới
+          Khám phá khóa học & PT
         </Link>
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {notice && <Alert type="success">{notice}</Alert>}
 
-      <CurrentPlanHero sub={current} />
+      {current.length ? (
+        <div className="flex flex-col gap-4">
+          <h3 className="font-headline-sm text-headline-sm">Gói còn hạn ({current.length})</h3>
+          {current.map((s) => <CurrentPlanHero key={s.id} sub={s} onCancel={setCancelling} />)}
+        </div>
+      ) : (
+        <CurrentPlanHero sub={null} />
+      )}
 
       <div className="flex flex-col gap-4">
-        <h3 className="font-headline-sm text-headline-sm">Lịch sử đăng ký</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant/40 bg-white p-4">
+          <div><h3 className="font-headline-sm text-headline-sm">Lịch sử đăng ký</h3>
+            {!loading && !error && <p className="mt-1 text-body-sm text-secondary">{subs.length} đăng ký</p>}
+          </div>
+          <button type="button" className={btnOutline} aria-expanded={showHistory} aria-controls={historyId} onClick={() => setShowHistory(value => !value)}>
+            {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}<Icon name={showHistory ? 'expand_less' : 'expand_more'} className="text-lg" />
+          </button>
+        </div>
 
+        <div id={historyId} hidden={!showHistory} className="space-y-4">
         <div className="bg-surface-container rounded-xl shadow-sm p-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Từ khoá">
@@ -213,11 +264,12 @@ export default function MemberSubscriptionPage() {
                     ) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
+                    {s.status === 'Active' && <button type="button" aria-label={`Hủy gói ${s.planName}`} className={btnOutline + ' !h-8 !text-red-700'} onClick={() => setCancelling(s)}>Hủy gói</button>}
                     {s.status === 'Cancelled' && (
-                      <button type="button" className={btnOutline + ' !h-8'} onClick={() => setRetrying(s)}>
+                      <Link className={btnOutline + ' !h-8'} to="/member/classes?type=packages">
                         <Icon name="refresh" className="text-base" />
-                        Thanh toán lại
-                      </button>
+                        Đăng ký lại
+                      </Link>
                     )}
                   </td>
                 </tr>
@@ -231,14 +283,12 @@ export default function MemberSubscriptionPage() {
             </tbody>
           </table>
         </div>
+        </div>
       </div>
 
-      <Alert type="info">
-        Lịch sử thanh toán chi tiết theo từng giao dịch hiện chỉ xem được ngay sau khi thanh toán (trang kết quả thanh toán) — hệ thống backend chưa có API
-        liệt kê toàn bộ hoá đơn theo hội viên.
-      </Alert>
+      <p className="text-secondary text-body-sm">Khóa học nhiều tuần nằm trong <Link className="text-primary underline" to="/member/schedule?tab=courses">Khóa đã đăng ký</Link>. Xem các khoản thu và hoàn tiền trong <Link className="text-primary underline" to="/member/wallet">Số dư</Link>.</p>
 
-      {retrying && <RetryPaymentModal sub={retrying} onClose={() => setRetrying(null)} />}
+      {cancelling && <CancelSubscriptionModal key={cancelling.id} sub={cancelling} onClose={() => setCancelling(null)} onDone={cancelled} />}
     </div>
   )
 }
