@@ -99,6 +99,7 @@ export default function App() {
               <Route path="/manager/packages" element={<Navigate to="/manager/settings?tab=packages" replace />} />
               <Route path="/manager/settings" element={<ManagerSettingsPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
+              <Route path="/manager/support" element={<SupportDeskPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Receptionist']} />}>
