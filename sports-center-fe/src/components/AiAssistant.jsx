@@ -131,26 +131,64 @@ const MEDIA_TABS = {
   form_video: { label: 'Kiểm tra form', kind: 'video', hint: 'Quay video (MP4/MOV, tối đa 25MB) một hiệp tập để AI đánh giá kỹ thuật.' },
 }
 
-const SECTIONS = [
-  ['detectedItems', 'Nhận diện'], ['bodyObservations', 'Quan sát'], ['muscles', 'Nhóm cơ'], ['priorityMuscles', 'Nhóm cơ ưu tiên'],
-  ['suggestedExercises', 'Bài tập gợi ý'], ['movementSummary', 'Chuyển động'], ['majorIssues', 'Lỗi lớn'], ['minorIssues', 'Lỗi nhỏ'],
-  ['correctPoints', 'Điểm đúng'], ['correctiveCues', 'Cách sửa'], ['suggestedFixes', 'Gợi ý chỉnh'], ['formFeedback', 'Nhận xét form'],
-  ['trainingAdvice', 'Lời khuyên'], ['warnings', 'Lưu ý'],
-]
+// Each analysis type shows only what is useful for it, not every field the AI returns. A section may merge several fields.
+const RESULT_VIEW = {
+  equipment_info: {
+    summaryLabel: 'Thông tin',
+    sections: [
+      [['suggestedExercises'], 'Bài tập có thể tập'],
+      [['trainingAdvice', 'warnings'], 'Lưu ý khi sử dụng'],
+    ],
+  },
+  body_check: {
+    summaryLabel: 'Nhận xét chung',
+    sections: [
+      [['bodyObservations'], 'Quan sát'],
+      [['priorityMuscles'], 'Nhóm cơ nên ưu tiên'],
+      [['suggestedExercises'], 'Bài tập gợi ý'],
+      [['warnings'], 'Lưu ý'],
+    ],
+  },
+  form_video: {
+    summaryLabel: 'Nhận xét chung',
+    sections: [
+      [['majorIssues'], 'Lỗi cần sửa'],
+      [['correctiveCues'], 'Cách sửa'],
+      [['correctPoints'], 'Điểm làm tốt'],
+      [['warnings'], 'Lưu ý'],
+    ],
+  },
+}
+const MAX_ITEMS = 5
 
-function MediaResult({ r }) {
+function MediaResult({ r, tab }) {
+  const view = RESULT_VIEW[tab]
   return (
-    <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto rounded-lg bg-surface-container p-3">
-      <p className="font-semibold">{r.title}</p>
-      {r.overallVerdict && <p><b>Kết luận:</b> {r.overallVerdict}{r.detectedExercise ? ` (${r.detectedExercise})` : ''}</p>}
-      <p>{r.summary}</p>
-      {SECTIONS.map(([k, label]) => {
-        const v = r[k]
-        if (!v || (Array.isArray(v) && v.length === 0)) return null
+    <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto rounded-lg bg-surface-container p-3">
+      {r.title && <p className="font-semibold">{r.title}</p>}
+      {tab === 'form_video' && r.overallVerdict && (
+        <p>
+          <b>Kết luận:</b> {r.overallVerdict}
+          {r.detectedExercise ? ` (${r.detectedExercise})` : ''}
+        </p>
+      )}
+      {r.summary && (
+        <div>
+          <p className="font-label-md text-label-md">{view.summaryLabel}</p>
+          <p>{r.summary}</p>
+        </div>
+      )}
+      {view.sections.map(([keys, label]) => {
+        const items = keys.flatMap((k) => r[k] ?? []).slice(0, MAX_ITEMS)
+        if (items.length === 0) return null
         return (
-          <div key={k}>
+          <div key={label}>
             <p className="font-label-md text-label-md">{label}</p>
-            {Array.isArray(v) ? <ul className="list-disc pl-5">{v.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p>{v}</p>}
+            <ul className="list-disc pl-5">
+              {items.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
           </div>
         )
       })}
@@ -209,7 +247,7 @@ export function AiMediaModal({ onClose }) {
         <button className={btnPrimary} onClick={analyze} disabled={!file || busy}>
           {busy ? 'AI đang phân tích…' : 'Phân tích'}
         </button>
-        {result && <MediaResult r={result} />}
+        {result && <MediaResult r={result} tab={tab} />}
       </div>
     </Modal>
   )
