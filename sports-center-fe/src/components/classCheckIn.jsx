@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { formatTimestamp } from '../dateUtils'
 import { useFlow2TimeRules } from '../flow2TimeRules'
@@ -12,10 +12,14 @@ function CodeModal({ sessionId, onClose }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [left, setLeft] = useState(0)
+  const issued = useRef(null)
 
   useEffect(() => {
     let cancelled = false
-    api(`/sessions/${sessionId}/check-in-code`, { method: 'POST' })
+    // StrictMode re-runs effects in development. Share the request for this opening.
+    if (issued.current?.sessionId !== sessionId)
+      issued.current = { sessionId, promise: api(`/sessions/${sessionId}/check-in-code`, { method: 'POST' }) }
+    issued.current.promise
       .then((d) => {
         if (cancelled) return
         setData(d)
@@ -52,6 +56,7 @@ function CodeModal({ sessionId, onClose }) {
             {!enforceTimeRules ? 'Đang bật bỏ qua thời gian check-in cho tất cả vai trò.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
           </p>
           <p className="text-body-sm text-secondary text-center max-w-xs">Đọc mã này cho hội viên/HLV để họ nhập vào ô check-in.</p>
+          <p className="text-body-sm text-secondary text-center">Buổi #{sessionId} · Mã riêng cho buổi này. Mở lại giữ nguyên mã còn hiệu lực.</p>
           <p className="text-body-sm text-secondary">Hạn mã (giờ Việt Nam): {formatTimestamp(data.expiresAt)}</p>
         </div>
       )}
@@ -87,6 +92,7 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
       {!result ? (
         <form onSubmit={submit} className="flex flex-col gap-4">
           {error && <Alert>{error}</Alert>}
+          <p className="text-body-sm text-secondary">Nhập mã hiện tại của đúng buổi từ HLV/lễ tân. Mã của buổi khác không dùng được.</p>
           <input
             className={inputCls}
             placeholder="Nhập mã check-in"
@@ -117,7 +123,7 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
   )
 }
 
-// Manager/Receptionist/assigned Coach — generates a fresh short-lived check-in code for a Scheduled session.
+// Manager/Receptionist/assigned Coach — opens the active code, renewing only after expiry.
 export function OpenCheckInCodeButton({ sessionId, className }) {
   const { enforceTimeRules } = useFlow2TimeRules()
   const [open, setOpen] = useState(false)

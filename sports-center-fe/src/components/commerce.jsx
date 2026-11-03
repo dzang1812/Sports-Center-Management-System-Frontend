@@ -194,13 +194,27 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
     && (!search.trim() || `${course.name} ${course.sport} ${course.coach ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN'))))
   const registered = (data?.enrollments ?? []).filter(enrollment => enrollment.status === 'Confirmed')
   const previous = (data?.enrollments ?? []).filter(enrollment => enrollment.status !== 'Confirmed')
+  const cancelEnrollment = e => setIntent({
+    title: 'Hủy đăng ký toàn khóa', description: e.course,
+    policy: 'Chỉ có thể hủy trước khai giảng; hoàn phần thực trả chưa hoàn và hủy toàn bộ quyền lợi của khóa. Sau khai giảng, vui lòng liên hệ hỗ trợ.',
+    path: `/courses/enrollments/${e.id}/cancel`, body: { reason: 'Hội viên xác nhận hủy toàn khóa' },
+    onFailure: err => {
+      // Older deployed Backends reuse the enrollment-cutoff code for the cancellation boundary.
+      if (['COURSE_ALREADY_STARTED', 'COURSE_ENROLLMENT_CLOSED'].includes(err.errorCode)) {
+        setIntent(null)
+        setError('Khóa đã khai giảng nên không thể tự hủy và hoàn tiền. Bạn có thể gửi yêu cầu bên dưới để trung tâm hỗ trợ.')
+        setSupportFor(e.id)
+        setSupportReason('')
+      }
+    },
+  })
   const renderEnrollment = e => <article key={e.id} className="rounded-xl border border-outline-variant/50 bg-white p-4 sm:p-5 space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-lg">{e.course}</h3><Badge tone={e.status === 'Confirmed' ? 'green' : 'slate'}>{e.status === 'Confirmed' ? 'Đã đăng ký' : e.status === 'Cancelled' ? 'Đã hủy' : e.status}</Badge></div>
     <p className="text-secondary text-body-sm">Đã thanh toán {vnd(e.paidAmount)}{e.refundedAmount > 0 ? ` • Đã hoàn ${vnd(e.refundedAmount)}` : ''}</p>
     <div className="flex flex-wrap gap-2">
       <button type="button" className={btnOutline} onClick={() => view(e.classId)}><Icon name="calendar_month" className="text-lg" />Xem lịch khóa</button>
       <button type="button" className={btnOutline} onClick={() => { setSupportFor(supportFor === e.id ? null : e.id); setSupportReason('') }}>Liên hệ hỗ trợ</button>
-      {e.status === 'Confirmed' && <button type="button" className="px-3 py-2 text-body-sm text-secondary hover:text-error" disabled={loading} onClick={() => setIntent({ title: 'Hủy đăng ký toàn khóa', description: e.course, policy: 'Chỉ có thể hủy trước khai giảng; hoàn phần thực trả chưa hoàn và hủy toàn bộ quyền lợi của khóa. Sau khai giảng, vui lòng liên hệ hỗ trợ.', path: `/courses/enrollments/${e.id}/cancel`, body: { reason: 'Hội viên xác nhận hủy toàn khóa' } })}>Hủy đăng ký</button>}
+      {e.status === 'Confirmed' && <button type="button" className="px-3 py-2 text-body-sm text-secondary hover:text-error" disabled={loading} onClick={() => cancelEnrollment(e)}>Hủy đăng ký</button>}
     </div>
     {supportFor === e.id && <div className="space-y-3 border-t border-outline-variant/40 pt-3">
       <Field label="Bạn cần hỗ trợ điều gì?"><textarea className={inputCls + ' !h-24 py-2'} value={supportReason} maxLength={500} onChange={event => setSupportReason(event.target.value)} placeholder="Nhập nội dung cần trung tâm hỗ trợ…" /></Field>
@@ -302,7 +316,7 @@ export function CourseManagement({ embedded = false }) {
   const [courses, setCourses] = useState([])
   const [section, setSection] = useState('schedule')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('Open')
   const [quarterFilter, setQuarterFilter] = useState('all')
   const [yearFilter, setYearFilter] = useState('all')
   const [detail, setDetail] = useState(null)
