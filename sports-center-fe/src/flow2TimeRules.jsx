@@ -14,6 +14,7 @@ export function Flow2TimeRulesProvider({ children }) {
   const [status, setStatus] = useState(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)
+  const [dismissed, setDismissed] = useState(false) // user closed the warning; it returns when bypass is turned off and on again
   // Ignore an older GET that completes after a PUT or a newer refresh.
   const revision = useRef(0)
 
@@ -78,12 +79,25 @@ export function Flow2TimeRulesProvider({ children }) {
   const enforceTimeRules = !(available && status.enforceTimeRules === false)
   const canManage = available && auth.role === 'Manager' && status.canManage === true
 
+  useEffect(() => {
+    if (enforceTimeRules) setDismissed(false)
+  }, [enforceTimeRules])
+
   return (
     <Flow2TimeRulesContext.Provider value={{ available, enforceTimeRules, canManage, busy, refresh, update }}>
       {children}
-      {available && !enforceTimeRules && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] sm:max-w-sm" role="status">
-          <Alert type="warning">Bỏ qua thời gian đang BẬT cho tất cả vai trò trên máy chủ này: đặt/hủy lịch và check-in. Hạn mua khóa, hạn gói đã mua và các quy tắc tiền vẫn áp dụng.</Alert>
+      {available && !enforceTimeRules && !dismissed && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-2rem)] sm:w-96" role="status">
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="Ẩn cảnh báo"
+            title="Ẩn cảnh báo (hiện lại khi bật lại chế độ này)"
+            className="absolute top-1 right-1 z-10 w-7 h-7 rounded-full flex items-center justify-center text-orange-900 hover:bg-orange-200"
+          >
+            <Icon name="close" className="text-[18px]" />
+          </button>
+          <Alert type="warning" className="pr-9">Bỏ qua thời gian đang BẬT cho tất cả vai trò trên máy chủ này: đặt/hủy lịch và check-in. Hạn mua khóa, hạn gói đã mua và các quy tắc tiền vẫn áp dụng.</Alert>
         </div>
       )}
       {notice && <Toast type={notice.type} onClose={() => setNotice(null)}>{notice.text}</Toast>}
