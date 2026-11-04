@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom'
 import { addDays, formatDate, fromTimeOnly } from '../dateUtils'
 import { Avatar, Field, Icon, btnOutline, btnPrimary, inputCls } from './ui'
 import CoachProfileButton from './CoachProfile'
+import { FeatureToggle, FeaturedBadge, RatingBadge } from './CoachRating'
 
 const money = value => `${Number(value).toLocaleString('vi-VN')}đ`
 const card = 'rounded-2xl border border-outline-variant/50 bg-white'
 const heading = (number, title) => <h2 className="flex items-center gap-2 font-semibold"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-container/10 text-primary text-sm">{number}</span>{title}</h2>
 
-function CoachPortrait({ coach }) {
+export function CoachPortrait({ coach }) {
   const [broken, setBroken] = useState(false)
   const initials = coach.fullName.trim().split(/\s+/).slice(-2).map(word => word[0]).join('')
   return <div className="relative h-44 sm:h-48 overflow-hidden bg-gradient-to-br from-indigo-100 via-violet-50 to-slate-200">
@@ -51,10 +52,12 @@ function CoachShowcase({ coaches, loading, selected, onSelect, search, onSearch,
           return <article key={item.id} className={`group relative flex w-[78%] shrink-0 snap-start flex-col overflow-hidden rounded-xl border bg-white sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-3rem)/4)] ${active ? 'border-primary-container ring-2 ring-primary-container shadow-md' : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'} transition-shadow`}>
             <button type="button" aria-label={`Chọn HLV ${item.fullName}`} aria-pressed={active} onClick={() => onSelect(item)} className="flex flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2">
               <div className="relative w-full"><CoachPortrait key={`${item.id}:${item.avatarUrl ?? ''}`} coach={item} />
+                {item.isFeatured && <FeaturedBadge className="absolute top-3 left-3" />}
                 {active && <span className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-primary-container py-1 pl-1.5 pr-2 text-[11px] font-bold text-white shadow"><Icon name="check_circle" className="text-base" />Đã chọn</span>}
                 <span className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-md bg-white/95 px-2 py-1 text-[11px] font-bold text-primary shadow-sm">{item.sports.map(specialty => specialty.name).join(' · ') || 'Huấn luyện cá nhân'}</span>
               </div>
               <div className="w-full p-3 space-y-1.5"><h3 className="truncate text-lg font-bold text-slate-900" title={item.fullName}>{item.fullName}</h3>
+                <RatingBadge coach={item} />
                 <p className="min-h-8 line-clamp-2 text-body-sm leading-4 text-slate-500">{item.bio || 'Xem hồ sơ để tìm hiểu thêm về huấn luyện viên.'}</p>
               </div>
             </button>
@@ -73,6 +76,7 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
   range, onRangeChange, slots, loading, onRefresh, selectedSlot, onSlotChange, wallet, prices,
   fundingSource, onFundingChange, onContinue, staff = false, memberId = null, counterPending = false }) {
   const [search, setSearch] = useState('')
+  const [featured, setFeatured] = useState({}) // staff toggles applied locally; list order refreshes on next load
   const [sportFilter, setSportFilter] = useState('all')
   const [day, setDay] = useState(null)
   const sports = [...new Set(coaches.flatMap(item => item.sports.map(sport => sport.name)))].sort()
@@ -102,7 +106,7 @@ export default function MemberPtBookingPanel({ coaches, coachesLoading, coach, s
           className="w-full flex items-center gap-3 p-3 pb-1 text-left rounded-xl">
           <Avatar src={item.avatarUrl} className="h-10 w-10" /><span className="min-w-0 flex-1"><span className="block font-semibold truncate">{item.fullName}</span><span className="block text-body-sm text-secondary truncate">{item.sports.map(sport => sport.name).join(' · ')}</span></span>
           {coach?.id === item.id && <Icon name="check_circle" className="text-primary text-lg shrink-0" />}
-        </button><div className="pl-16 pr-3 pb-2"><CoachProfileButton coach={item} className="text-[11px]">Xem hồ sơ HLV</CoachProfileButton></div></div>)}
+        </button><div className="pl-16 pr-3 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1"><RatingBadge coach={item} /><CoachProfileButton coach={item} className="text-[11px]">Xem hồ sơ HLV</CoachProfileButton><FeatureToggle coachId={item.id} featured={featured[item.id] ?? item.isFeatured} onChange={saved => setFeatured(map => ({ ...map, [saved.coachId]: saved.isFeatured }))} /></div></div>)}
         {!coachesLoading && !shownCoaches.length && <p className="p-4 text-body-sm text-secondary">{coaches.length ? 'Không tìm thấy HLV phù hợp.' : 'Chưa có HLV nhận lịch PT.'}</p>}
       </div>
     </section> : <CoachShowcase coaches={shownCoaches} loading={coachesLoading} selected={coach} onSelect={onCoachChange} search={search} onSearch={setSearch} sport={sportFilter} onSport={setSportFilter} sports={sports} total={coaches.length} />}

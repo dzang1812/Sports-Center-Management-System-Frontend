@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
+import { addDays, formatDate, toDateOnly, weekRange } from '../dateUtils'
 import { AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
 import ExerciseDetailModal from '../components/ExerciseDetail'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
@@ -162,11 +163,79 @@ function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
   )
 }
 
+// The plan repeats weekly; the calendar just pins its days onto real dates so members see "today".
+function WeekCalendar({ days, onOpen }) {
+  const [weekStart, setWeekStart] = useState(() => weekRange()[0])
+  const today = toDateOnly()
+  const trainingDays = DAYS.filter(([k]) => days[k]).length
+  return (
+    <section className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-white shadow-sm" aria-label="Lịch tập theo tuần">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-3 sm:px-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label="Tuần trước" className={btnOutline + ' !h-9 !w-9 !p-0'} onClick={() => setWeekStart(addDays(weekStart, -7))}><Icon name="chevron_left" className="text-xl" /></button>
+            <button type="button" className={btnOutline + ' !h-9 !px-3'} onClick={() => setWeekStart(weekRange()[0])}>Hôm nay</button>
+            <button type="button" aria-label="Tuần sau" className={btnOutline + ' !h-9 !w-9 !p-0'} onClick={() => setWeekStart(addDays(weekStart, 7))}><Icon name="chevron_right" className="text-xl" /></button>
+          </div>
+          <h2 className="text-sm sm:text-base font-bold text-slate-900">{formatDate(weekStart, { day: '2-digit', month: '2-digit' })} – {formatDate(addDays(weekStart, 6), { day: '2-digit', month: '2-digit', year: 'numeric' })}</h2>
+        </div>
+        <span className="text-body-sm text-slate-600"><b className="text-slate-800">{trainingDays}</b> buổi tập · {7 - trainingDays} ngày nghỉ</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7">
+        {DAYS.map(([key, label], index) => {
+          const date = addDays(weekStart, index)
+          const isToday = date === today
+          const day = days[key]
+          return (
+            <button key={key} type="button" onClick={() => onOpen(key)} aria-label={`${label}, ${formatDate(date)}: ${day ? `${day.items.length} bài tập` : 'ngày nghỉ'}. Bấm để sửa`}
+              className={`group min-w-0 flex flex-col text-left border-b border-r border-slate-200 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary sm:last:col-span-2 xl:last:col-span-1 xl:border-b-0 xl:last:border-r-0 ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}>
+              <div className={`w-full flex items-center justify-between gap-1 border-b px-2 py-3 ${isToday ? 'border-indigo-200 bg-indigo-50' : 'border-slate-100'}`}>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span aria-current={isToday ? 'date' : undefined} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold ${isToday ? 'bg-primary-container text-white' : 'text-slate-800'}`}>{Number(date.slice(8))}</span>
+                  <div>
+                    <span className={`block text-body-sm font-bold ${isToday ? 'text-primary' : 'text-slate-700'}`}>{label}</span>
+                    <p className="text-[10px] text-slate-500">{isToday ? 'Hôm nay' : formatDate(date, { day: '2-digit', month: '2-digit' })}</p>
+                  </div>
+                </div>
+                <Icon name="edit" className="text-base text-slate-300 group-hover:text-primary-container" />
+              </div>
+              {day ? (
+                <div className="w-full flex-1 space-y-2 p-2 xl:min-h-48">
+                  <div className="rounded-lg border-l-[3px] border-l-primary-container bg-primary-container/10 px-2.5 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-primary-container">Buổi tập · {day.items.length} bài</p>
+                    <p className="break-words text-body-sm font-semibold leading-5 text-slate-900">{day.focus || 'Chưa đặt trọng tâm'}</p>
+                  </div>
+                  {day.items.map((it, idx) => (
+                    <div key={`${it.exerciseId}-${idx}`} className="flex items-center gap-2 min-w-0">
+                      {it.imageUrl ? <img src={it.imageUrl} alt="" loading="lazy" className="w-8 h-8 rounded-md object-cover shrink-0 bg-surface-container" />
+                        : <span className="w-8 h-8 rounded-md bg-surface-container flex items-center justify-center shrink-0"><Icon name="fitness_center" className="text-base text-outline" /></span>}
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] font-semibold text-slate-800">{it.exerciseName}</p>
+                        <p className="text-[11px] text-slate-500">{it.sets} × {it.reps}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full flex-1 flex xl:flex-col items-center justify-center gap-1 p-3 text-center text-[12px] text-slate-400 xl:min-h-48">
+                  <Icon name="bedtime" className="text-xl" /> Ngày nghỉ
+                  <span className="text-primary-container font-semibold opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">+ Thêm buổi</span>
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export default function MemberTrainingPage() {
   const [guide, setGuide] = useState(null)
   const [plans, setPlans] = useState(null)
   const [draft, setDraft] = useState(null)
   const [picking, setPicking] = useState(null) // day key the picker is adding to
+  const [editing, setEditing] = useState(null) // day key open in the day editor
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [saving, setSaving] = useState(false)
@@ -306,11 +375,8 @@ export default function MemberTrainingPage() {
         </Field>
       </div>
 
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {DAYS.map(([key, label]) => (
-          <DayCard key={key} label={label} day={draft.days[key]} onChange={(d) => setDay(key, d)} onAdd={() => setPicking(key)} onDetail={showDetail} onGuide={setGuide} />
-        ))}
-      </div>
+      <WeekCalendar days={draft.days} onOpen={setEditing} />
+      <p className="text-body-sm text-secondary -mt-2">Bấm vào một ngày để thêm/sửa bài tập. Nhớ bấm lưu sau khi chỉnh.</p>
 
       <div className="flex gap-2 flex-wrap">
         <button className={btnPrimary} onClick={save} disabled={saving}>
@@ -337,6 +403,12 @@ export default function MemberTrainingPage() {
       {guide && <Suspense fallback={<Modal title="Hướng dẫn tập" onClose={() => setGuide(null)}><p role="status">Đang mở hướng dẫn…</p></Modal>}>
         <ExerciseGuideModal key={guide.exerciseId} exercise={guide} onClose={() => setGuide(null)} />
       </Suspense>}
+      {/* Hidden while the picker is open so only one dialog holds focus; it reopens after a pick. */}
+      {editing && !picking && (
+        <Modal title={`Buổi tập ${DAYS.find(([k]) => k === editing)[1]}`} onClose={() => setEditing(null)}>
+          <DayCard label={DAYS.find(([k]) => k === editing)[1]} day={draft.days[editing]} onChange={(d) => setDay(editing, d)} onAdd={() => setPicking(editing)} onDetail={showDetail} onGuide={setGuide} />
+        </Modal>
+      )}
       {picking && <ExercisePicker onPick={addExercise} onClose={() => setPicking(null)} />}
     </div>
   )

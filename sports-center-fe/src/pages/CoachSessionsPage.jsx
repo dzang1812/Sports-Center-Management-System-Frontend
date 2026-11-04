@@ -1,20 +1,30 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, query } from '../api'
 import { useFlow2TimeRules } from '../flow2TimeRules'
+import { useClientPaged } from '../usePaged'
 import { CancelBookingModal } from '../components/scheduleActions'
 import { OpenCheckInCodeButton, SelfCheckInButton } from '../components/classCheckIn'
-import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { Alert, Badge, Field, Icon, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import WeekTimetable from '../components/WeekTimetable'
 import CoachTeachingStats from '../components/CoachTeachingStats'
 import { addDays, formatTimestamp, fromTimeOnly, hasScheduleStarted, toDateOnly, weekRange } from '../dateUtils'
-import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, PT_ATTENDANCE_STATUSES, SESSION_STATUS_LABEL } from '../labels'
+import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, SESSION_STATUS_LABEL } from '../labels'
 
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
 const CHECK_IN_STATE_TONE = { NotCheckedIn: 'slate', Present: 'green', Late: 'amber', Absent: 'red' }
+// Coach marks PT attendance with two toggles; the API still accepts Late, it just isn't offered here.
+const PT_MARKS = [
+  ['Present', 'check_circle', 'border-green-600 bg-green-600 text-white', 'hover:border-green-600 hover:text-green-700'],
+  ['Absent', 'cancel', 'border-red-600 bg-red-600 text-white', 'hover:border-red-600 hover:text-red-700'],
+]
 
 // Class roster is read-only (self check-in is the only way to mark it — see FE-01 in the handoff doc);
-// PT roster is still manually graded by the Coach, Present/Absent/Late only (no Excused).
-function RosterModal({ item, onClose, onDone, onCancel }) {
+// PT roster is still manually graded by the Coach. Shown inline under the schedule, not as a popup.
+function RosterPanel({ item, onClose, onDone, onCancel }) {
+  const panel = useRef(null)
+  useEffect(() => {
+    panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
   const { enforceTimeRules } = useFlow2TimeRules()
   const isClass = item.type !== 'PT'
   const [roster, setRoster] = useState([])
@@ -54,11 +64,18 @@ function RosterModal({ item, onClose, onDone, onCancel }) {
   }
 
   return (
-    <Modal title={`${isClass ? 'Danh sách điểm danh' : 'Điểm danh'} — ${item.title}`} onClose={onClose}>
+    <section ref={panel} aria-label="Điểm danh" className="scroll-mt-4 rounded-2xl border border-outline-variant/50 bg-white p-4 sm:p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3 pb-3 mb-2 border-b border-surface-container">
+        <div className="min-w-0">
+          <h2 className="font-semibold text-lg break-words">{isClass ? 'Danh sách điểm danh' : 'Điểm danh'} — {item.title}</h2>
+          <p className="text-body-sm text-secondary">{item.date} • {fromTimeOnly(item.startTime)}-{fromTimeOnly(item.endTime)}{item.room ? ` • ${item.room}` : ''}</p>
+        </div>
+        <button type="button" aria-label="Đóng" className="text-secondary hover:text-on-surface shrink-0" onClick={onClose}><Icon name="close" /></button>
+      </div>
       {error && <Alert>{error}</Alert>}
       <div className={`flex flex-col gap-2 ${loading ? 'opacity-50' : ''}`}>
         {roster.map((r) => (
-          <div key={r.memberId} className="flex items-center justify-between gap-3 py-2 border-b border-surface-container last:border-b-0">
+          <div key={r.memberId} className="flex flex-wrap items-center justify-between gap-3 py-2 border-b border-surface-container last:border-b-0">
             <div>
               <div className="font-semibold">{r.fullName} <span className="text-secondary font-normal">#{r.memberId}</span></div>
               <div className="text-secondary text-body-sm">{r.email}</div>
@@ -69,9 +86,14 @@ function RosterModal({ item, onClose, onDone, onCancel }) {
                 {r.checkedInAt && <div className="text-body-sm text-secondary mt-0.5">{formatTimestamp(r.checkedInAt, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>}
               </div>
             ) : (
-              <select className="h-9 px-2 rounded-lg border border-outline-variant bg-surface-container-lowest" value={r.status} onChange={(e) => setStatus(r.memberId, e.target.value)}>
-                {PT_ATTENDANCE_STATUSES.map((v) => <option key={v} value={v}>{ATTENDANCE_STATUS_LABEL[v]}</option>)}
-              </select>
+              <div role="radiogroup" aria-label={`Điểm danh ${r.fullName}`} className="flex gap-2 shrink-0">
+                {PT_MARKS.map(([v, icon, on, off]) => (
+                  <button key={v} type="button" role="radio" aria-checked={r.status === v} onClick={() => setStatus(r.memberId, v)}
+                    className={`h-9 px-3 rounded-lg border-2 inline-flex items-center gap-1.5 font-semibold text-body-sm transition-colors ${r.status === v ? on : `border-outline-variant text-secondary bg-white ${off}`}`}>
+                    <Icon name={icon} className="text-[18px]" />{ATTENDANCE_STATUS_LABEL[v]}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         ))}
@@ -86,7 +108,7 @@ function RosterModal({ item, onClose, onDone, onCancel }) {
           <button type="button" disabled={busy || !roster.length} className={btnPrimary} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu điểm danh'}</button>
         )}
       </div>
-    </Modal>
+    </section>
   )
 }
 
@@ -96,6 +118,7 @@ function ListView({ setRosterItem }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { pageItems, pagination, offset } = useClientPaged(items)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -145,9 +168,9 @@ function ListView({ setRosterItem }) {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {items.map((it, i) => (
+            {pageItems.map((it, i) => (
               <tr key={`${it.type}-${it.referenceId}`} className="border-t border-surface-container">
-                <td className="px-4 py-3 text-secondary">{i + 1}</td>
+                <td className="px-4 py-3 text-secondary">{offset + i + 1}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">{it.type === 'PT' ? 'PT' : 'Lớp học'}</span>
@@ -179,6 +202,7 @@ function ListView({ setRosterItem }) {
             )}
           </tbody>
         </table>
+        {pagination}
       </div>
     </>
   )
@@ -258,7 +282,7 @@ export default function CoachSessionsPage() {
       <CoachTeachingStats refresh={reloadKey} />
       {view === 'week' ? <WeekView key={reloadKey} setRosterItem={setRosterItem} /> : <ListView key={reloadKey} setRosterItem={setRosterItem} />}
 
-      {rosterItem && <RosterModal item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} />}
+      {rosterItem && <RosterPanel key={`${rosterItem.type}-${rosterItem.referenceId}`} item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} />}
       {cancelItem && <CancelBookingModal item={cancelItem} kind="coach" onClose={() => setCancelItem(null)} onDone={() => { setCancelItem(null); setReloadKey((k) => k + 1) }} />}
     </div>
   )

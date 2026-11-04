@@ -5,6 +5,7 @@ import { Alert, Badge, Field, Modal, btnOutline, btnPrimary, inputCls } from '..
 import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
 import { formatDate } from '../dateUtils'
 import { LEVEL_LABEL } from '../labels'
+import { useClientPaged } from '../usePaged'
 
 // Read-only course schedule for the front desk, without selecting a member first.
 const DEFAULT_FILTERS = () => ({ sportId: '', level: '', from: '', to: '' })
@@ -56,6 +57,7 @@ export default function ReceptionSchedulePage({ embedded = false }) {
     (!filters.sportId || String(c.sportId) === filters.sportId) && (!filters.level || c.level === filters.level) &&
     (!filters.from || (c.lastSessionDate ?? c.endDate) >= filters.from) && (!filters.to || (c.firstSessionDate ?? c.startDate) <= filters.to) &&
     `${c.name} ${c.sport} ${c.coach ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN')))
+  const { pageItems, pagination, offset } = useClientPaged(shown)
   const registerTo = id => {
     const next = new URLSearchParams({ tab: 'register', courseId: String(id) })
     if (/^[1-9]\d*$/.test(params.get('memberId') ?? '')) next.set('memberId', params.get('memberId'))
@@ -126,9 +128,9 @@ export default function ReceptionSchedulePage({ embedded = false }) {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {shown.map(({ course: c, canEnroll }, i) => (
+            {pageItems.map(({ course: c, canEnroll }, i) => (
               <tr key={c.id} className="border-t border-surface-container">
-                <td className="px-4 py-3 text-secondary">{i + 1}</td>
+                <td className="px-4 py-3 text-secondary">{offset + i + 1}</td>
                 <td className="px-4 py-3">
                   <div className="font-semibold">{c.name}</div>
                   <Badge tone="indigo">{LEVEL_LABEL[c.level]}</Badge>
@@ -152,6 +154,7 @@ export default function ReceptionSchedulePage({ embedded = false }) {
             )}
           </tbody>
         </table>
+        {pagination}
       </div>
       {selectedCourse && <Modal size="wide" title={`Lịch toàn khóa — ${selectedCourse.name}`} onClose={closeSchedule}>
         {!detail && !detailError && <p role="status">Đang tải lịch khóa học…</p>}

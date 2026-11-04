@@ -5,7 +5,9 @@ import { api } from '../../api'
 import FloatingContactWidget from '../../components/FloatingContactWidget'
 import ImageCarousel from '../../components/ImageCarousel'
 import SiteHeader from '../../components/SiteHeader'
-import { Avatar, Icon } from '../../components/ui'
+import { Icon } from '../../components/ui'
+import { CoachPortrait } from '../../components/MemberPtBookingPanel'
+import { FeaturedBadge, RatingBadge } from '../../components/CoachRating'
 import { LEVEL_LABEL, PLAN_TYPE_LABEL } from '../../labels'
 import { NEWS_ITEMS } from '../../newsItems'
 
@@ -140,10 +142,11 @@ function ClassesSection() {
   )
 }
 
-// Public coach directory, GET /pt/coaches (no auth required).
+// Public coach directory, GET /pt/coaches (no auth required). Same card/carousel look as the member PT picker.
 function TrainersSection() {
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
+  const gallery = useRef(null)
 
   useEffect(() => {
     api('/pt/coaches')
@@ -152,56 +155,57 @@ function TrainersSection() {
       .finally(() => setLoading(false))
   }, [])
 
+  const move = (direction) => gallery.current?.scrollBy({ left: direction * gallery.current.clientWidth * 0.8, behavior: 'smooth' })
+
   return (
     <section className="py-16 bg-surface-container-low scroll-mt-24" id="trainers">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">ĐỘI NGŨ CHUYÊN MÔN</span>
-          <h2 className="font-headline-xl text-headline-xl text-on-surface">Huấn luyện viên giàu kinh nghiệm</h2>
-          <Link to="/trainers" className="inline-flex items-center gap-1.5 mt-3 font-label-lg text-label-lg text-primary hover:text-primary-container transition-colors">
-            <span>Xem tất cả huấn luyện viên</span>
-            <Icon name="arrow_forward" className="text-base" />
-          </Link>
-        </div>
-
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 ${loading ? 'opacity-50' : ''}`}>
-          {coaches.map((c) => (
-            <div key={c.id} className="group bg-surface-container-lowest rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col text-center overflow-hidden">
-              <div className="h-20 bg-gradient-to-br from-primary-container to-tertiary-container relative">
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-                  <Avatar src={c.avatarUrl} className="w-20 h-20 ring-4 ring-surface-container-lowest shadow-md" />
-                </div>
+        <div className="rounded-2xl border border-outline-variant/50 bg-white overflow-hidden shadow-sm">
+          <div className="relative overflow-hidden bg-slate-900 px-5 py-6 sm:px-8">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+            <div className="relative flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">ĐỘI NGŨ CHUYÊN MÔN</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Huấn luyện viên tiêu biểu</h2>
+                <p className="mt-1.5 text-body-sm text-slate-300">Tập riêng cùng coach được chứng nhận, lịch linh hoạt theo mục tiêu của bạn.</p>
               </div>
-
-              <div className="pt-12 pb-6 px-5 flex flex-col items-center flex-1">
-                <h3 className="font-headline-sm text-headline-sm text-on-surface">{c.fullName}</h3>
-                {c.certifications && (
-                  <p className="font-label-sm text-label-sm text-primary-container mt-1 flex items-center gap-1">
-                    <Icon name="verified" className="text-sm" />
-                    {c.certifications}
-                  </p>
-                )}
-                {c.bio && <p className="font-body-sm text-body-sm text-on-surface-variant mt-3 line-clamp-3">{c.bio}</p>}
-                {c.sports.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-                    {c.sports.map((sp) => (
-                      <span key={sp.id} className="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container font-label-sm text-label-sm">{sp.name}</span>
-                    ))}
-                  </div>
-                )}
-                <Link
-                  to="/login"
-                  className="mt-5 w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary-container text-primary-container font-label-md text-label-md group-hover:bg-primary-container group-hover:text-on-primary transition-colors"
-                >
-                  <Icon name="event_available" className="text-base" />
-                  Đặt lịch PT
+              <div className="flex flex-wrap items-center gap-2">
+                <Link to="/trainers" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-body-sm font-semibold text-white hover:bg-white/20 transition-colors">
+                  <Icon name="groups" className="text-lg text-indigo-300" />Xem tất cả HLV<Icon name="arrow_forward" className="text-base" />
                 </Link>
+                <button type="button" aria-label="Xem HLV phía trước" onClick={() => move(-1)} disabled={loading || !coaches.length} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 disabled:opacity-40"><Icon name="chevron_left" /></button>
+                <button type="button" aria-label="Xem HLV tiếp theo" onClick={() => move(1)} disabled={loading || !coaches.length} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 disabled:opacity-40"><Icon name="chevron_right" /></button>
               </div>
             </div>
-          ))}
-          {!loading && !coaches.length && (
-            <p className="text-secondary text-center py-10 col-span-full">Chưa có huấn luyện viên nào được công khai.</p>
-          )}
+          </div>
+
+          <div className="p-4 sm:p-6">
+            <div ref={gallery} tabIndex={0} role="region" aria-label="Danh sách huấn luyện viên tiêu biểu" aria-busy={loading} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 pt-1 px-1 -mx-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-xl">
+              {loading && <p role="status" className="py-10 text-secondary">Đang tải HLV…</p>}
+              {coaches.map((c) => (
+                <article key={c.id} className="group relative flex w-[78%] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md transition-shadow sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-3rem)/4)]">
+                  <div className="relative w-full">
+                    <CoachPortrait key={`${c.id}:${c.avatarUrl ?? ''}`} coach={c} />
+                    {c.isFeatured && <FeaturedBadge className="absolute top-3 left-3" />}
+                    <span className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-md bg-white/95 px-2 py-1 text-[11px] font-bold text-primary shadow-sm">{c.sports.map((sp) => sp.name).join(' · ') || 'Huấn luyện cá nhân'}</span>
+                  </div>
+                  <div className="flex-1 p-3 space-y-1.5">
+                    <h3 className="truncate text-lg font-bold text-slate-900" title={c.fullName}>{c.fullName}</h3>
+                    <RatingBadge coach={c} />
+                    {c.certifications && <p className="flex items-center gap-1 truncate text-[12px] font-semibold text-primary-container"><Icon name="verified" className="text-sm" />{c.certifications}</p>}
+                    <p className="min-h-8 line-clamp-2 text-body-sm leading-4 text-slate-500">{c.bio || 'Đăng nhập để xem hồ sơ và ảnh học viên của huấn luyện viên.'}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2.5">
+                    <Link to="/login" className="inline-flex items-center gap-1 text-body-sm font-semibold text-primary hover:underline">
+                      <Icon name="event_available" className="text-base" />Đặt lịch PT
+                    </Link>
+                    <Icon name="arrow_outward" className="text-xl text-slate-300 group-hover:text-primary" />
+                  </div>
+                </article>
+              ))}
+              {!loading && !coaches.length && <p className="w-full rounded-xl bg-slate-50 py-8 text-center text-body-sm text-secondary">Chưa có huấn luyện viên nào được công khai.</p>}
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import { api } from '../api'
 import { toDateOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
+import { useClientPaged } from '../usePaged'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 const PAYMENT_STATUS_TONE = { Pending: 'amber', Paid: 'green', Failed: 'red', Refunded: 'slate' }
@@ -158,6 +159,7 @@ export default function MemberSubscriptionPage() {
         .sort((a, b) => new Date(b.startDate) - new Date(a.startDate)),
     [subs, statusFilter, typeFilter, search],
   )
+  const { pageItems, pagination, offset } = useClientPaged(filtered)
 
   return (
     <div className="flex flex-col gap-6">
@@ -241,9 +243,9 @@ export default function MemberSubscriptionPage() {
               </tr>
             </thead>
             <tbody className={loading ? 'opacity-50' : ''}>
-              {filtered.map((s, i) => (
+              {pageItems.map((s, i) => (
                 <tr key={s.id} className="border-t border-surface-container">
-                  <td className="px-4 py-3 text-secondary">{i + 1}</td>
+                  <td className="px-4 py-3 text-secondary">{offset + i + 1}</td>
                   <td className="px-4 py-3">
                     <div className="font-semibold">{s.planName}</div>
                     <div className="flex items-center gap-1.5 flex-wrap mt-1">
@@ -282,6 +284,7 @@ export default function MemberSubscriptionPage() {
               )}
             </tbody>
           </table>
+          {pagination}
         </div>
         </div>
       </div>

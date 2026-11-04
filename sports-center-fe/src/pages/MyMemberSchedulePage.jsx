@@ -7,6 +7,7 @@ import { Alert, Badge, Field, Icon, Pagination, btnOutline, btnPrimary, inputCls
 import { CancelBookingModal, PtRescheduleModal } from '../components/scheduleActions'
 import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
 import MemberScheduleOverview from '../components/MemberScheduleOverview'
+import { MyCoachReviews } from '../components/CoachRating'
 import { MemberCommerce } from '../components/commerce'
 import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
@@ -389,6 +390,8 @@ export default function MyMemberSchedulePage() {
         <p className="text-secondary mt-2">Xem buổi sắp tới, check-in hoặc quản lý lịch tập.</p></div>
         <Link className={btnPrimary} to="/member/classes"><Icon name="add" className="text-lg" />Đặt buổi tập mới</Link>
       </div>
+
+      <MyCoachReviews />
 
       <nav aria-label="Quản lý lịch tập" className="flex flex-wrap gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
         {[['calendar', 'Lịch tập'], ['courses', 'Khóa đã đăng ký'], ['attendance', 'Điểm danh']].map(([v, l]) => (

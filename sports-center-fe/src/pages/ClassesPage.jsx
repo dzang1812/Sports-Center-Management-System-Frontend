@@ -5,6 +5,7 @@ import ImageCarousel from '../components/ImageCarousel'
 import PublicShell from '../components/PublicShell'
 import { LEVEL_LABEL } from '../labels'
 import { Alert, Field, Icon, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { useClientPaged } from '../usePaged'
 
 const DEFAULT_FILTERS = { sportId: '', level: '' }
 const CARD_BANNERS = ['/images/sport-gym.jpg', '/images/sport-yoga.jpg', '/images/sport-pilates.jpg', '/images/sport-hiit.jpg']
@@ -17,6 +18,7 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { pageItems, pagination } = useClientPaged(classes)
 
   useEffect(() => {
     api('/sports').then((list) => setSports(list.filter((s) => s.hasClasses))).catch(() => {})
@@ -84,7 +86,7 @@ export default function ClassesPage() {
         {error && <Alert>{error}</Alert>}
 
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ${loading ? 'opacity-50' : ''}`}>
-          {classes.map((c, i) => (
+          {pageItems.map((c, i) => (
             <div key={c.id} className="relative rounded-xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden aspect-[3/4] group">
               <ImageCarousel
                 images={c.imageUrls.length ? c.imageUrls : [CARD_BANNERS[i % CARD_BANNERS.length]]}
@@ -116,6 +118,7 @@ export default function ClassesPage() {
             <p className="text-secondary text-center py-10 col-span-full">Không có lớp học nào đang mở phù hợp.</p>
           )}
         </div>
+        {pagination}
       </div>
     </PublicShell>
   )

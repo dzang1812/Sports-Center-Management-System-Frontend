@@ -5,6 +5,7 @@ import { PLAN_TYPE_LABEL } from '../labels'
 import { SubscribeModal } from '../pages/PackagesPage'
 import { CommerceConfirm } from './commerce'
 import { Alert, Badge, Icon, btnOutline, btnPrimary, inputCls } from './ui'
+import { useClientPaged } from '../usePaged'
 
 const money = amount => `${Number(amount).toLocaleString('vi-VN')}đ`
 const duration = plan => plan.durationMonths > 0 ? `${plan.durationMonths} tháng` : `${plan.durationDays} ngày`
@@ -41,6 +42,7 @@ export default function MemberPackages() {
   }, [reload])
   const shown = plans.filter(plan => (type === 'all' || plan.planType === type)
     && `${plan.name} ${plan.sportName ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN')))
+  const { pageItems, pagination } = useClientPaged(shown)
   const bought = () => {
     setNotice(`Đã thanh toán gói “${selected.name}” bằng số dư. Xem thời hạn sử dụng trong Gói của tôi.`)
     setSelected(null); setReload(value => value + 1)
@@ -52,7 +54,7 @@ export default function MemberPackages() {
     {error && <Alert>{error}</Alert>}{walletError && <Alert type="warning">{walletError}</Alert>}{notice && <Alert type="success">{notice}</Alert>}
     {loading ? <p role="status" className="py-6 text-center text-secondary">Đang tải gói tập…</p> : <>
       <p className="text-body-sm text-slate-500">{shown.length} gói đang mở bán</p>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{shown.map(plan => {
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{pageItems.map(plan => {
         const paysFromWallet = usesWallet(plan)
         const insufficient = paysFromWallet && wallet && wallet.balance < plan.price
         return <article key={plan.id} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -66,6 +68,7 @@ export default function MemberPackages() {
           <div className="border-t border-slate-100 bg-slate-50/60 p-3"><button type="button" className={btnPrimary + ' w-full'} disabled={paysFromWallet && (!wallet || insufficient)} onClick={() => { setNotice(''); setSelected(plan) }}>Đăng ký gói này</button></div>
         </article>
       })}</div>
+      {pagination}
       {!error && !shown.length && <p className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-body-sm text-slate-500">{plans.length ? 'Không có gói khớp bộ lọc.' : 'Hiện chưa có gói tập nào đang mở bán.'}</p>}
     </>}
     {selected && (usesWallet(selected) ? <CommerceConfirm intent={{ title: `Mua gói “${selected.name}”`, confirmLabel: 'Thanh toán và đăng ký gói', description: isSelfPractice(selected) ? `Tự tập · ${selected.sportName ?? 'Mọi bộ môn'} · ${duration(selected)}.` : `${selected.ptSessionCredits} buổi PT · ${duration(selected)}.`, price: selected.price, balance: wallet?.balance,

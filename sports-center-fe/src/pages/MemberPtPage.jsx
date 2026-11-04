@@ -1,4 +1,5 @@
 import { PtBrowser } from '../components/booking'
+import { MyCoachReviews } from '../components/CoachRating'
 
 export default function MemberPtPage({ embedded = false }) {
   return (
@@ -7,6 +8,7 @@ export default function MemberPtPage({ embedded = false }) {
         <h1 className="font-headline-xl text-headline-xl">Đặt lịch PT</h1>
         <p className="text-secondary">Chọn huấn luyện viên và giờ tập, rồi thanh toán ngay bằng số dư để xác nhận lịch. Không cần mua gói PT trước.</p>
       </div>}
+      <MyCoachReviews />
       <PtBrowser />
     </div>
   )
