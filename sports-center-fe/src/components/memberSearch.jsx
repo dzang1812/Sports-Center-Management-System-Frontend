@@ -3,10 +3,12 @@ import { api, query } from '../api'
 
 // A full card code goes straight to the exact lookup (QR scanner / pasted code), no suggestions.
 const FULL_CODE = /^GYM-[0-9A-F]{32}$/i
+// Member id ("7" or "#7") is searchable from a single digit.
+const MEMBER_ID = /^#?\d+$/
 
 export function useMemberSuggestions(text) {
   const q = text.trim()
-  const active = q.length >= 2 && !FULL_CODE.test(q)
+  const active = (q.length >= 2 || MEMBER_ID.test(q)) && !FULL_CODE.test(q)
   const [result, setResult] = useState({ q: '', items: [] })
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function MemberSuggestions({ state, onPick }) {
         >
           <span className="font-bold text-on-surface">
             {m.fullName}
+            <span className="ml-2 font-normal text-secondary">#{m.memberId}</span>
             {!m.isActive && <span className="ml-2 text-xs font-normal text-error">Đã khoá</span>}
           </span>
           <span className="text-body-sm text-on-surface-variant">{m.phone || '—'}</span>

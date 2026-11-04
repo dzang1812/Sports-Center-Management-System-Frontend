@@ -1,6 +1,6 @@
 // Static UI exported from Stitch. Data is hardcoded until the real API is wired in.
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api'
 import FloatingContactWidget from '../../components/FloatingContactWidget'
 import ImageCarousel from '../../components/ImageCarousel'
@@ -332,6 +332,92 @@ function PricingSection() {
   )
 }
 
+const STATS = [
+  { icon: 'groups', value: 5000, suffix: '+', label: 'Hội viên năng động' },
+  { icon: 'apartment', value: 4, suffix: '', label: 'Chi nhánh trung tâm' },
+  { icon: 'calendar_month', value: 50, suffix: '+', label: 'Lớp học mỗi tuần' },
+  { icon: 'sports_gymnastics', value: 8, suffix: '', label: 'Bộ môn đào tạo' },
+  { icon: 'military_tech', value: 15, suffix: '+', label: 'Huấn luyện viên chuyên nghiệp' },
+  { icon: 'favorite', value: 98, suffix: '%', label: 'Hài lòng dịch vụ' },
+  { icon: 'emoji_events', value: 10, suffix: '+', label: 'Năm kinh nghiệm' },
+  { icon: 'schedule', value: 16, suffix: 'h', label: 'Hoạt động mỗi ngày' },
+]
+
+// Fades + slides a section in once it scrolls into view (runs once, via IntersectionObserver).
+function Reveal({ children, className = '' }) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      setVisible(true)
+      obs.disconnect()
+    }, { threshold: 0.12 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className={`transition-all duration-700 ease-out ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'} ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// Counts from 0 up to `value` once the number scrolls into view (runs once, via IntersectionObserver).
+function CountUpNumber({ value, suffix = '', duration = 1600 }) {
+  const [display, setDisplay] = useState(0)
+  const ref = useRef(null)
+  const started = useRef(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || started.current) return
+      started.current = true
+      const start = performance.now()
+      const tick = (now) => {
+        const progress = Math.min((now - start) / duration, 1)
+        const eased = 1 - (1 - progress) ** 3
+        setDisplay(Math.round(value * eased))
+        if (progress < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+      obs.disconnect()
+    }, { threshold: 0.3 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [value, duration])
+
+  return <span ref={ref}>{display.toLocaleString('vi-VN')}{suffix}</span>
+}
+
+function StatsBannerSection() {
+  return (
+    <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen py-20 overflow-hidden">
+      <img src="/images/banner-stats.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-inverse-surface/70 backdrop-blur-[1px]" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-12 gap-x-6 text-center">
+          {STATS.map((s) => (
+            <div key={s.label} className="flex flex-col items-center gap-3">
+              <Icon name={s.icon} className="text-6xl text-tertiary-fixed" />
+              <span className="font-display-lg text-display-lg text-white font-bold">
+                <CountUpNumber value={s.value} suffix={s.suffix} />
+              </span>
+              <span className="text-white/85 text-body-lg font-semibold max-w-[160px]">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function HomePage() {
   return (
     <>
@@ -391,6 +477,7 @@ export default function HomePage() {
 </div>
 </section>
 
+<Reveal>
 <section className="py-16 bg-surface-container-low">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="text-center max-w-3xl mx-auto mb-12">
@@ -429,11 +516,13 @@ export default function HomePage() {
 </div>
 </div>
 </section>
+</Reveal>
 
-<ClassesSection />
-<TrainersSection />
-<NewsSection />
-<PricingSection />
+<Reveal><ClassesSection /></Reveal>
+<Reveal><TrainersSection /></Reveal>
+<Reveal><NewsSection /></Reveal>
+<Reveal><PricingSection /></Reveal>
+<Reveal><StatsBannerSection /></Reveal>
 </div></main>
 
 <footer className="w-full bg-inverse-surface text-inverse-on-surface pt-16 pb-8">

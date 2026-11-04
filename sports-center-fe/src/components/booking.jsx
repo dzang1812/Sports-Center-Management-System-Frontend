@@ -64,7 +64,7 @@ export function MemberLookupField({ onSelect }) {
         <div className="relative">
           <input
             className={inputCls}
-            placeholder="Nhập để tìm hội viên…"
+            placeholder="Mã hội viên (VD: 12), tên, email hoặc SĐT…"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onFocus={() => results.length && setOpen(true)}
