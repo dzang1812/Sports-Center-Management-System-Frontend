@@ -10,7 +10,7 @@ import CoachTeachingStats from '../components/CoachTeachingStats'
 import { CoachMessageModal } from '../components/frontDesk'
 import TrainingResultsModal from '../components/TrainingResultsModal'
 import { addDays, formatTimestamp, fromTimeOnly, hasScheduleStarted, toDateOnly, weekRange } from '../dateUtils'
-import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, SESSION_STATUS_LABEL } from '../labels'
+import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, SESSION_STATUS_LABEL, profileFacts } from '../labels'
 
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
 const CHECK_IN_STATE_TONE = { NotCheckedIn: 'slate', Present: 'green', Late: 'amber', Absent: 'red' }
@@ -82,6 +82,11 @@ function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
             <div>
               <div className="font-semibold">{r.fullName} <span className="text-secondary font-normal">#{r.memberId}</span></div>
               <div className="text-secondary text-body-sm">{r.email}</div>
+              {profileFacts(r.profile).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {profileFacts(r.profile).map((fact) => <span key={fact} className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[12px]">{fact}</span>)}
+                </div>
+              )}
             </div>
             {isClass ? (
               <div className="text-right">

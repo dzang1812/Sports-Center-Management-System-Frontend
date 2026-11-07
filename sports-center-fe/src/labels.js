@@ -4,6 +4,21 @@ export const GOAL_LABEL = { WeightLoss: 'Giảm cân', MuscleGain: 'Tăng cơ', 
 export const LEVEL_LABEL = { Beginner: 'Mới bắt đầu', Intermediate: 'Trung bình', Advanced: 'Nâng cao' }
 export const GENDER_LABEL = { Male: 'Nam', Female: 'Nữ', Other: 'Khác' }
 
+// Coach-facing summary of a member profile (roster / students): goal, level, gender + age, height/weight, phone.
+export const profileFacts = (p) => {
+  if (!p) return []
+  const today = new Date()
+  const birth = p.dateOfBirth && new Date(`${p.dateOfBirth}T00:00:00`)
+  const age = birth && today.getFullYear() - birth.getFullYear() - (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0)
+  return [
+    p.goal && GOAL_LABEL[p.goal],
+    p.level && LEVEL_LABEL[p.level],
+    [p.gender && GENDER_LABEL[p.gender], age != null && `${age} tuổi`].filter(Boolean).join(', '),
+    [p.heightCm && `${Number(p.heightCm)} cm`, p.weightKg && `${Number(p.weightKg)} kg`].filter(Boolean).join(' · '),
+    p.phone,
+  ].filter(Boolean)
+}
+
 export const AUDIT_ACTIONS = {
   'User.Create': 'Tạo tài khoản',
   'User.Update': 'Sửa tài khoản',
