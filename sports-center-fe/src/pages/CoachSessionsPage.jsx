@@ -7,8 +7,10 @@ import { OpenCheckInCodeButton, SelfCheckInButton } from '../components/classChe
 import { Alert, Badge, Field, Icon, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import WeekTimetable from '../components/WeekTimetable'
 import CoachTeachingStats from '../components/CoachTeachingStats'
+import { CoachMessageModal } from '../components/frontDesk'
+import TrainingResultsModal from '../components/TrainingResultsModal'
 import { addDays, formatTimestamp, fromTimeOnly, hasScheduleStarted, toDateOnly, weekRange } from '../dateUtils'
-import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, SESSION_STATUS_LABEL } from '../labels'
+import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, SESSION_STATUS_LABEL, profileFacts } from '../labels'
 
 const SESSION_STATUS_TONE = { Scheduled: 'green', Completed: 'slate', Cancelled: 'red' }
 const CHECK_IN_STATE_TONE = { NotCheckedIn: 'slate', Present: 'green', Late: 'amber', Absent: 'red' }
@@ -20,7 +22,7 @@ const PT_MARKS = [
 
 // Class roster is read-only (self check-in is the only way to mark it — see FE-01 in the handoff doc);
 // PT roster is still manually graded by the Coach. Shown inline under the schedule, not as a popup.
-function RosterPanel({ item, onClose, onDone, onCancel }) {
+function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
   const panel = useRef(null)
   useEffect(() => {
     panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -31,6 +33,7 @@ function RosterPanel({ item, onClose, onDone, onCancel }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [resultsOpen, setResultsOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,6 +82,11 @@ function RosterPanel({ item, onClose, onDone, onCancel }) {
             <div>
               <div className="font-semibold">{r.fullName} <span className="text-secondary font-normal">#{r.memberId}</span></div>
               <div className="text-secondary text-body-sm">{r.email}</div>
+              {profileFacts(r.profile).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {profileFacts(r.profile).map((fact) => <span key={fact} className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[12px]">{fact}</span>)}
+                </div>
+              )}
             </div>
             {isClass ? (
               <div className="text-right">
@@ -103,11 +111,22 @@ function RosterPanel({ item, onClose, onDone, onCancel }) {
         {!isClass && item.status === 'Scheduled' && (!enforceTimeRules || !hasScheduleStarted(item)) && !roster.some((r) => r.attendanceRecorded || r.attendanceFinalized) && (
           <button type="button" disabled={busy || loading || !!error} className={btnOutline + ' !text-error'} onClick={() => onCancel(item)}>Hủy buổi PT</button>
         )}
+        {item.status !== 'Cancelled' && (
+          <button type="button" disabled={loading || !roster.length} className={btnOutline} onClick={() => setResultsOpen(true)}>
+            <Icon name="edit_note" className="text-base" />Ghi kết quả
+          </button>
+        )}
+        {isClass && (
+          <button type="button" disabled={loading} className={btnOutline} onClick={() => onMessage(item)}>
+            <Icon name="campaign" className="text-base" />Gửi bài tập / thông báo
+          </button>
+        )}
         <button type="button" className={btnOutline} onClick={onClose}>Đóng</button>
         {!isClass && (
           <button type="button" disabled={busy || !roster.length} className={btnPrimary} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu điểm danh'}</button>
         )}
       </div>
+      {resultsOpen && <TrainingResultsModal item={item} members={roster} onClose={() => setResultsOpen(false)} />}
     </section>
   )
 }
@@ -255,6 +274,7 @@ export default function CoachSessionsPage() {
   const [view, setView] = useState('week')
   const [rosterItem, setRosterItem] = useState(null)
   const [cancelItem, setCancelItem] = useState(null)
+  const [messageItem, setMessageItem] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   return (
@@ -282,7 +302,8 @@ export default function CoachSessionsPage() {
       <CoachTeachingStats refresh={reloadKey} />
       {view === 'week' ? <WeekView key={reloadKey} setRosterItem={setRosterItem} /> : <ListView key={reloadKey} setRosterItem={setRosterItem} />}
 
-      {rosterItem && <RosterPanel key={`${rosterItem.type}-${rosterItem.referenceId}`} item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} />}
+      {rosterItem && <RosterPanel key={`${rosterItem.type}-${rosterItem.referenceId}`} item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} onMessage={setMessageItem} />}
+      {messageItem && <CoachMessageModal item={messageItem} onClose={() => setMessageItem(null)} />}
       {cancelItem && <CancelBookingModal item={cancelItem} kind="coach" onClose={() => setCancelItem(null)} onDone={() => { setCancelItem(null); setReloadKey((k) => k + 1) }} />}
     </div>
   )

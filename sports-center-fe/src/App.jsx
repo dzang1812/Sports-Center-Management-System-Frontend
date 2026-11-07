@@ -8,6 +8,8 @@ import { MemberSupportPage, SupportDeskPage } from './components/support'
 import ClassesPage from './pages/ClassesPage'
 import CoachAvailabilityPage from './pages/CoachAvailabilityPage'
 import CoachSessionsPage from './pages/CoachSessionsPage'
+import CoachStudentsPage from './pages/CoachStudentsPage'
+import CoachPlansPage from './pages/CoachPlansPage'
 import { Forbidden, NotFound } from './pages/ErrorPages'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
@@ -127,6 +129,8 @@ export default function App() {
               <Route path="/coach" element={<Navigate to="/coach/schedule" replace />} />
               <Route path="/coach/schedule" element={<CoachSessionsPage />} />
               <Route path="/coach/availability" element={<CoachAvailabilityPage />} />
+              <Route path="/coach/students" element={<CoachStudentsPage />} />
+              <Route path="/coach/plans" element={<CoachPlansPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Member']} />}>
