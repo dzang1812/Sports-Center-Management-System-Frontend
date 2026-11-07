@@ -20,8 +20,10 @@ const DAYS = [
 const emptyDraft = () => ({ id: null, title: '', goal: '', days: {} })
 
 // Server plan -> editable draft: one entry per training day, rest days are simply absent.
+// A coach-made plan (coachId set) keeps the plan in `coach` and is shown read-only.
 const toDraft = (plan) => ({
   id: plan.id,
+  coach: plan.coachId ? plan : null,
   title: plan.title,
   goal: plan.goal ?? '',
   days: Object.fromEntries(
@@ -164,7 +166,7 @@ function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
 }
 
 // The plan repeats weekly; the calendar just pins its days onto real dates so members see "today".
-function WeekCalendar({ days, onOpen }) {
+function WeekCalendar({ days, onOpen, readOnly = false }) {
   const [weekStart, setWeekStart] = useState(() => weekRange()[0])
   const today = toDateOnly()
   const trainingDays = DAYS.filter(([k]) => days[k]).length
@@ -186,9 +188,10 @@ function WeekCalendar({ days, onOpen }) {
           const date = addDays(weekStart, index)
           const isToday = date === today
           const day = days[key]
+          const Cell = readOnly ? 'div' : 'button'
           return (
-            <button key={key} type="button" onClick={() => onOpen(key)} aria-label={`${label}, ${formatDate(date)}: ${day ? `${day.items.length} bài tập` : 'ngày nghỉ'}. Bấm để sửa`}
-              className={`group min-w-0 flex flex-col text-left border-b border-r border-slate-200 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary sm:last:col-span-2 xl:last:col-span-1 xl:border-b-0 xl:last:border-r-0 ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}>
+            <Cell key={key} {...(readOnly ? {} : { type: 'button', onClick: () => onOpen(key), 'aria-label': `${label}, ${formatDate(date)}: ${day ? `${day.items.length} bài tập` : 'ngày nghỉ'}. Bấm để sửa` })}
+              className={`group min-w-0 flex flex-col text-left border-b border-r border-slate-200 transition-colors ${readOnly ? '' : 'hover:bg-slate-50'} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary sm:last:col-span-2 xl:last:col-span-1 xl:border-b-0 xl:last:border-r-0 ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}>
               <div className={`w-full flex items-center justify-between gap-1 border-b px-2 py-3 ${isToday ? 'border-indigo-200 bg-indigo-50' : 'border-slate-100'}`}>
                 <div className="flex min-w-0 items-center gap-1.5">
                   <span aria-current={isToday ? 'date' : undefined} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold ${isToday ? 'bg-primary-container text-white' : 'text-slate-800'}`}>{Number(date.slice(8))}</span>
@@ -197,7 +200,7 @@ function WeekCalendar({ days, onOpen }) {
                     <p className="text-[10px] text-slate-500">{isToday ? 'Hôm nay' : formatDate(date, { day: '2-digit', month: '2-digit' })}</p>
                   </div>
                 </div>
-                <Icon name="edit" className="text-base text-slate-300 group-hover:text-primary-container" />
+                {!readOnly && <Icon name="edit" className="text-base text-slate-300 group-hover:text-primary-container" />}
               </div>
               {day ? (
                 <div className="w-full flex-1 space-y-2 p-2 xl:min-h-48">
@@ -219,10 +222,10 @@ function WeekCalendar({ days, onOpen }) {
               ) : (
                 <div className="w-full flex-1 flex xl:flex-col items-center justify-center gap-1 p-3 text-center text-[12px] text-slate-400 xl:min-h-48">
                   <Icon name="bedtime" className="text-xl" /> Ngày nghỉ
-                  <span className="text-primary-container font-semibold opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">+ Thêm buổi</span>
+                  {!readOnly && <span className="text-primary-container font-semibold opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">+ Thêm buổi</span>}
                 </div>
               )}
-            </button>
+            </Cell>
           )
         })}
       </div>
@@ -260,7 +263,8 @@ export default function MemberTrainingPage() {
     return () => window.removeEventListener('sc:plan-changed', reload)
   }, [])
 
-  const active = useMemo(() => plans?.find((p) => p.isActive), [plans])
+  // Only the member's own plans are editable drafts; coach plans (coachId set) are opened read-only from the chips.
+  const active = useMemo(() => plans?.find((p) => !p.coachId && p.isActive), [plans])
   useEffect(() => {
     if (plans && !draft) setDraft(active ? toDraft(active) : emptyDraft())
   }, [plans, active, draft])
@@ -334,6 +338,7 @@ export default function MemberTrainingPage() {
   }
 
   if (!plans || !draft) return <p className="text-secondary">{error || 'Đang tải…'}</p>
+  const coachPlan = draft.coach
 
   return (
     <div className="flex flex-col gap-4 pb-8">
@@ -352,7 +357,7 @@ export default function MemberTrainingPage() {
             className={`px-3 py-1.5 rounded-lg border text-label-md flex items-center gap-2 ${draft.id === p.id ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant'}`}
           >
             {p.title}
-            {p.isActive && <Badge tone="green">Đang dùng</Badge>}
+            {p.coachId ? <Badge tone="indigo">HLV {p.coachName}</Badge> : p.isActive && <Badge tone="green">Đang dùng</Badge>}
           </button>
         ))}
         <button className={btnOutline} onClick={() => setDraft(emptyDraft())}>
@@ -366,19 +371,34 @@ export default function MemberTrainingPage() {
         </button>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Field label="Tên lịch tập">
-          <input className={inputCls} maxLength={100} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="vd: Tăng cơ 4 buổi/tuần" />
-        </Field>
-        <Field label="Mục tiêu (không bắt buộc)">
-          <input className={inputCls} maxLength={100} value={draft.goal} onChange={(e) => setDraft({ ...draft, goal: e.target.value })} />
-        </Field>
-      </div>
+      {coachPlan ? (
+        <section className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 flex flex-col gap-1.5" aria-label="Kế hoạch do HLV lập">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold text-lg">{coachPlan.title}</h2>
+            <Badge tone="indigo">HLV {coachPlan.coachName}</Badge>
+            <Badge tone="slate">{coachPlan.classId ? `Lớp ${coachPlan.className}` : 'Cá nhân'}</Badge>
+            {!coachPlan.isActive && <Badge tone="amber">Tạm ngưng</Badge>}
+          </div>
+          {coachPlan.goal && <p className="text-body-sm"><b>Mục tiêu:</b> {coachPlan.goal}</p>}
+          {coachPlan.description && <p className="text-body-sm text-secondary whitespace-pre-line">{coachPlan.description}</p>}
+          {(coachPlan.startDate || coachPlan.endDate) && <p className="text-body-sm text-secondary">Áp dụng {coachPlan.startDate ? `từ ${formatDate(coachPlan.startDate)}` : ''}{coachPlan.endDate ? ` đến ${formatDate(coachPlan.endDate)}` : ''}</p>}
+          <p className="text-body-sm text-secondary">Kế hoạch do huấn luyện viên lập nên bạn chỉ xem được. Muốn điều chỉnh, hãy trao đổi với HLV.</p>
+        </section>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Tên lịch tập">
+            <input className={inputCls} maxLength={100} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="vd: Tăng cơ 4 buổi/tuần" />
+          </Field>
+          <Field label="Mục tiêu (không bắt buộc)">
+            <input className={inputCls} maxLength={100} value={draft.goal} onChange={(e) => setDraft({ ...draft, goal: e.target.value })} />
+          </Field>
+        </div>
+      )}
 
-      <WeekCalendar days={draft.days} onOpen={setEditing} />
-      <p className="text-body-sm text-secondary -mt-2">Bấm vào một ngày để thêm/sửa bài tập. Nhớ bấm lưu sau khi chỉnh.</p>
+      <WeekCalendar days={draft.days} onOpen={setEditing} readOnly={!!coachPlan} />
+      {!coachPlan && <p className="text-body-sm text-secondary -mt-2">Bấm vào một ngày để thêm/sửa bài tập. Nhớ bấm lưu sau khi chỉnh.</p>}
 
-      <div className="flex gap-2 flex-wrap">
+      {!coachPlan && <div className="flex gap-2 flex-wrap">
         <button className={btnPrimary} onClick={save} disabled={saving}>
           {saving ? 'Đang lưu…' : draft.id ? 'Lưu thay đổi' : 'Tạo lịch tập'}
         </button>
@@ -395,7 +415,7 @@ export default function MemberTrainingPage() {
             Xóa
           </button>
         )}
-      </div>
+      </div>}
 
       {ai === 'generate' && <AiGenerateModal onClose={() => setAi(null)} onApplied={refreshAfterAi} />}
       {ai === 'media' && <AiMediaModal onClose={() => setAi(null)} />}
