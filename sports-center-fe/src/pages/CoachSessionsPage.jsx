@@ -8,6 +8,7 @@ import { Alert, Badge, Field, Icon, btnOutline, btnPrimary, inputCls } from '../
 import WeekTimetable from '../components/WeekTimetable'
 import CoachTeachingStats from '../components/CoachTeachingStats'
 import { CoachMessageModal } from '../components/frontDesk'
+import TrainingResultsModal from '../components/TrainingResultsModal'
 import { addDays, formatTimestamp, fromTimeOnly, hasScheduleStarted, toDateOnly, weekRange } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, CHECK_IN_STATE_LABEL, SESSION_STATUS_LABEL } from '../labels'
 
@@ -32,6 +33,7 @@ function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [resultsOpen, setResultsOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -104,6 +106,11 @@ function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
         {!isClass && item.status === 'Scheduled' && (!enforceTimeRules || !hasScheduleStarted(item)) && !roster.some((r) => r.attendanceRecorded || r.attendanceFinalized) && (
           <button type="button" disabled={busy || loading || !!error} className={btnOutline + ' !text-error'} onClick={() => onCancel(item)}>Hủy buổi PT</button>
         )}
+        {item.status !== 'Cancelled' && (
+          <button type="button" disabled={loading || !roster.length} className={btnOutline} onClick={() => setResultsOpen(true)}>
+            <Icon name="edit_note" className="text-base" />Ghi kết quả
+          </button>
+        )}
         {isClass && (
           <button type="button" disabled={loading} className={btnOutline} onClick={() => onMessage(item)}>
             <Icon name="campaign" className="text-base" />Gửi bài tập / thông báo
@@ -114,6 +121,7 @@ function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
           <button type="button" disabled={busy || !roster.length} className={btnPrimary} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu điểm danh'}</button>
         )}
       </div>
+      {resultsOpen && <TrainingResultsModal item={item} members={roster} onClose={() => setResultsOpen(false)} />}
     </section>
   )
 }
