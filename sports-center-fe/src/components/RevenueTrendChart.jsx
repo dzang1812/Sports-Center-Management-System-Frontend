@@ -52,23 +52,8 @@ export default function RevenueTrendChart() {
     return () => controller.abort()
   }, [])
 
-  // Top 5 items by 6-month revenue get their own line (colour fixed by that rank); the rest sum into "Khác".
-  const itemSeries = useMemo(() => {
-    if (!months) return []
-    const byKey = new Map()
-    months.forEach((m, i) => m.items.forEach(item => {
-      const key = `${item.kind}:${item.itemId}`
-      const entry = byKey.get(key) ?? { key, name: item.name, kind: item.kind, values: Array(months.length).fill(0), total: 0 }
-      entry.values[i] += item.revenue; entry.total += item.revenue
-      byKey.set(key, entry)
-    }))
-    const ranked = [...byKey.values()].sort((a, b) => b.total - a.total)
-    const top = ranked.slice(0, COLORS.length).map((s, i) => ({ ...s, color: COLORS[i] }))
-    const rest = ranked.slice(COLORS.length)
-    if (rest.length) top.push({ key: 'other', name: `Khác (${rest.length})`, color: OTHER_COLOR,
-      values: months.map((_, i) => rest.reduce((sum, s) => sum + s.values[i], 0)) })
-    return top
-  }, [months])
+  const courseSeries = useMemo(() => buildSeries(months, ['Course']), [months])
+  const planSeries = useMemo(() => buildSeries(months, ['Membership', 'PtPackage', 'PtSingle']), [months])
 
   return <section className="rounded-2xl border border-outline-variant/50 bg-white p-5 space-y-4"><h2 className="font-headline-md text-headline-md">Doanh thu 6 tháng gần nhất</h2>
     {error && <Alert>{error}</Alert>}{!months && !error && <p role="status" className="text-secondary">Đang tải biểu đồ…</p>}
@@ -76,19 +61,44 @@ export default function RevenueTrendChart() {
       <div className="space-y-2"><h3 className="text-body-sm font-semibold text-secondary">Tổng doanh thu</h3>
         <div className="text-primary"><LineChart months={months} valueLabels series={[{ key: 'total', name: 'Tổng doanh thu', color: 'currentColor', area: true, values: months.map(m => m.totalRevenue) }]} /></div>
       </div>
-      <div className="space-y-2"><h3 className="text-body-sm font-semibold text-secondary">Theo gói & khóa học</h3>
-        {!itemSeries.length ? <p className="text-body-sm text-secondary py-8">Chưa có doanh thu trong 6 tháng này.</p> :
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 min-w-0"><LineChart months={months} series={itemSeries} /></div>
-            <ul className="sm:w-40 shrink-0 space-y-2 text-body-sm" aria-label="Chú thích">
-              {itemSeries.map(s => <li key={s.key} className="flex items-start gap-2">
-                <span className="mt-1.5 h-0.5 w-4 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden="true" />
-                <span className="min-w-0"><span className="block text-on-surface leading-snug break-words">{s.name}</span>
-                  {s.kind && <span className="block text-secondary text-[12px]">{KIND_LABEL[s.kind] ?? s.kind}</span>}</span>
-              </li>)}
-            </ul>
-          </div>}
+      <div className="space-y-6">
+        <ItemChart title="Theo khóa học" months={months} series={courseSeries} />
+        <ItemChart title="Theo gói tập & PT" months={months} series={planSeries} showKind />
       </div>
     </div>}
   </section>
+}
+
+// Top 5 items (of the given kinds) by 6-month revenue get their own line, colour fixed by that rank; the rest sum into "Khác".
+function buildSeries(months, kinds) {
+  if (!months) return []
+  const byKey = new Map()
+  months.forEach((m, i) => m.items.filter(item => kinds.includes(item.kind)).forEach(item => {
+    const key = `${item.kind}:${item.itemId}`
+    const entry = byKey.get(key) ?? { key, name: item.name, kind: item.kind, values: Array(months.length).fill(0), total: 0 }
+    entry.values[i] += item.revenue; entry.total += item.revenue
+    byKey.set(key, entry)
+  }))
+  const ranked = [...byKey.values()].sort((a, b) => b.total - a.total)
+  const top = ranked.slice(0, COLORS.length).map((s, i) => ({ ...s, color: COLORS[i] }))
+  const rest = ranked.slice(COLORS.length)
+  if (rest.length) top.push({ key: 'other', name: `Khác (${rest.length})`, color: OTHER_COLOR,
+    values: months.map((_, i) => rest.reduce((sum, s) => sum + s.values[i], 0)) })
+  return top
+}
+
+function ItemChart({ title, months, series, showKind }) {
+  return <div className="space-y-2"><h3 className="text-body-sm font-semibold text-secondary">{title}</h3>
+    {!series.length ? <p className="text-body-sm text-secondary py-4">Chưa có doanh thu trong 6 tháng này.</p> :
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 min-w-0"><LineChart months={months} series={series} /></div>
+        <ul className="sm:w-40 shrink-0 space-y-2 text-body-sm" aria-label={`Chú thích: ${title}`}>
+          {series.map(s => <li key={s.key} className="flex items-start gap-2">
+            <span className="mt-1.5 h-0.5 w-4 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden="true" />
+            <span className="min-w-0"><span className="block text-on-surface leading-snug break-words">{s.name}</span>
+              {showKind && s.kind && <span className="block text-secondary text-[12px]">{KIND_LABEL[s.kind] ?? s.kind}</span>}</span>
+          </li>)}
+        </ul>
+      </div>}
+  </div>
 }
