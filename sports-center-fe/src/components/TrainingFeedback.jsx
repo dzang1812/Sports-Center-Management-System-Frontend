@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
 import { formatDate, formatTimestamp } from '../dateUtils'
 import { Alert, Badge } from './ui'
+import { coachLabel } from '../labels'
 
 const amount = (r) => [r.sets != null && r.reps != null ? `${r.sets} × ${r.reps}` : r.sets != null ? `${r.sets} hiệp` : r.reps != null ? `${r.reps} lần` : null,
   r.weightKg != null && `${Number(r.weightKg).toLocaleString('vi-VN')} kg`, r.durationMin != null && `${r.durationMin} phút`].filter(Boolean).join(' · ')
@@ -49,7 +50,7 @@ export function EvaluationList({ evaluations }) {
       {evaluations.map((e) => (
         <article key={e.id} className="rounded-xl border border-outline-variant/50 bg-white p-4">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="font-semibold">HLV {e.coachName}</span>
+            <span className="font-semibold">{coachLabel(e.coachName)}</span>
             {e.score != null && <Badge tone={e.score >= 7 ? 'green' : e.score >= 5 ? 'amber' : 'red'}>{e.score}/10</Badge>}
             <span className="text-body-sm text-secondary">{formatTimestamp(e.createdAt)}</span>
           </div>

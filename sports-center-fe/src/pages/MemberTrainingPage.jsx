@@ -4,6 +4,7 @@ import { addDays, formatDate, toDateOnly, weekRange } from '../dateUtils'
 import { AiGenerateModal, AiMediaModal } from '../components/AiAssistant'
 import ExerciseDetailModal from '../components/ExerciseDetail'
 import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { coachLabel } from '../labels'
 
 const ExerciseGuideModal = lazy(() => import('../components/ExerciseGuide'))
 
@@ -357,7 +358,7 @@ export default function MemberTrainingPage() {
             className={`px-3 py-1.5 rounded-lg border text-label-md flex items-center gap-2 ${draft.id === p.id ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant'}`}
           >
             {p.title}
-            {p.coachId ? <Badge tone="indigo">HLV {p.coachName}</Badge> : p.isActive && <Badge tone="green">Đang dùng</Badge>}
+            {p.coachId ? <Badge tone="indigo">{coachLabel(p.coachName)}</Badge> : p.isActive && <Badge tone="green">Đang dùng</Badge>}
           </button>
         ))}
         <button className={btnOutline} onClick={() => setDraft(emptyDraft())}>
@@ -375,7 +376,7 @@ export default function MemberTrainingPage() {
         <section className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 flex flex-col gap-1.5" aria-label="Kế hoạch do HLV lập">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-semibold text-lg">{coachPlan.title}</h2>
-            <Badge tone="indigo">HLV {coachPlan.coachName}</Badge>
+            <Badge tone="indigo">{coachLabel(coachPlan.coachName)}</Badge>
             <Badge tone="slate">{coachPlan.classId ? `Lớp ${coachPlan.className}` : 'Cá nhân'}</Badge>
             {!coachPlan.isActive && <Badge tone="amber">Tạm ngưng</Badge>}
           </div>

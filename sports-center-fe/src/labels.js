@@ -4,6 +4,9 @@ export const GOAL_LABEL = { WeightLoss: 'Giảm cân', MuscleGain: 'Tăng cơ', 
 export const LEVEL_LABEL = { Beginner: 'Mới bắt đầu', Intermediate: 'Trung bình', Advanced: 'Nâng cao' }
 export const GENDER_LABEL = { Male: 'Nam', Female: 'Nữ', Other: 'Khác' }
 
+// "HLV {name}" without doubling it for names that already carry the title (e.g. demo "HLV Yoga").
+export const coachLabel = (name) => (/^HLV\s/i.test(name ?? '') ? name : `HLV ${name}`)
+
 // Coach-facing summary of a member profile (roster / students): goal, level, gender + age, height/weight, phone.
 export const profileFacts = (p) => {
   if (!p) return []
