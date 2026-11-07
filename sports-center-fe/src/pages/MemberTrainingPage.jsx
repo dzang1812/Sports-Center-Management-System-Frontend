@@ -7,7 +7,7 @@ import { Alert, Badge, Field, Icon, Modal, Toast, btnOutline, btnPrimary, inputC
 
 const ExerciseGuideModal = lazy(() => import('../components/ExerciseGuide'))
 
-const DAYS = [
+export const DAYS = [
   ['Monday', 'Thứ 2'],
   ['Tuesday', 'Thứ 3'],
   ['Wednesday', 'Thứ 4'],
@@ -21,7 +21,7 @@ const emptyDraft = () => ({ id: null, title: '', goal: '', days: {} })
 
 // Server plan -> editable draft: one entry per training day, rest days are simply absent.
 // A coach-made plan (coachId set) keeps the plan in `coach` and is shown read-only.
-const toDraft = (plan) => ({
+export const toDraft = (plan) => ({
   id: plan.id,
   coach: plan.coachId ? plan : null,
   title: plan.title,
@@ -41,7 +41,7 @@ function Thumb({ src, name }) {
   )
 }
 
-function ExercisePicker({ onPick, onClose }) {
+export function ExercisePicker({ onPick, onClose }) {
   const [groups, setGroups] = useState([])
   const [group, setGroup] = useState('')
   const [q, setQ] = useState('')
@@ -112,7 +112,7 @@ function ExercisePicker({ onPick, onClose }) {
   )
 }
 
-function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
+export function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
   if (!day)
     return (
       <div className="rounded-xl border border-dashed border-outline-variant p-4 flex flex-col gap-2 bg-surface-container-lowest">
@@ -148,10 +148,10 @@ function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
               <input className={`${inputCls} !w-16 !py-1`} maxLength={20} value={it.reps} onChange={(e) => setItem(idx, { reps: e.target.value })} />
               <span>lần</span>
             </div>
-            <button type="button" onClick={() => onGuide(it)} aria-label={`Hướng dẫn ${it.exerciseName}`}
+            {onGuide && <button type="button" onClick={() => onGuide(it)} aria-label={`Hướng dẫn ${it.exerciseName}`}
               className="mt-1 inline-flex items-center gap-1 text-body-sm font-semibold text-primary-container hover:underline">
               <Icon name="play_circle" className="text-[16px]" /> Hướng dẫn
-            </button>
+            </button>}
           </div>
           <button className="text-secondary hover:text-error" title="Xóa bài" onClick={() => onChange({ ...day, items: day.items.filter((_, i) => i !== idx) })}>
             <Icon name="close" className="text-[20px]" />
@@ -166,7 +166,7 @@ function DayCard({ label, day, onChange, onAdd, onDetail, onGuide }) {
 }
 
 // The plan repeats weekly; the calendar just pins its days onto real dates so members see "today".
-function WeekCalendar({ days, onOpen, readOnly = false }) {
+export function WeekCalendar({ days, onOpen, readOnly = false }) {
   const [weekStart, setWeekStart] = useState(() => weekRange()[0])
   const today = toDateOnly()
   const trainingDays = DAYS.filter(([k]) => days[k]).length
