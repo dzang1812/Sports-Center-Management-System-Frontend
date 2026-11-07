@@ -5,7 +5,7 @@ import { Alert } from './ui'
 
 const number = new Intl.NumberFormat('vi-VN')
 const shortMoney = value => value >= 1_000_000 ? `${number.format(Math.round(value / 1_000_000))}tr` : number.format(value)
-const WIDTH = 480, HEIGHT = 220, PAD_X = 30, TOP = 30, BOTTOM = 184
+const WIDTH = 480, HEIGHT = 145, PAD_X = 30, TOP = 30, BOTTOM = 107
 // Categorical order (validated for colour-blind separation); smaller items fold into a grey "Khác" line.
 const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4']
 const OTHER_COLOR = '#9ca3af'
