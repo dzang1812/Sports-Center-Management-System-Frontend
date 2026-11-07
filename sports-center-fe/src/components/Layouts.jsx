@@ -32,6 +32,7 @@ const NAV = {
   Coach: [
     { to: '/coach/schedule', label: 'Lịch dạy', icon: 'calendar_month' },
     { to: '/coach/availability', label: 'Khung giờ nhận PT', icon: 'schedule' },
+    { to: '/coach/students', label: 'Học viên của tôi', icon: 'groups' },
   ],
   Member: [
     { to: '/member/classes', label: 'Khám phá', icon: 'explore' },
