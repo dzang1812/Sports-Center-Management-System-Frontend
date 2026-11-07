@@ -5,6 +5,7 @@ import { Alert } from './ui'
 
 const number = new Intl.NumberFormat('vi-VN')
 const shortMoney = value => value >= 1_000_000 ? `${number.format(Math.round(value / 1_000_000))}tr` : number.format(value)
+const WIDTH = 600, HEIGHT = 200, PAD_X = 36, TOP = 28, BOTTOM = 168
 
 export default function RevenueTrendChart() {
   const [months, setMonths] = useState(null)
@@ -24,9 +25,23 @@ export default function RevenueTrendChart() {
       .catch(err => { if (!controller.signal.aborted) setError(err.message) })
     return () => controller.abort()
   }, [])
-  const max = useMemo(() => Math.max(1, ...(months ?? []).map(month => month.totalRevenue)), [months])
+  // SVG in a fixed viewBox that scales with the card; y runs top (max) to bottom (0).
+  const points = useMemo(() => {
+    if (!months) return []
+    const max = Math.max(1, ...months.map(month => month.totalRevenue))
+    return months.map((month, index) => ({ ...month, x: PAD_X + index * (WIDTH - 2 * PAD_X) / (months.length - 1), y: TOP + (1 - month.totalRevenue / max) * (BOTTOM - TOP) }))
+  }, [months])
+  const line = points.map(point => `${point.x},${point.y}`).join(' ')
   return <section className="rounded-2xl border border-outline-variant/50 bg-white p-5 space-y-4"><h2 className="font-headline-md text-headline-md">Doanh thu 6 tháng gần nhất</h2>
     {error && <Alert>{error}</Alert>}{!months && !error && <p role="status" className="text-secondary">Đang tải biểu đồ…</p>}
-    {months && <div className="flex items-end gap-3 sm:gap-5 h-44">{months.map(month => <div key={month.from} className="flex-1 flex flex-col items-center h-full justify-end gap-1.5"><span className="text-body-sm text-secondary">{shortMoney(month.totalRevenue)}</span><div title={`${month.label}: ${number.format(month.totalRevenue)}đ`} className={`w-full max-w-[44px] rounded-t-md ${month.isCurrent ? 'bg-primary' : 'bg-primary-container/70'}`} style={{ height: `${Math.max(3, month.totalRevenue / max * 100)}%` }} /><span className={`text-body-sm ${month.isCurrent ? 'text-primary font-semibold' : 'text-secondary'}`}>{month.label}</span></div>)}</div>}
+    {months && <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-auto text-primary" role="img" aria-label={points.map(point => `${point.label}: ${number.format(point.totalRevenue)}đ`).join(', ')}>
+      {[TOP, (TOP + BOTTOM) / 2, BOTTOM].map(y => <line key={y} x1={PAD_X} x2={WIDTH - PAD_X} y1={y} y2={y} className="stroke-outline-variant/50" strokeDasharray={y === BOTTOM ? undefined : '4 4'} />)}
+      <polygon points={`${points[0].x},${BOTTOM} ${line} ${points.at(-1).x},${BOTTOM}`} fill="currentColor" fillOpacity="0.08" />
+      <polyline points={line} fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+      {points.map(point => <g key={point.from}><title>{`${point.label}: ${number.format(point.totalRevenue)}đ`}</title>
+        <circle cx={point.x} cy={point.y} r={point.isCurrent ? 6 : 4.5} fill={point.isCurrent ? 'currentColor' : 'white'} stroke="currentColor" strokeWidth="2.5" />
+        <text x={point.x} y={point.y - 12} textAnchor="middle" className="fill-secondary text-[13px]">{shortMoney(point.totalRevenue)}</text>
+        <text x={point.x} y={HEIGHT - 6} textAnchor="middle" className={`text-[13px] ${point.isCurrent ? 'fill-primary font-semibold' : 'fill-secondary'}`}>{point.label}</text></g>)}
+    </svg>}
   </section>
 }
