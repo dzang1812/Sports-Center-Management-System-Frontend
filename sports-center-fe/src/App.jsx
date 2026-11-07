@@ -20,6 +20,10 @@ import ManagerPtPage from './pages/ManagerPtPage'
 import MemberExplorePage from './pages/MemberExplorePage'
 import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
 import MemberTrainingPage from './pages/MemberTrainingPage'
+import MemberCoachReviewsPage from './pages/MemberCoachReviewsPage'
+import StaffCoachReviewsPage from './pages/StaffCoachReviewsPage'
+import ManagerVouchersPage from './pages/ManagerVouchersPage'
+import MemberVouchersPage from './pages/MemberVouchersPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import NewsPage from './pages/NewsPage'
 import PackagesPage from './pages/PackagesPage'
@@ -100,6 +104,8 @@ export default function App() {
               <Route path="/manager/settings" element={<ManagerSettingsPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
               <Route path="/manager/support" element={<SupportDeskPage />} />
+              <Route path="/manager/coach-reviews" element={<StaffCoachReviewsPage />} />
+              <Route path="/manager/vouchers" element={<ManagerVouchersPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Receptionist']} />}>
@@ -114,6 +120,7 @@ export default function App() {
               <Route path="/reception/schedule" element={<ReceptionCoursesPage />} />
               <Route path="/reception/payments" element={<ReceptionPaymentsPage />} />
               <Route path="/reception/support" element={<SupportDeskPage />} />
+              <Route path="/reception/coach-reviews" element={<StaffCoachReviewsPage />} />
             </Route>
 
             <Route element={<RequireRole roles={['Coach']} />}>
@@ -130,6 +137,8 @@ export default function App() {
               <Route path="/member/wallet" element={<MemberCommerce viewMode="wallet" />} />
               <Route path="/member/pt" element={<Navigate to="/member/classes?type=pt" replace />} />
               <Route path="/member/training" element={<MemberTrainingPage />} />
+              <Route path="/member/reviews" element={<MemberCoachReviewsPage />} />
+              <Route path="/member/vouchers" element={<MemberVouchersPage />} />
               <Route path="/member/support" element={<MemberSupportPage />} />
             </Route>
           </Route>

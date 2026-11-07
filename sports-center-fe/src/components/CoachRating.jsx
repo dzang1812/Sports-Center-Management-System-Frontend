@@ -118,9 +118,20 @@ function ReviewRow({ item, onSaved }) {
 }
 
 // Member: coaches they actually trained with (class or PT already held) — rate & comment, editable later.
-export function MyCoachReviews() {
+// `standalone`: the /member/reviews page — always shown, plain list with loading/empty states instead of a collapsible card.
+export function MyCoachReviews({ standalone = false }) {
   const [items, setItems] = useState(null)
   useEffect(() => { api('/me/coach-reviews').then(setItems).catch(() => setItems([])) }, [])
+  const onSaved = saved => setItems(list => list.map(i => i.coachId === saved.coachId ? saved : i))
+  if (standalone) {
+    if (!items) return <p role="status" className="py-10 text-center text-secondary">Đang tải…</p>
+    if (!items.length) return <div className="rounded-2xl border border-outline-variant/50 bg-white p-8 text-center text-secondary"><Icon name="reviews" className="text-4xl text-amber-400" /><p className="mt-2">Bạn chưa học với HLV nào. Sau khi tham gia lớp hoặc buổi PT, bạn có thể đánh giá HLV tại đây.</p></div>
+    const pending = items.filter(i => !i.myRating).length
+    return <section className="flex flex-col gap-3">
+      <p className="text-body-sm text-secondary">{pending ? `${pending} HLV chờ bạn đánh giá` : 'Bạn đã đánh giá tất cả HLV.'}</p>
+      <ul className="grid gap-3 lg:grid-cols-2">{items.map(item => <ReviewRow key={item.coachId} item={item} onSaved={onSaved} />)}</ul>
+    </section>
+  }
   if (!items?.length) return null
   const pending = items.filter(i => !i.myRating).length
   return <details open={pending > 0} className="rounded-2xl border border-outline-variant/50 bg-white p-4 sm:p-5 shadow-sm group">
@@ -128,6 +139,6 @@ export function MyCoachReviews() {
       <span className="flex items-center gap-2 font-semibold"><Icon name="reviews" className="text-xl text-amber-500" />Đánh giá HLV bạn đã học</span>
       <span className="text-body-sm text-secondary">{pending ? `${pending} HLV chờ bạn đánh giá` : 'Bạn đã đánh giá tất cả'}<Icon name="expand_more" className="ml-1 align-middle text-lg transition-transform group-open:rotate-180" /></span>
     </summary>
-    <ul className="mt-3 grid gap-3 lg:grid-cols-2">{items.map(item => <ReviewRow key={item.coachId} item={item} onSaved={saved => setItems(list => list.map(i => i.coachId === saved.coachId ? saved : i))} />)}</ul>
+    <ul className="mt-3 grid gap-3 lg:grid-cols-2">{items.map(item => <ReviewRow key={item.coachId} item={item} onSaved={onSaved} />)}</ul>
   </details>
 }

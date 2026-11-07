@@ -5,6 +5,7 @@ import { toDateOnly } from '../dateUtils'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_STATUS_LABEL, PLAN_TYPE_LABEL, SUBSCRIPTION_STATUS_LABEL } from '../labels'
 import { useClientPaged } from '../usePaged'
+import { MemberTierCard } from '../components/MemberTier'
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Expired: 'slate', Cancelled: 'red' }
 const PAYMENT_STATUS_TONE = { Pending: 'amber', Paid: 'green', Failed: 'red', Refunded: 'slate' }
@@ -176,6 +177,8 @@ export default function MemberSubscriptionPage() {
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
+
+      <MemberTierCard />
 
       {current.length ? (
         <div className="flex flex-col gap-4">

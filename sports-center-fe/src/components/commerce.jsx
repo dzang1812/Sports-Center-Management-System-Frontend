@@ -36,15 +36,31 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
   const [error, setError] = useState('')
   const pending = useRef(false)
   const active = useRef(true)
+  // Voucher: only for intents with `voucherKind` (wallet purchases). Locked after the first attempt so a retry
+  // reuses the same idempotency key with the same body (an ambiguous failure can never charge twice).
+  const [code, setCode] = useState('')
+  const [voucher, setVoucher] = useState(null)
+  const [voucherError, setVoucherError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const payable = voucher ? voucher.finalPrice : intent.price
+  const applyVoucher = async () => {
+    if (!code.trim()) return
+    setChecking(true); setVoucherError('')
+    try { setVoucher(await api('/vouchers/preview', { method: 'POST', body: { code: code.trim(), kind: intent.voucherKind, price: intent.price, memberId: intent.body?.memberId ?? null } })) }
+    catch (err) { setVoucher(null); setVoucherError(err.message) }
+    finally { setChecking(false) }
+  }
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const close = () => { if (!pending.current) onClose() }
   const submit = async () => {
     if (pending.current) return
-    pending.current = true; setBusy(true); setError('')
+    pending.current = true; setBusy(true); setError(''); setAttempted(true)
     try {
       intent.onAttempt?.()
-      const result = await api(intent.path, { method: intent.method ?? 'POST', body: intent.body, idempotencyKey: key })
-      if (active.current) onDone(result)
+      const body = voucher ? { ...intent.body, voucherCode: voucher.code } : intent.body
+      const result = await api(intent.path, { method: intent.method ?? 'POST', body, idempotencyKey: key })
+      if (active.current) onDone(result, payable)
     } catch (err) { intent.onFailure?.(err); if (active.current) setError(intent.errorMessage?.(err) ?? err.message) }
     finally { pending.current = false; if (active.current) setBusy(false) }
   }
@@ -59,10 +75,23 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
   }>
     <div className="space-y-4">
       <p>{intent.description}</p>
+      {intent.price != null && intent.voucherKind && <div className="space-y-1.5">
+        <label className="text-body-sm font-semibold" htmlFor="voucher-code">Mã voucher</label>
+        <div className="flex gap-2">
+          <input id="voucher-code" className={inputCls + ' uppercase'} placeholder="Nhập mã ưu đãi (không bắt buộc)" value={code} disabled={attempted || checking}
+            onChange={e => { setCode(e.target.value); setVoucher(null); setVoucherError('') }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher() } }} />
+          {voucher
+            ? <button type="button" className={btnOutline} disabled={attempted} onClick={() => { setVoucher(null); setCode('') }}>Bỏ mã</button>
+            : <button type="button" className={btnOutline} disabled={attempted || checking || !code.trim()} onClick={applyVoucher}>{checking ? 'Đang kiểm tra…' : 'Áp dụng'}</button>}
+        </div>
+        {voucherError && <p role="alert" className="text-body-sm text-error">{voucherError}</p>}
+        {voucher && <p className="text-body-sm text-green-700">Đã áp dụng {voucher.code}: giảm {vnd(voucher.discountAmount)}{voucher.description ? ` — ${voucher.description}` : ''}</p>}
+      </div>}
       {intent.price != null && <div className="rounded-xl bg-surface-container p-4 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2"><span>Thanh toán</span><b className="text-headline-md">{vnd(intent.price)}</b></div>
+        {voucher && <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Giá gốc</span><span className="line-through">{vnd(intent.price)}</span></div>}
+        <div className="flex flex-wrap items-center justify-between gap-2"><span>Thanh toán</span><b className="text-headline-md">{vnd(payable)}</b></div>
         <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Số dư hiện tại</span><span>{vnd(intent.balance)}</span></div>
-        <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Dự kiến sau thanh toán</span><span>{vnd(intent.balance - intent.price)}</span></div>
+        <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Dự kiến sau thanh toán</span><span>{vnd(intent.balance - payable)}</span></div>
       </div>}
       <p className="text-body-sm text-secondary whitespace-pre-line">{intent.policy}</p>
       {intent.sessions && <details className="rounded-lg border border-outline-variant">
@@ -147,7 +176,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
       if (!c.signal.aborted) setIntent({ title: 'Đăng ký toàn khóa', description: `${d.name}: toàn bộ ${d.expectedSessions} buổi${memberId ? ` cho hội viên #${memberId}` : ''}.`,
         price: d.courseFee, balance: data.wallet.balance, courseName: d.name, sessions: d.sessions.filter(s => s.status !== 'Cancelled'),
         policy: 'Trừ ví một lần cho toàn khóa, không thu lại từng buổi. Hệ thống kiểm tra lại hạn đăng ký, khai giảng, sức chứa, trùng lịch và số dư khi xác nhận. Chính sách hủy/hoàn theo khóa đã mua.',
-        path: `/courses/${course.id}/enrollments`, body: { ...target, expectedPrice: d.courseFee } })
+        path: `/courses/${course.id}/enrollments`, body: { ...target, expectedPrice: d.courseFee }, voucherKind: 'Course' })
     } catch (err) { if (!c.signal.aborted) setError(err.message) }
     finally { if (!c.signal.aborted) setLoading(false) }
   }

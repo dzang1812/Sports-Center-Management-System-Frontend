@@ -6,6 +6,7 @@ import { ROLE_LABEL } from '../labels'
 import { Avatar, Icon } from './ui'
 import Notifications from './Notifications'
 import { SupportBadge } from './support'
+import { MemberTierBadge } from './MemberTier'
 
 // Menu per role. Only pages that exist are listed.
 const NAV = {
@@ -13,8 +14,10 @@ const NAV = {
     { to: '/manager/dashboard', label: 'Tổng quan', icon: 'dashboard', group: 'Vận hành' },
     { to: '/manager/courses', label: 'Khóa học & lịch', icon: 'school', group: 'Vận hành' },
     { to: '/manager/pt-bookings', label: 'Lịch PT & giá buổi', icon: 'fitness_center', group: 'Vận hành' },
+    { to: '/manager/vouchers', label: 'Voucher', icon: 'confirmation_number', group: 'Vận hành' },
     { to: '/manager/support', label: 'Yêu cầu hỗ trợ', icon: 'support_agent', group: 'Vận hành', badge: SupportBadge },
     { to: '/manager/users', label: 'Hội viên & nhân sự', icon: 'group', group: 'Quản trị' },
+    { to: '/manager/coach-reviews', label: 'Đánh giá HLV', icon: 'reviews', group: 'Quản trị' },
     { to: '/manager/reports', label: 'Báo cáo & thống kê', icon: 'monitoring', group: 'Quản trị' },
     { to: '/manager/settings', label: 'Danh mục & nhật ký', icon: 'tune', group: 'Quản trị' },
   ],
@@ -23,6 +26,7 @@ const NAV = {
     { to: '/reception/members', label: 'Hội viên', icon: 'group', group: 'Tiếp đón' },
     { to: '/reception/schedule', label: 'Khóa học & lịch', icon: 'school', group: 'Dịch vụ' },
     { to: '/reception/pt', label: 'Đặt PT', icon: 'fitness_center', group: 'Dịch vụ' },
+    { to: '/reception/coach-reviews', label: 'Đánh giá HLV', icon: 'reviews', group: 'Dịch vụ' },
     { to: '/reception/payments', label: 'Thanh toán', icon: 'payments', group: 'Thu ngân' },
   ],
   Coach: [
@@ -33,8 +37,10 @@ const NAV = {
     { to: '/member/classes', label: 'Khám phá', icon: 'explore' },
     { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
     { to: '/member/training', label: 'Tự tập', icon: 'fitness_center' },
+    { to: '/member/reviews', label: 'Đánh giá HLV', icon: 'reviews' },
     { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
     { to: '/member/wallet', label: 'Số dư', icon: 'account_balance_wallet' },
+    { to: '/member/vouchers', label: 'Ưu đãi', icon: 'confirmation_number' },
     { to: '/member/support', label: 'Hỗ trợ', icon: 'support_agent' },
     { to: '/profile', label: 'Hồ sơ', icon: 'person' },
   ],
@@ -154,10 +160,13 @@ function MemberLayout() {
     <div className="min-h-screen bg-surface">
       <header className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-primary-container/15 via-surface/90 to-tertiary-container/15 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b-2 border-primary-container/40">
         <div className="h-28 xl:h-16 w-full max-w-[1440px] mx-auto px-4 sm:px-6 flex flex-wrap xl:flex-nowrap items-center justify-between gap-x-3 gap-y-1 py-2 xl:py-0">
-          <Link to="/member/classes" className="flex items-center gap-2 xl:order-1" aria-label="FitZone — Khám phá">
-            <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
-            <span className="font-headline-md text-headline-md font-bold text-on-surface">FitZone</span>
-          </Link>
+          <div className="flex items-center gap-2 xl:order-1">
+            <Link to="/member/classes" className="flex items-center gap-2" aria-label="FitZone — Khám phá">
+              <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
+              <span className="font-headline-md text-headline-md font-bold text-on-surface">FitZone</span>
+            </Link>
+            <Link to="/member/subscription" aria-label="Xem hạng hội viên"><MemberTierBadge /></Link>
+          </div>
           <nav aria-label="Điều hướng hội viên" className="order-3 xl:order-2 w-full xl:w-auto xl:min-w-0 flex gap-1 overflow-x-auto p-1 bg-surface-container-low rounded-xl">
             {NAV.Member.map((n) => (
               <NavLink key={n.to} to={n.to} className={link}>

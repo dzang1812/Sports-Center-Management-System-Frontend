@@ -75,7 +75,7 @@ export default function MemberPackages() {
       policy: isSelfPractice(selected)
         ? 'Trừ số dư và xác nhận gói trong cùng giao dịch. Gói bắt đầu hôm nay; nếu gói này còn hạn, thời hạn mới nối tiếp sau ngày hết hạn. Hệ thống kiểm tra lại giá và số dư khi xác nhận.'
         : 'Gói được kích hoạt từ ngày mua theo giờ Việt Nam. Mua gói chưa giữ giờ tập; sau khi mua, chọn lịch PT và dùng Gói đã mua. Backend kiểm tra lại giá và số dư khi xác nhận.',
-      path: isSelfPractice(selected) ? `/membership-plans/${selected.id}/purchase` : `/pt/packages/${selected.id}/purchase`, body: { memberId: null, expectedPrice: selected.price },
+      path: isSelfPractice(selected) ? `/membership-plans/${selected.id}/purchase` : `/pt/packages/${selected.id}/purchase`, body: { memberId: null, expectedPrice: selected.price }, voucherKind: isSelfPractice(selected) ? 'Membership' : 'PtPackage',
       errorMessage: err => isSelfPractice(selected) && (err.status === 405 || err.status === 404 && err.errorCode !== 'PLAN_NOT_FOUND')
         ? 'Backend đang chạy chưa hỗ trợ mua gói tự tập bằng số dư. Cần cập nhật Backend để dùng chức năng này.' : err.message,
     }} onClose={() => setSelected(null)} onDone={bought} />
