@@ -42,19 +42,7 @@ export default function ClassesPage() {
   const setFilter = (k) => (e) => setFilters({ ...filters, [k]: e.target.value })
 
   return (
-    <PublicShell
-      hero={
-        <div className="relative w-full h-64 sm:h-80 overflow-hidden">
-          <img src="/images/banner-home-2.jpg" alt="Lịch lớp học FitZone" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/60 to-inverse-surface/20" />
-          <div className="relative h-full flex flex-col items-center justify-center text-center px-6 text-white">
-            <span className="font-label-md text-label-md uppercase tracking-wider text-tertiary-fixed mb-2">Lịch lớp học</span>
-            <h1 className="font-display-md text-display-md">Lớp học mới nhất, sắp diễn ra</h1>
-            <p className="text-white/85 mt-2 max-w-xl">Đăng nhập hoặc đăng ký tài khoản hội viên để giữ chỗ trước khi hết chỗ.</p>
-          </div>
-        </div>
-      }
-    >
+    <PublicShell banner="/images/banner-page-4.jpg" eyebrow="Lịch lớp học" title="Lớp học mới nhất, sắp diễn ra" subtitle="Đăng nhập hoặc đăng ký tài khoản hội viên để giữ chỗ trước khi hết chỗ.">
       <div className="flex flex-col gap-6">
         <div className="bg-surface-container rounded-xl shadow-sm p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

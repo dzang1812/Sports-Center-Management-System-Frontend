@@ -80,19 +80,7 @@ export default function PackagesPage() {
   }
 
   return (
-    <PublicShell
-      hero={
-        <div className="relative w-full h-64 sm:h-80 overflow-hidden">
-          <img src="/images/banner-home-3.jpg" alt="Bảng giá gói tập FitZone" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/60 to-inverse-surface/20" />
-          <div className="relative h-full flex flex-col items-center justify-center text-center px-6 text-white">
-            <span className="font-label-md text-label-md uppercase tracking-wider text-tertiary-fixed mb-2">Bảng giá</span>
-            <h1 className="font-display-md text-display-md">Chọn gói tập phù hợp với bạn</h1>
-            <p className="text-white/85 mt-2 max-w-xl">Đăng ký trực tuyến và thanh toán qua QR trong vài giây — nâng cấp hoặc đổi gói bất cứ lúc nào.</p>
-          </div>
-        </div>
-      }
-    >
+    <PublicShell banner="/images/banner-packages.jpg" bannerMobile="/images/banner-packages-m.jpg" eyebrow="Bảng giá" title="Chọn gói tập phù hợp với bạn" subtitle="Đăng ký trực tuyến và thanh toán qua QR trong vài giây — nâng cấp hoặc đổi gói bất cứ lúc nào.">
       <div className="flex flex-col gap-10">
         {error && <Alert>{error}</Alert>}
 

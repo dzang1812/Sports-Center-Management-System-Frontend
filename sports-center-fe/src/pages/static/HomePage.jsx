@@ -6,8 +6,7 @@ import FloatingContactWidget from '../../components/FloatingContactWidget'
 import ImageCarousel from '../../components/ImageCarousel'
 import SiteHeader from '../../components/SiteHeader'
 import { Icon } from '../../components/ui'
-import { CoachPortrait } from '../../components/MemberPtBookingPanel'
-import { FeaturedBadge, RatingBadge } from '../../components/CoachRating'
+import CoachCard from '../../components/CoachCard'
 import { LEVEL_LABEL, PLAN_TYPE_LABEL } from '../../labels'
 import { NEWS_ITEMS } from '../../newsItems'
 
@@ -183,25 +182,7 @@ function TrainersSection() {
             <div ref={gallery} tabIndex={0} role="region" aria-label="Danh sách huấn luyện viên tiêu biểu" aria-busy={loading} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 pt-1 px-1 -mx-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-xl">
               {loading && <p role="status" className="py-10 text-secondary">Đang tải HLV…</p>}
               {coaches.map((c) => (
-                <article key={c.id} className="group relative flex w-[78%] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md transition-shadow sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-3rem)/4)]">
-                  <div className="relative w-full">
-                    <CoachPortrait key={`${c.id}:${c.avatarUrl ?? ''}`} coach={c} />
-                    {c.isFeatured && <FeaturedBadge className="absolute top-3 left-3" />}
-                    <span className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-md bg-white/95 px-2 py-1 text-[11px] font-bold text-primary shadow-sm">{c.sports.map((sp) => sp.name).join(' · ') || 'Huấn luyện cá nhân'}</span>
-                  </div>
-                  <div className="flex-1 p-3 space-y-1.5">
-                    <h3 className="truncate text-lg font-bold text-slate-900" title={c.fullName}>{c.fullName}</h3>
-                    <RatingBadge coach={c} />
-                    {c.certifications && <p className="flex items-center gap-1 truncate text-[12px] font-semibold text-primary-container"><Icon name="verified" className="text-sm" />{c.certifications}</p>}
-                    <p className="min-h-8 line-clamp-2 text-body-sm leading-4 text-slate-500">{c.bio || 'Đăng nhập để xem hồ sơ và ảnh học viên của huấn luyện viên.'}</p>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2.5">
-                    <Link to="/login" className="inline-flex items-center gap-1 text-body-sm font-semibold text-primary hover:underline">
-                      <Icon name="event_available" className="text-base" />Đặt lịch PT
-                    </Link>
-                    <Icon name="arrow_outward" className="text-xl text-slate-300 group-hover:text-primary" />
-                  </div>
-                </article>
+                <CoachCard key={c.id} coach={c} className="w-[78%] shrink-0 snap-start sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-3rem)/4)]" />
               ))}
               {!loading && !coaches.length && <p className="w-full rounded-xl bg-slate-50 py-8 text-center text-body-sm text-secondary">Chưa có huấn luyện viên nào được công khai.</p>}
             </div>
