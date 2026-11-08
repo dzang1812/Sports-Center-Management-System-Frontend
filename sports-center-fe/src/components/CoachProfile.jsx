@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { Alert, Avatar, Badge, Icon, Modal, btnOutline } from './ui'
+import { CoachReviewList } from './CoachRating'
 
 function ShowcasePhoto({ src, label }) {
   const [failed, setFailed] = useState(false)
@@ -55,6 +56,7 @@ function CoachProfileDialog({ coachId, coach, onClose }) {
   return <Modal title="Hồ sơ huấn luyện viên" onClose={onClose} footer={<button type="button" className={btnOutline} onClick={onClose}>Đóng</button>}>
     {loading && <p role="status" className="text-secondary text-sm">Đang tải hồ sơ HLV…</p>}{error && <Alert>{error}</Alert>}
     {profile && <CoachProfileContent profile={profile} />}
+    {profile && <div className="mt-5"><CoachReviewList coachId={coachId} /></div>}
   </Modal>
 }
 

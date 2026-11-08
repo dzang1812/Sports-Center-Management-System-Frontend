@@ -64,7 +64,7 @@ export function MemberLookupField({ onSelect }) {
         <div className="relative">
           <input
             className={inputCls}
-            placeholder="Nhập để tìm hội viên…"
+            placeholder="Mã hội viên (VD: 12), tên, email hoặc SĐT…"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onFocus={() => results.length && setOpen(true)}
@@ -308,9 +308,10 @@ function PtBookingBrowser({ requireMemberId, memberId }) {
       policy: fundingSource === 'Wallet' ? 'Trừ số dư và xác nhận lịch ngay trong một lần. Không cần mua gói PT. Nếu đặt không thành công, không trừ tiền. Hủy trước ít nhất 12 giờ được hoàn vào ví; hủy muộn theo cấu hình không hoàn.' : 'Dùng 1 buổi từ gói hợp lệ tại ngày tập; không trừ số dư. Hết buổi không tự chuyển sang trả tiền. Hủy đúng hạn hoàn buổi về đúng gói.',
       path: '/pt/bookings', body: { coachId: slot.coachId, sportId: slot.sportId, date: slot.date, startTime: slot.startTime,
         roomId: null, memberId: requireMemberId ? Number(memberId) : null, fundingSource, expectedPrice: fundingSource === 'Wallet' ? rate : null },
+      voucherKind: fundingSource === 'Wallet' ? 'PtSingle' : null,
     })
   }
-  const confirmation = intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={booking => { setNotice(intent.body.fundingSource === 'Wallet' ? `Đã thanh toán ${Number(intent.price).toLocaleString('vi-VN')}đ và xác nhận lịch PT #${booking.id}.` : `Đã dùng 1 buổi trong gói và xác nhận lịch PT #${booking.id}.`); setIntent(null); loadSlots() }} />
+  const confirmation = intent && <CommerceConfirm intent={intent} onClose={() => setIntent(null)} onDone={(booking, paid) => { setNotice(intent.body.fundingSource === 'Wallet' ? `Đã thanh toán ${Number(paid ?? intent.price).toLocaleString('vi-VN')}đ và xác nhận lịch PT #${booking.id}.` : `Đã dùng 1 buổi trong gói và xác nhận lịch PT #${booking.id}.`); setIntent(null); loadSlots() }} />
   return <div className="space-y-4">
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}<Link className="block underline mt-2 font-semibold" to={requireMemberId ? `/reception/members/${memberId}?tab=schedule` : '/member/schedule'}>{requireMemberId ? 'Xem lịch của hội viên' : 'Xem lịch của tôi'}</Link></Alert>}
     {requireMemberId && counterIntent && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary-container/30 bg-white p-4"><p className="flex-1 text-body-sm">Yêu cầu đang chờ: {counterIntent.description}</p><button type="button" className={btnPrimary} onClick={() => setCounterOpen(true)}>Tiếp tục thanh toán{counterIntent.paymentId ? ` #${counterIntent.paymentId}` : ''}</button></div>}

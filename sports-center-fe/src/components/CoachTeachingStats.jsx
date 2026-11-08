@@ -4,6 +4,8 @@ import { api, query } from '../api'
 import { formatDate, formatTimestamp, fromTimeOnly, toDateOnly } from '../dateUtils'
 import { filterTeachingCoaches, loadTeachingCoachProfiles, withTeachingCoachProfiles } from '../coachTeachingFilters'
 import { Alert, Avatar, Badge, Icon, Modal, btnOutline, inputCls } from './ui'
+import { useClientPaged } from '../usePaged'
+import { FeatureToggle, RatingBadge, useCoachRatings } from './CoachRating'
 
 const RESULTS = { Taught: ['Đã dạy', 'green'], NotEnded: ['Chưa kết thúc', 'indigo'], Unverified: ['Chưa xác nhận', 'amber'], NotTaught: ['Vắng / không dạy', 'slate'], Cancelled: ['Đã hủy', 'red'] }
 const currentPeriod = () => {
@@ -19,14 +21,15 @@ function Stat({ label, value, icon, tone }) {
 function TeachingItems({ report }) {
   const [result, setResult] = useState('all')
   const items = report.items.filter(item => result === 'all' || item.result === result)
+  const { pageItems, pagination } = useClientPaged(items)
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-body-sm text-secondary">{items.length} buổi · {shortDate(report.from)} – {shortDate(report.to)}</p>
       <select aria-label="Lọc kết quả giảng dạy" className={inputCls + ' !w-auto !h-9'} value={result} onChange={event => setResult(event.target.value)}><option value="all">Tất cả buổi</option>{Object.entries(RESULTS).map(([key, [label]]) => <option key={key} value={key}>{label}</option>)}</select>
     </div>
-    <div className="max-h-96 overflow-auto rounded-xl border border-slate-200"><table className="w-full min-w-[580px] text-left text-body-sm"><thead className="sticky top-0 bg-slate-50 text-slate-500"><tr><th className="p-3">Buổi dạy</th><th className="p-3">Ngày & giờ</th><th className="p-3">Kết quả</th></tr></thead>
-      <tbody>{items.map(item => <tr key={`${item.type}:${item.referenceId}`} className="border-t border-slate-100"><td className="p-3"><p className="font-semibold text-slate-900">{item.title}</p><p className="mt-1 text-slate-500">{item.type === 'PT' ? 'PT cá nhân' : item.courseId ? 'Khóa nhiều tuần' : 'Lớp học'} · {item.sport}{item.room ? ` · ${item.room}` : ''}</p></td><td className="p-3 whitespace-nowrap">{shortDate(item.date)}<p className="mt-1 text-slate-500">{fromTimeOnly(item.startTime)}–{fromTimeOnly(item.endTime)}</p></td><td className="p-3"><Badge tone={RESULTS[item.result]?.[1] ?? 'slate'}>{RESULTS[item.result]?.[0] ?? item.result}</Badge></td></tr>)}
+    <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[580px] text-left text-body-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Buổi dạy</th><th className="p-3">Ngày & giờ</th><th className="p-3">Kết quả</th></tr></thead>
+      <tbody>{pageItems.map(item => <tr key={`${item.type}:${item.referenceId}`} className="border-t border-slate-100"><td className="p-3"><p className="font-semibold text-slate-900">{item.title}</p><p className="mt-1 text-slate-500">{item.type === 'PT' ? 'PT cá nhân' : item.courseId ? 'Khóa nhiều tuần' : 'Lớp học'} · {item.sport}{item.room ? ` · ${item.room}` : ''}</p></td><td className="p-3 whitespace-nowrap">{shortDate(item.date)}<p className="mt-1 text-slate-500">{fromTimeOnly(item.startTime)}–{fromTimeOnly(item.endTime)}</p></td><td className="p-3"><Badge tone={RESULTS[item.result]?.[1] ?? 'slate'}>{RESULTS[item.result]?.[0] ?? item.result}</Badge></td></tr>)}
         {!items.length && <tr><td colSpan={3} className="p-6 text-center text-slate-500">Không có buổi phù hợp trong quý này.</td></tr>}
-      </tbody></table></div>
+      </tbody></table>{pagination}</div>
     <p className="text-xs leading-relaxed text-slate-500">{report.countingRule}</p>
   </div>
 }
@@ -95,6 +98,8 @@ export default function CoachTeachingStats({ manager = false, refresh: externalR
   const coaches = withTeachingCoachProfiles(data?.coaches ?? [], directory.profiles)
   const sports = [...new Set(coaches.flatMap(coach => coach.specialties))].sort((a, b) => a.localeCompare(b, 'vi'))
   const shown = filterTeachingCoaches(coaches, search, sport)
+  const coachPage = useClientPaged(shown)
+  const [ratings, setRatings] = useCoachRatings(refresh)
   const exportExcel = async () => {
     if (exportPending.current || loading || directory.loading || directory.error || !data || data.year !== year || data.quarter !== quarter) return
     exportPending.current = true; setExporting(true); setExportError('')
@@ -140,10 +145,10 @@ export default function CoachTeachingStats({ manager = false, refresh: externalR
       {directory.loading && <p role="status" className="text-body-sm text-secondary">Đang tải số điện thoại và bộ môn HLV…</p>}
       {directory.error && <Alert type="warning">{directory.error}</Alert>}
       <p className="text-body-sm text-slate-500">{shown.length}/{coaches.length} HLV{sport !== 'all' ? ` · Chuyên môn: ${sport}` : ''}. Số buổi là tổng giảng dạy của các HLV được lọc trong quý.</p>
-      <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[700px] text-left text-body-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Huấn luyện viên</th><th className="p-3 text-right">PT đã dạy</th><th className="p-3 text-right">Khóa đã dạy</th><th className="p-3 text-right">Buổi lớp</th><th className="p-3 text-right">Chưa xác nhận</th><th className="p-3" /></tr></thead><tbody>
-        {shown.map(coach => <tr key={coach.coachId} className="border-t border-slate-100"><td className="p-3"><div className="flex items-center gap-2"><Avatar src={coach.avatarUrl} /><div><p className="font-semibold text-slate-900">{coach.fullName}</p><p className="mt-1 text-xs text-slate-500">#{coach.coachId}{coach.phone ? ` · ${coach.phone}` : ''}{!coach.isActive ? ' · Đã khóa tài khoản' : ''}</p>{coach.specialties.length > 0 && <p className="mt-1 text-xs text-primary">{coach.specialties.join(' · ')}</p>}</div></div></td><td className="p-3 text-right font-bold text-amber-800">{coach.ptTaught}</td><td className="p-3 text-right font-bold text-primary">{coach.coursesTaught}</td><td className="p-3 text-right">{coach.classSessionsTaught}</td><td className="p-3 text-right">{coach.unverified}</td><td className="p-3 text-right"><button type="button" className={btnOutline + ' !h-8 !text-xs'} onClick={() => setSelected(coach)}>Chi tiết</button></td></tr>)}
-        {!shown.length && <tr><td colSpan={6} className="p-6 text-center text-slate-500">Không có HLV phù hợp.</td></tr>}
-      </tbody></table></div><p className="text-xs leading-relaxed text-slate-500">{data.countingRule}</p>
+      <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[820px] text-left text-body-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Huấn luyện viên</th><th className="p-3 text-right">PT đã dạy</th><th className="p-3 text-right">Khóa đã dạy</th><th className="p-3 text-right">Buổi lớp</th><th className="p-3 text-right">Chưa xác nhận</th><th className="p-3">Đánh giá</th><th className="p-3" /></tr></thead><tbody>
+        {coachPage.pageItems.map(coach => <tr key={coach.coachId} className="border-t border-slate-100"><td className="p-3"><div className="flex items-center gap-2"><Avatar src={coach.avatarUrl} /><div><p className="font-semibold text-slate-900">{coach.fullName}</p><p className="mt-1 text-xs text-slate-500">#{coach.coachId}{coach.phone ? ` · ${coach.phone}` : ''}{!coach.isActive ? ' · Đã khóa tài khoản' : ''}</p>{coach.specialties.length > 0 && <p className="mt-1 text-xs text-primary">{coach.specialties.join(' · ')}</p>}</div></div></td><td className="p-3 text-right font-bold text-amber-800">{coach.ptTaught}</td><td className="p-3 text-right font-bold text-primary">{coach.coursesTaught}</td><td className="p-3 text-right">{coach.classSessionsTaught}</td><td className="p-3 text-right">{coach.unverified}</td><td className="p-3"><div className="flex flex-col items-start gap-1.5"><RatingBadge coach={ratings.get(coach.coachId)} /><FeatureToggle coachId={coach.coachId} featured={!!ratings.get(coach.coachId)?.isFeatured} onChange={saved => setRatings(map => new Map(map).set(saved.coachId, saved))} /></div></td><td className="p-3 text-right"><button type="button" className={btnOutline + ' !h-8 !text-xs'} onClick={() => setSelected(coach)}>Chi tiết</button></td></tr>)}
+        {!shown.length && <tr><td colSpan={7} className="p-6 text-center text-slate-500">Không có HLV phù hợp.</td></tr>}
+      </tbody></table>{coachPage.pagination}</div><p className="text-xs leading-relaxed text-slate-500">{data.countingRule}</p>
     </> : <><p className="text-body-sm text-slate-500">{data.coach.notEnded} buổi chưa kết thúc · {data.coach.unverified} buổi chưa xác nhận · {data.coach.cancelled} buổi đã hủy</p>
       <details className="border-t border-slate-100 pt-3"><summary className="w-fit cursor-pointer text-body-sm font-semibold text-primary">Xem chi tiết & cách tính</summary><div className="pt-3"><TeachingItems key={`${period.year}:${period.quarter}`} report={data} /></div></details>
     </>}

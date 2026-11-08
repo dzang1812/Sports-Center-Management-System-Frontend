@@ -5,6 +5,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, query } from '../api'
 import { Alert, Avatar, Badge, Field, Icon, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { BookingSchedule } from './MyMemberSchedulePage'
+import { MemberTierBadge } from '../components/MemberTier'
+import SendVoucherModal from '../components/SendVoucherModal'
 
 // Search-only directory: ID / tên / email / SĐT đều khớp qua cùng 1 ô (GET /members?q=), chọn 1 dòng để xem chi tiết.
 function MemberDirectory() {
@@ -113,6 +115,8 @@ function ReceptionMemberContent({ id }) {
   const tab = ['schedule', 'wallet'].includes(params.get('tab')) ? params.get('tab') : 'courses'
   const available = tab === 'courses' && params.get('view') === 'available'
   const [member, setMember] = useState(null)
+  const [sendingVoucher, setSendingVoucher] = useState(false)
+  const [voucherNotice, setVoucherNotice] = useState('')
   const [loading, setLoading] = useState(Boolean(id))
   const [error, setError] = useState('')
   useEffect(() => {
@@ -134,9 +138,11 @@ function ReceptionMemberContent({ id }) {
   return <div className="max-w-[1440px] mx-auto space-y-5">
     <Link to="/reception/members" className="inline-flex items-center gap-1 text-body-sm text-secondary hover:text-primary"><Icon name="arrow_back" className="text-lg" />Danh sách hội viên</Link>
     <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white border border-outline-variant/50 p-4 sm:p-5">
-      <div className="flex items-center gap-3 min-w-0"><Avatar src={member?.avatarUrl} className="h-12 w-12" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="font-headline-lg text-headline-lg">{member?.fullName ?? 'Chi tiết hội viên'}</h1>{member && <Badge tone={member.isActive ? 'green' : 'red'}>{member.isActive ? 'Hoạt động' : 'Đã khóa'}</Badge>}</div><p className="text-body-sm text-secondary break-words mt-1">Mã hội viên #{id}{member?.email ? ` · ${member.email}` : ''}{member?.phone ? ` · ${member.phone}` : ''}</p></div></div>
-      {member && <div className="flex flex-wrap gap-2"><Link className={btnOutline} to={`/reception/pt?memberId=${id}`}>Đặt PT</Link><button type="button" className={btnPrimary} onClick={() => setParams({ tab: 'courses', view: 'available' })}><Icon name="add" className="text-lg" />Đăng ký khóa học</button></div>}
+      <div className="flex items-center gap-3 min-w-0"><Avatar src={member?.avatarUrl} className="h-12 w-12" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="font-headline-lg text-headline-lg">{member?.fullName ?? 'Chi tiết hội viên'}</h1>{member && <Badge tone={member.isActive ? 'green' : 'red'}>{member.isActive ? 'Hoạt động' : 'Đã khóa'}</Badge>}{member && <MemberTierBadge memberId={id} />}</div><p className="text-body-sm text-secondary break-words mt-1">Mã hội viên #{id}{member?.email ? ` · ${member.email}` : ''}{member?.phone ? ` · ${member.phone}` : ''}</p></div></div>
+      {member && <div className="flex flex-wrap gap-2"><button type="button" className={btnOutline} onClick={() => setSendingVoucher(true)}><Icon name="redeem" className="text-lg" />Gửi voucher</button><Link className={btnOutline} to={`/reception/pt?memberId=${id}`}>Đặt PT</Link><button type="button" className={btnPrimary} onClick={() => setParams({ tab: 'courses', view: 'available' })}><Icon name="add" className="text-lg" />Đăng ký khóa học</button></div>}
     </header>
+    {voucherNotice && <Alert type="success">{voucherNotice}</Alert>}
+    {sendingVoucher && <SendVoucherModal memberId={id} memberName={member?.fullName} onClose={() => setSendingVoucher(false)} onSent={v => { setSendingVoucher(false); setVoucherNotice(`Đã gửi voucher ${v.code} cho ${member?.fullName ?? 'hội viên'}.`) }} />}
     {error && <Alert>{error}</Alert>}{loading && <p role="status" className="text-secondary">Đang tải thông tin hội viên…</p>}
     {member && <>
       <nav aria-label="Chi tiết hội viên" className="flex flex-wrap gap-1 bg-surface-container-low p-1 rounded-xl w-fit">

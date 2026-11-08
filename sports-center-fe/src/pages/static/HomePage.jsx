@@ -1,11 +1,12 @@
 // Static UI exported from Stitch. Data is hardcoded until the real API is wired in.
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api'
 import FloatingContactWidget from '../../components/FloatingContactWidget'
 import ImageCarousel from '../../components/ImageCarousel'
 import SiteHeader from '../../components/SiteHeader'
-import { Avatar, Icon } from '../../components/ui'
+import { Icon } from '../../components/ui'
+import CoachCard from '../../components/CoachCard'
 import { LEVEL_LABEL, PLAN_TYPE_LABEL } from '../../labels'
 import { NEWS_ITEMS } from '../../newsItems'
 
@@ -140,10 +141,11 @@ function ClassesSection() {
   )
 }
 
-// Public coach directory, GET /pt/coaches (no auth required).
+// Public coach directory, GET /pt/coaches (no auth required). Same card/carousel look as the member PT picker.
 function TrainersSection() {
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
+  const gallery = useRef(null)
 
   useEffect(() => {
     api('/pt/coaches')
@@ -152,56 +154,39 @@ function TrainersSection() {
       .finally(() => setLoading(false))
   }, [])
 
+  const move = (direction) => gallery.current?.scrollBy({ left: direction * gallery.current.clientWidth * 0.8, behavior: 'smooth' })
+
   return (
     <section className="py-16 bg-surface-container-low scroll-mt-24" id="trainers">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="font-label-md text-label-md text-tertiary-container uppercase tracking-wider block mb-2">ĐỘI NGŨ CHUYÊN MÔN</span>
-          <h2 className="font-headline-xl text-headline-xl text-on-surface">Huấn luyện viên giàu kinh nghiệm</h2>
-          <Link to="/trainers" className="inline-flex items-center gap-1.5 mt-3 font-label-lg text-label-lg text-primary hover:text-primary-container transition-colors">
-            <span>Xem tất cả huấn luyện viên</span>
-            <Icon name="arrow_forward" className="text-base" />
-          </Link>
-        </div>
-
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 ${loading ? 'opacity-50' : ''}`}>
-          {coaches.map((c) => (
-            <div key={c.id} className="group bg-surface-container-lowest rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col text-center overflow-hidden">
-              <div className="h-20 bg-gradient-to-br from-primary-container to-tertiary-container relative">
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-                  <Avatar src={c.avatarUrl} className="w-20 h-20 ring-4 ring-surface-container-lowest shadow-md" />
-                </div>
+        <div className="rounded-2xl border border-outline-variant/50 bg-white overflow-hidden shadow-sm">
+          <div className="relative overflow-hidden bg-slate-900 px-5 py-6 sm:px-8">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+            <div className="relative flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">ĐỘI NGŨ CHUYÊN MÔN</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Huấn luyện viên tiêu biểu</h2>
+                <p className="mt-1.5 text-body-sm text-slate-300">Tập riêng cùng coach được chứng nhận, lịch linh hoạt theo mục tiêu của bạn.</p>
               </div>
-
-              <div className="pt-12 pb-6 px-5 flex flex-col items-center flex-1">
-                <h3 className="font-headline-sm text-headline-sm text-on-surface">{c.fullName}</h3>
-                {c.certifications && (
-                  <p className="font-label-sm text-label-sm text-primary-container mt-1 flex items-center gap-1">
-                    <Icon name="verified" className="text-sm" />
-                    {c.certifications}
-                  </p>
-                )}
-                {c.bio && <p className="font-body-sm text-body-sm text-on-surface-variant mt-3 line-clamp-3">{c.bio}</p>}
-                {c.sports.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-                    {c.sports.map((sp) => (
-                      <span key={sp.id} className="px-2.5 py-1 rounded-full bg-tertiary-fixed text-tertiary-container font-label-sm text-label-sm">{sp.name}</span>
-                    ))}
-                  </div>
-                )}
-                <Link
-                  to="/login"
-                  className="mt-5 w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary-container text-primary-container font-label-md text-label-md group-hover:bg-primary-container group-hover:text-on-primary transition-colors"
-                >
-                  <Icon name="event_available" className="text-base" />
-                  Đặt lịch PT
+              <div className="flex flex-wrap items-center gap-2">
+                <Link to="/trainers" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-body-sm font-semibold text-white hover:bg-white/20 transition-colors">
+                  <Icon name="groups" className="text-lg text-indigo-300" />Xem tất cả HLV<Icon name="arrow_forward" className="text-base" />
                 </Link>
+                <button type="button" aria-label="Xem HLV phía trước" onClick={() => move(-1)} disabled={loading || !coaches.length} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 disabled:opacity-40"><Icon name="chevron_left" /></button>
+                <button type="button" aria-label="Xem HLV tiếp theo" onClick={() => move(1)} disabled={loading || !coaches.length} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 disabled:opacity-40"><Icon name="chevron_right" /></button>
               </div>
             </div>
-          ))}
-          {!loading && !coaches.length && (
-            <p className="text-secondary text-center py-10 col-span-full">Chưa có huấn luyện viên nào được công khai.</p>
-          )}
+          </div>
+
+          <div className="p-4 sm:p-6">
+            <div ref={gallery} tabIndex={0} role="region" aria-label="Danh sách huấn luyện viên tiêu biểu" aria-busy={loading} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 pt-1 px-1 -mx-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-xl">
+              {loading && <p role="status" className="py-10 text-secondary">Đang tải HLV…</p>}
+              {coaches.map((c) => (
+                <CoachCard key={c.id} coach={c} className="w-[78%] shrink-0 snap-start sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-3rem)/4)]" />
+              ))}
+              {!loading && !coaches.length && <p className="w-full rounded-xl bg-slate-50 py-8 text-center text-body-sm text-secondary">Chưa có huấn luyện viên nào được công khai.</p>}
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -332,6 +317,92 @@ function PricingSection() {
   )
 }
 
+const STATS = [
+  { icon: 'groups', value: 5000, suffix: '+', label: 'Hội viên năng động' },
+  { icon: 'apartment', value: 4, suffix: '', label: 'Chi nhánh trung tâm' },
+  { icon: 'calendar_month', value: 50, suffix: '+', label: 'Lớp học mỗi tuần' },
+  { icon: 'sports_gymnastics', value: 8, suffix: '', label: 'Bộ môn đào tạo' },
+  { icon: 'military_tech', value: 15, suffix: '+', label: 'Huấn luyện viên chuyên nghiệp' },
+  { icon: 'favorite', value: 98, suffix: '%', label: 'Hài lòng dịch vụ' },
+  { icon: 'emoji_events', value: 10, suffix: '+', label: 'Năm kinh nghiệm' },
+  { icon: 'schedule', value: 16, suffix: 'h', label: 'Hoạt động mỗi ngày' },
+]
+
+// Fades + slides a section in once it scrolls into view (runs once, via IntersectionObserver).
+function Reveal({ children, className = '' }) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      setVisible(true)
+      obs.disconnect()
+    }, { threshold: 0.12 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className={`transition-all duration-700 ease-out ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'} ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// Counts from 0 up to `value` once the number scrolls into view (runs once, via IntersectionObserver).
+function CountUpNumber({ value, suffix = '', duration = 1600 }) {
+  const [display, setDisplay] = useState(0)
+  const ref = useRef(null)
+  const started = useRef(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || started.current) return
+      started.current = true
+      const start = performance.now()
+      const tick = (now) => {
+        const progress = Math.min((now - start) / duration, 1)
+        const eased = 1 - (1 - progress) ** 3
+        setDisplay(Math.round(value * eased))
+        if (progress < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+      obs.disconnect()
+    }, { threshold: 0.3 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [value, duration])
+
+  return <span ref={ref}>{display.toLocaleString('vi-VN')}{suffix}</span>
+}
+
+function StatsBannerSection() {
+  return (
+    <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen py-20 overflow-hidden">
+      <img src="/images/banner-stats.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-inverse-surface/70 backdrop-blur-[1px]" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-12 gap-x-6 text-center">
+          {STATS.map((s) => (
+            <div key={s.label} className="flex flex-col items-center gap-3">
+              <Icon name={s.icon} className="text-6xl text-tertiary-fixed" />
+              <span className="font-display-lg text-display-lg text-white font-bold">
+                <CountUpNumber value={s.value} suffix={s.suffix} />
+              </span>
+              <span className="text-white/85 text-body-lg font-semibold max-w-[160px]">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function HomePage() {
   return (
     <>
@@ -391,6 +462,7 @@ export default function HomePage() {
 </div>
 </section>
 
+<Reveal>
 <section className="py-16 bg-surface-container-low">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 <div className="text-center max-w-3xl mx-auto mb-12">
@@ -429,11 +501,13 @@ export default function HomePage() {
 </div>
 </div>
 </section>
+</Reveal>
 
-<ClassesSection />
-<TrainersSection />
-<NewsSection />
-<PricingSection />
+<Reveal><ClassesSection /></Reveal>
+<Reveal><TrainersSection /></Reveal>
+<Reveal><NewsSection /></Reveal>
+<Reveal><PricingSection /></Reveal>
+<Reveal><StatsBannerSection /></Reveal>
 </div></main>
 
 <footer className="w-full bg-inverse-surface text-inverse-on-surface pt-16 pb-8">

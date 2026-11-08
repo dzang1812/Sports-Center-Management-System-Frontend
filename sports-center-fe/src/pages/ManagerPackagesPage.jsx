@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { api, apiUpload } from '../api'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PLAN_TYPE_LABEL } from '../labels'
+import { useClientPaged } from '../usePaged'
 
 function PlanVisibilityDialog({ plan, onClose, onDone }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
@@ -187,6 +188,7 @@ export default function ManagerPackagesPage({ embedded = false }) {
     .filter((p) => typeFilter === 'all' || p.planType === typeFilter)
     .filter((p) => sportFilter === 'all' || String(p.sportId) === sportFilter)
     .filter((p) => statusFilter === 'all' || (statusFilter === 'active' ? p.isActive : !p.isActive))
+  const planPage = useClientPaged(filteredPlans)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -279,7 +281,7 @@ export default function ManagerPackagesPage({ embedded = false }) {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {filteredPlans.map((p) => (
+            {planPage.pageItems.map((p) => (
               <tr key={p.id} className="border-t border-surface-container">
                 <td className="px-4 py-3">
                   {p.imageUrl ? (
@@ -315,6 +317,7 @@ export default function ManagerPackagesPage({ embedded = false }) {
             )}
           </tbody>
         </table>
+        {planPage.pagination}
       </div>
 
       {modal && <PlanForm plan={modal.plan} sports={sports} onClose={() => setModal(null)} onDone={done} />}

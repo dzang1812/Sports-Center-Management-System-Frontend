@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { Alert, Badge, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { PAYMENT_METHOD_LABEL } from '../labels'
+import { useClientPaged } from '../usePaged'
 
 // Cash/Card orders a Receptionist started at the desk (via "Bán gói") and must confirm once the
 // member actually hands over the money — GET /payments/pending + POST /payments/{id}/confirm-at-counter.
@@ -55,6 +56,7 @@ export default function ReceptionPaymentsPage() {
   }
   const close = () => { if (!pending.current) setSelected(null) }
   const filtered = payments.filter(payment => (!method || payment.method === method) && `${payment.id} ${payment.memberId} ${payment.memberName} ${payment.planName ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN')))
+  const { pageItems, pagination } = useClientPaged(filtered)
   const description = payment => payment.planName ?? (payment.purpose === 'WalletTopUp' ? 'Nạp số dư' : 'Thanh toán tại quầy')
 
   return (
@@ -83,7 +85,7 @@ export default function ReceptionPaymentsPage() {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {filtered.map((p) => (
+            {pageItems.map((p) => (
               <tr key={p.id} className="border-t border-surface-container">
                 <td className="px-4 py-3 text-secondary">#{p.id}</td>
                 <td className="px-4 py-3">
@@ -105,6 +107,7 @@ export default function ReceptionPaymentsPage() {
             )}
           </tbody>
         </table>
+        {pagination}
       </div>
       {selected && <Modal title="Xác nhận đã nhận tiền" onClose={close} footer={<><button type="button" className={btnOutline} disabled={busyId != null} onClick={close}>Quay lại</button><button type="button" className={btnPrimary} disabled={busyId != null} onClick={() => confirm(selected)}>{busyId != null ? 'Đang xác nhận…' : 'Xác nhận đã nhận đủ tiền'}</button></>}>
         <div className="space-y-4"><p>Đơn #{selected.id} · <b>{selected.memberName}</b> · Hội viên #{selected.memberId}</p><p>{description(selected)}</p><div className="rounded-xl bg-surface-container p-4"><p className="text-body-sm text-secondary">Số tiền cần nhận</p><b className="text-headline-lg">{selected.amount.toLocaleString('vi-VN')}đ</b><p className="text-body-sm mt-1">{PAYMENT_METHOD_LABEL[selected.method] ?? selected.method}</p></div><p className="text-body-sm text-secondary">Người tạo: {selected.receivedByName ?? '—'}. Chỉ xác nhận khi đã nhận đủ số tiền của đúng hội viên.</p>{error && <Alert>{error}</Alert>}</div>

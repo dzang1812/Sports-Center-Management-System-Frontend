@@ -10,6 +10,7 @@ import { groupCourseRefunds } from './walletHistory'
 import { CLASS_STATUS_LABEL, LEVEL_LABEL } from '../labels'
 import { createCashReceipt, readCashReceipt, saveCashReceipt } from './cashReceipt'
 import CourseCover from './CourseCover'
+import { useClientPaged } from '../usePaged'
 import { courseAppearance } from './courseAppearance'
 import CoachProfileButton from './CoachProfile'
 
@@ -35,15 +36,31 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
   const [error, setError] = useState('')
   const pending = useRef(false)
   const active = useRef(true)
+  // Voucher: only for intents with `voucherKind` (wallet purchases). Locked after the first attempt so a retry
+  // reuses the same idempotency key with the same body (an ambiguous failure can never charge twice).
+  const [code, setCode] = useState('')
+  const [voucher, setVoucher] = useState(null)
+  const [voucherError, setVoucherError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [attempted, setAttempted] = useState(false)
+  const payable = voucher ? voucher.finalPrice : intent.price
+  const applyVoucher = async () => {
+    if (!code.trim()) return
+    setChecking(true); setVoucherError('')
+    try { setVoucher(await api('/vouchers/preview', { method: 'POST', body: { code: code.trim(), kind: intent.voucherKind, price: intent.price, memberId: intent.body?.memberId ?? null } })) }
+    catch (err) { setVoucher(null); setVoucherError(err.message) }
+    finally { setChecking(false) }
+  }
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const close = () => { if (!pending.current) onClose() }
   const submit = async () => {
     if (pending.current) return
-    pending.current = true; setBusy(true); setError('')
+    pending.current = true; setBusy(true); setError(''); setAttempted(true)
     try {
       intent.onAttempt?.()
-      const result = await api(intent.path, { method: intent.method ?? 'POST', body: intent.body, idempotencyKey: key })
-      if (active.current) onDone(result)
+      const body = voucher ? { ...intent.body, voucherCode: voucher.code } : intent.body
+      const result = await api(intent.path, { method: intent.method ?? 'POST', body, idempotencyKey: key })
+      if (active.current) onDone(result, payable)
     } catch (err) { intent.onFailure?.(err); if (active.current) setError(intent.errorMessage?.(err) ?? err.message) }
     finally { pending.current = false; if (active.current) setBusy(false) }
   }
@@ -58,10 +75,23 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
   }>
     <div className="space-y-4">
       <p>{intent.description}</p>
+      {intent.price != null && intent.voucherKind && <div className="space-y-1.5">
+        <label className="text-body-sm font-semibold" htmlFor="voucher-code">Mã voucher</label>
+        <div className="flex gap-2">
+          <input id="voucher-code" className={inputCls + ' uppercase'} placeholder="Nhập mã ưu đãi (không bắt buộc)" value={code} disabled={attempted || checking}
+            onChange={e => { setCode(e.target.value); setVoucher(null); setVoucherError('') }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher() } }} />
+          {voucher
+            ? <button type="button" className={btnOutline} disabled={attempted} onClick={() => { setVoucher(null); setCode('') }}>Bỏ mã</button>
+            : <button type="button" className={btnOutline} disabled={attempted || checking || !code.trim()} onClick={applyVoucher}>{checking ? 'Đang kiểm tra…' : 'Áp dụng'}</button>}
+        </div>
+        {voucherError && <p role="alert" className="text-body-sm text-error">{voucherError}</p>}
+        {voucher && <p className="text-body-sm text-green-700">Đã áp dụng {voucher.code}: giảm {vnd(voucher.discountAmount)}{voucher.description ? ` — ${voucher.description}` : ''}</p>}
+      </div>}
       {intent.price != null && <div className="rounded-xl bg-surface-container p-4 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2"><span>Thanh toán</span><b className="text-headline-md">{vnd(intent.price)}</b></div>
+        {voucher && <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Giá gốc</span><span className="line-through">{vnd(intent.price)}</span></div>}
+        <div className="flex flex-wrap items-center justify-between gap-2"><span>Thanh toán</span><b className="text-headline-md">{vnd(payable)}</b></div>
         <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Số dư hiện tại</span><span>{vnd(intent.balance)}</span></div>
-        <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Dự kiến sau thanh toán</span><span>{vnd(intent.balance - intent.price)}</span></div>
+        <div className="flex flex-wrap justify-between gap-2 text-body-sm text-secondary"><span>Dự kiến sau thanh toán</span><span>{vnd(intent.balance - payable)}</span></div>
       </div>}
       <p className="text-body-sm text-secondary whitespace-pre-line">{intent.policy}</p>
       {intent.sessions && <details className="rounded-lg border border-outline-variant">
@@ -146,7 +176,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
       if (!c.signal.aborted) setIntent({ title: 'Đăng ký toàn khóa', description: `${d.name}: toàn bộ ${d.expectedSessions} buổi${memberId ? ` cho hội viên #${memberId}` : ''}.`,
         price: d.courseFee, balance: data.wallet.balance, courseName: d.name, sessions: d.sessions.filter(s => s.status !== 'Cancelled'),
         policy: 'Trừ ví một lần cho toàn khóa, không thu lại từng buổi. Hệ thống kiểm tra lại hạn đăng ký, khai giảng, sức chứa, trùng lịch và số dư khi xác nhận. Chính sách hủy/hoàn theo khóa đã mua.',
-        path: `/courses/${course.id}/enrollments`, body: { ...target, expectedPrice: d.courseFee } })
+        path: `/courses/${course.id}/enrollments`, body: { ...target, expectedPrice: d.courseFee }, voucherKind: 'Course' })
     } catch (err) { if (!c.signal.aborted) setError(err.message) }
     finally { if (!c.signal.aborted) setLoading(false) }
   }
@@ -192,6 +222,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
   const historyPage = Math.min(page, Math.max(1, Math.ceil((data?.ledger?.total ?? 0) / 20)))
   const courses = (data?.courses ?? []).filter(({ course }) => (!focusCourseId || course.id === focusCourseId) && (sport === 'all' || course.sport === sport)
     && (!search.trim() || `${course.name} ${course.sport} ${course.coach ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN'))))
+  const catalogPage = useClientPaged(courses)
   const registered = (data?.enrollments ?? []).filter(enrollment => enrollment.status === 'Confirmed')
   const previous = (data?.enrollments ?? []).filter(enrollment => enrollment.status !== 'Confirmed')
   const cancelEnrollment = e => setIntent({
@@ -269,7 +300,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
           <input aria-label="Tìm khóa học" className={inputCls + ' !h-9'} value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm khóa học hoặc HLV…" />
           <select aria-label="Lọc bộ môn" className={inputCls + ' !h-9'} value={sport} onChange={event => setSport(event.target.value)}><option value="all">Tất cả bộ môn</option>{[...new Set(data.courses.map(item => item.course.sport))].sort().map(name => <option key={name}>{name}</option>)}</select>
         </div>
-        <div className="grid lg:grid-cols-2 gap-3">{courses.map(({ course: c, canEnroll, enrollmentUnavailableReason }) => {
+        <div className="grid lg:grid-cols-2 gap-3">{catalogPage.pageItems.map(({ course: c, canEnroll, enrollmentUnavailableReason }) => {
           const purchased = data.enrollments.some(e => e.classId === c.id && e.status === 'Confirmed')
           const appearance = courseAppearance(c.sport)
           return <article key={c.id} className={`group flex flex-col rounded-xl border border-slate-200 border-t-[3px] ${appearance.border} bg-white overflow-hidden shadow-sm transition-shadow hover:shadow-md`}>
@@ -294,6 +325,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
             </div>
           </article>
         })}</div>
+        {catalogPage.pagination}
         {!courses.length && <div className="rounded-xl border border-dashed border-outline-variant p-8 text-center text-secondary">{data.courses.length ? 'Không có khóa phù hợp. Hãy thử bộ môn hoặc từ khóa khác.' : 'Chưa có khóa học được công bố.'}</div>}
       </div>}
       {showEnrollments && <div className="space-y-4">
@@ -362,6 +394,8 @@ export function CourseManagement({ embedded = false }) {
       && (!search.trim() || `${course.name} ${course.sport}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN')))
       && (!periodStart || (start && end && start < periodEndExclusive && end >= periodStart))
   })
+  const coursePage = useClientPaged(shown)
+  const studentPage = useClientPaged(enrollments)
   return <div className="space-y-5">{!embedded && <h1 className="font-headline-xl text-headline-xl">Khóa học & lịch</h1>}
     {error && <Alert>{error}</Alert>}{notice && <Alert type="success">{notice}</Alert>}{loading && <p>Đang tải…</p>}
     {!selected && <>
@@ -372,12 +406,13 @@ export function CourseManagement({ embedded = false }) {
         <select className={inputCls} aria-label="Lọc quý khóa học" value={quarterFilter} onChange={event => { setQuarterFilter(event.target.value); if (event.target.value !== 'all' && yearFilter === 'all') setYearFilter(String(currentYear)) }}><option value="all">Tất cả quý</option>{[1, 2, 3, 4].map(quarter => <option key={quarter} value={quarter}>Quý {quarter}</option>)}</select>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-secondary text-body-sm">{shown.length} khóa học{periodStart ? ` · ${quarterFilter === 'all' ? 'Cả năm' : `Quý ${quarterFilter}`}/${yearFilter}` : ''} · Chọn một khóa để xem lịch, học viên và học phí.</p>{periodStart && <p className="mt-1 text-xs text-slate-500">Hiện khóa có thời gian học giao với {quarterFilter === 'all' ? 'năm' : 'quý'} đã chọn, kể cả khóa kéo dài qua nhiều quý.</p>}</div>{periodStart && <button type="button" className={btnOutline + ' !h-9 !text-xs'} onClick={() => { setYearFilter('all'); setQuarterFilter('all') }}>Xóa lọc thời gian</button>}</div>
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{shown.map(({ course: c }) => <button type="button" key={c.id} onClick={() => select(c)} className="rounded-2xl border border-outline-variant/50 bg-white p-5 text-left space-y-4 hover:border-primary-container hover:shadow-sm transition-all">
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{coursePage.pageItems.map(({ course: c }) => <button type="button" key={c.id} onClick={() => select(c)} className="rounded-2xl border border-outline-variant/50 bg-white p-5 text-left space-y-4 hover:border-primary-container hover:shadow-sm transition-all">
         <div className="flex items-center justify-between gap-2"><span className="text-body-sm text-primary">{c.sport}</span><Badge tone={c.status === 'Open' ? 'green' : c.status === 'Cancelled' ? 'red' : 'slate'}>{CLASS_STATUS_LABEL[c.status] ?? c.status}</Badge></div>
         <h2 className="font-semibold text-lg">{c.name}</h2><p className="text-body-sm text-secondary">{c.expectedSessions} buổi · {c.enrolled}/{c.capacity} học viên<br />HLV: {c.coach ?? 'Chưa phân công'} · {c.room}</p>
         {(c.firstSessionDate ?? c.startDate) && <p className="text-body-sm text-secondary flex items-center gap-1.5"><Icon name="date_range" className="text-base" />{formatDate(c.firstSessionDate ?? c.startDate)} – {formatDate(c.lastSessionDate ?? c.endDate ?? c.firstSessionDate ?? c.startDate)}</p>}
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-outline-variant/40"><b>{vnd(c.courseFee)}</b><span className="text-primary text-body-sm inline-flex items-center gap-1">Quản lý khóa<Icon name="arrow_forward" className="text-base" /></span></div>
       </button>)}</div>
+      {coursePage.pagination}
       {!loading && !shown.length && <p className="rounded-xl border border-dashed border-outline-variant bg-white p-8 text-center text-secondary">Không có khóa học phù hợp.</p>}
     </>}
     {selected && <button type="button" className="inline-flex items-center gap-1 text-primary text-body-sm" onClick={() => { const next = new URLSearchParams(params); next.delete('courseId'); setParams(next); setDetail(null); formFor.current = null }}><Icon name="arrow_back" className="text-lg" />Tất cả khóa học</button>}
@@ -389,8 +424,8 @@ export function CourseManagement({ embedded = false }) {
       </form>
       <div className="flex flex-wrap gap-2">{[true, false].map(open => <button key={String(open)} className={open ? btnPrimary : btnOutline} disabled={loading || detail.status === 'Cancelled'} onClick={() => setIntent({ title: open ? 'Mở đăng ký khóa' : 'Đóng đăng ký khóa', description: detail.name, policy: 'Backend kiểm tra lịch đủ buổi, tài nguyên, giá và cutoff. Đóng/mở không gia hạn mốc đã lưu.', path: `/courses/${selected}/publish`, method: 'PUT', body: { open } })}>{open ? 'Mở đăng ký' : 'Đóng đăng ký'}</button>)}</div></div>}
       {section === 'schedule' && <CourseScheduleCalendar key={detail.id} title={detail.name} sessions={detail.sessions} />}
-      {section === 'people' && <div className="space-y-4"><h3 className="font-semibold">Học viên ({enrollments.length})</h3>{enrollments.map(e => <div className="rounded-lg bg-surface-container-low p-3" key={e.id}><b>{e.member}</b><p className="text-secondary text-body-sm">{e.status === 'Confirmed' ? 'Đã đăng ký' : 'Đã hủy'} · Đã thanh toán {vnd(e.paidAmount)} · Đã hoàn {vnd(e.refundedAmount)}</p></div>)}{!enrollments.length && <p className="text-secondary text-body-sm">Chưa có học viên đăng ký.</p>}
-      <h3 className="font-semibold">Yêu cầu hỗ trợ khóa ({supportRequests.length})</h3>{supportRequests.map(r => <div key={r.id} className="rounded-lg border border-outline-variant/40 p-3 space-y-2"><p>{r.member} • {r.status} • {formatTimestamp(r.createdAt)}</p><p className="text-body-sm whitespace-pre-wrap">{r.description}</p><Link className="inline-flex items-center gap-1 text-primary text-body-sm font-semibold" to={`/manager/support?requestId=${r.id}`}>Xem / phản hồi<Icon name="arrow_forward" className="text-sm" /></Link></div>)}
+      {section === 'people' && <div className="space-y-4"><h3 className="font-semibold">Học viên ({enrollments.length})</h3>{studentPage.pageItems.map(e => <div className="rounded-lg bg-surface-container-low p-3" key={e.id}><b>{e.member}</b><p className="text-secondary text-body-sm">{e.status === 'Confirmed' ? 'Đã đăng ký' : 'Đã hủy'} · Đã thanh toán {vnd(e.paidAmount)} · Đã hoàn {vnd(e.refundedAmount)}</p></div>)}{!enrollments.length && <p className="text-secondary text-body-sm">Chưa có học viên đăng ký.</p>}
+      {studentPage.pagination}<h3 className="font-semibold">Yêu cầu hỗ trợ khóa ({supportRequests.length})</h3>{supportRequests.map(r => <div key={r.id} className="rounded-lg border border-outline-variant/40 p-3 space-y-2"><p>{r.member} • {r.status} • {formatTimestamp(r.createdAt)}</p><p className="text-body-sm whitespace-pre-wrap">{r.description}</p><Link className="inline-flex items-center gap-1 text-primary text-body-sm font-semibold" to={`/manager/support?requestId=${r.id}`}>Xem / phản hồi<Icon name="arrow_forward" className="text-sm" /></Link></div>)}
       {!supportRequests.length && <p className="text-body-sm text-secondary">Không có yêu cầu hỗ trợ.</p>}</div>}
       {section === 'cancel' && <div className="space-y-4"><p className="text-body-sm text-secondary">Chọn hủy toàn khóa hoặc xử lý một buổi. Khoản hoàn và quyền lợi được kiểm tra lại khi xác nhận.</p><Field label="Lý do hủy"><textarea className={inputCls} maxLength={500} value={cancel.reason} onChange={e => setCancel({ ...cancel, reason: e.target.value })} /></Field>
       <button className={btnOutline} disabled={loading || cancel.reason.trim().length < 2 || detail.status === 'Cancelled'} onClick={() => setIntent({ title: 'Trung tâm hủy toàn khóa', description: detail.name, policy: 'Trước khai giảng: hoàn phần thực trả chưa hoàn. Sau khai giảng: chỉ hoàn các buổi chưa cung cấp theo học phí phân bổ lúc đăng ký. Giữ lịch sử buổi đã diễn ra.', path: `/courses/${selected}/cancel`, body: { reason: cancel.reason.trim() } })}>Hủy toàn khóa</button>

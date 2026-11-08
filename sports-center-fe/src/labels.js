@@ -4,6 +4,24 @@ export const GOAL_LABEL = { WeightLoss: 'Giảm cân', MuscleGain: 'Tăng cơ', 
 export const LEVEL_LABEL = { Beginner: 'Mới bắt đầu', Intermediate: 'Trung bình', Advanced: 'Nâng cao' }
 export const GENDER_LABEL = { Male: 'Nam', Female: 'Nữ', Other: 'Khác' }
 
+// "HLV {name}" without doubling it for names that already carry the title (e.g. demo "HLV Yoga").
+export const coachLabel = (name) => (/^HLV\s/i.test(name ?? '') ? name : `HLV ${name}`)
+
+// Coach-facing summary of a member profile (roster / students): goal, level, gender + age, height/weight, phone.
+export const profileFacts = (p) => {
+  if (!p) return []
+  const today = new Date()
+  const birth = p.dateOfBirth && new Date(`${p.dateOfBirth}T00:00:00`)
+  const age = birth && today.getFullYear() - birth.getFullYear() - (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0)
+  return [
+    p.goal && GOAL_LABEL[p.goal],
+    p.level && LEVEL_LABEL[p.level],
+    [p.gender && GENDER_LABEL[p.gender], age != null && `${age} tuổi`].filter(Boolean).join(', '),
+    [p.heightCm && `${Number(p.heightCm)} cm`, p.weightKg && `${Number(p.weightKg)} kg`].filter(Boolean).join(' · '),
+    p.phone,
+  ].filter(Boolean)
+}
+
 export const AUDIT_ACTIONS = {
   'User.Create': 'Tạo tài khoản',
   'User.Update': 'Sửa tài khoản',
@@ -17,8 +35,6 @@ export const BOOKING_STATUS_LABEL = { Confirmed: 'Đã xác nhận', Cancelled: 
 export const SPORT_STATUS_LABEL = { Active: 'Hoạt động', Inactive: 'Ngừng hoạt động' }
 export const ROOM_STATUS_LABEL = { Active: 'Hoạt động', Maintenance: 'Đang bảo trì', Inactive: 'Ngừng hoạt động' }
 export const ATTENDANCE_STATUS_LABEL = { Present: 'Có mặt', Absent: 'Vắng', Late: 'Đi muộn', Excused: 'Có phép' }
-// PT attendance only ever accepts these three (no Excused) — see PUT /pt/bookings/{id}/attendance.
-export const PT_ATTENDANCE_STATUSES = ['Present', 'Absent', 'Late']
 // Class roster check-in state (self check-in flow), distinct from the Absent/Present attendance status.
 export const CHECK_IN_STATE_LABEL = { NotCheckedIn: 'Chưa điểm danh', Present: 'Có mặt', Late: 'Đi muộn', Absent: 'Vắng' }
 export const CHECK_IN_SOURCE_LABEL = { MemberSelfCheckIn: 'Tự check-in', LegacyCoachMarked: 'HLV điểm danh' }
