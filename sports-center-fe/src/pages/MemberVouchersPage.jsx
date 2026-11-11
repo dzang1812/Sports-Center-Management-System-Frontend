@@ -18,7 +18,8 @@ function state(item) {
 
 // Member voucher wallet (GET /me/vouchers): vouchers sent to me by staff, then public ones I can use now.
 // The code is entered at checkout.
-export default function MemberVouchersPage() {
+export default function MemberVouchersPage({ embedded = false }) {
+  const Heading = embedded ? 'h2' : 'h1'
   const [items, setItems] = useState(null)
   const [copied, setCopied] = useState('')
   useEffect(() => { api('/me/vouchers').then(setItems).catch(() => setItems([])) }, [])
@@ -51,7 +52,7 @@ export default function MemberVouchersPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1440px] mx-auto">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Ưu đãi của tôi</h1>
+        <Heading className={embedded ? 'text-lg font-bold' : 'font-headline-xl text-headline-xl'}>Ưu đãi của tôi</Heading>
         <p className="text-secondary mt-2">Nhập mã ở bước xác nhận thanh toán khi mua khóa học, PT hoặc gói tập bằng số dư.</p>
       </div>
       {!items && <p role="status" className="py-10 text-center text-secondary">Đang tải…</p>}

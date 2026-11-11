@@ -112,6 +112,7 @@ export function CommerceConfirm({ intent, onClose, onDone }) {
 export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode = 'all', embedded = false, focusCourseId = null }) {
   const { auth } = useAuth()
   const staff = auth.role === 'Receptionist'
+  const compactCatalog = !staff && viewMode === 'catalog'
   const showCatalog = viewMode === 'all' || viewMode === 'catalog'
   const showEnrollments = viewMode === 'all' || viewMode === 'enrollments'
   const showWallet = viewMode === 'all' || viewMode === 'wallet'
@@ -222,6 +223,11 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
   const historyPage = Math.min(page, Math.max(1, Math.ceil((data?.ledger?.total ?? 0) / 20)))
   const courses = (data?.courses ?? []).filter(({ course }) => (!focusCourseId || course.id === focusCourseId) && (sport === 'all' || course.sport === sport)
     && (!search.trim() || `${course.name} ${course.sport} ${course.coach ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN'))))
+    .sort((a, b) => {
+      if (!compactCatalog) return 0
+      const rank = item => data.enrollments.some(e => e.classId === item.course.id && e.status === 'Confirmed') ? 1 : item.canEnroll ? 0 : 2
+      return rank(a) - rank(b) || (a.course.firstSessionDate ?? a.course.startDate ?? '9999').localeCompare(b.course.firstSessionDate ?? b.course.startDate ?? '9999')
+    })
   const catalogPage = useClientPaged(courses)
   const registered = (data?.enrollments ?? []).filter(enrollment => enrollment.status === 'Confirmed')
   const previous = (data?.enrollments ?? []).filter(enrollment => enrollment.status !== 'Confirmed')
@@ -300,13 +306,13 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
           <input aria-label="Tìm khóa học" className={inputCls + ' !h-9'} value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm khóa học hoặc HLV…" />
           <select aria-label="Lọc bộ môn" className={inputCls + ' !h-9'} value={sport} onChange={event => setSport(event.target.value)}><option value="all">Tất cả bộ môn</option>{[...new Set(data.courses.map(item => item.course.sport))].sort().map(name => <option key={name}>{name}</option>)}</select>
         </div>
-        <div className="grid lg:grid-cols-2 gap-3">{catalogPage.pageItems.map(({ course: c, canEnroll, enrollmentUnavailableReason }) => {
+        <div className={`grid gap-3 ${compactCatalog ? 'md:grid-cols-2 xl:grid-cols-3' : 'lg:grid-cols-2'}`}>{catalogPage.pageItems.map(({ course: c, canEnroll, enrollmentUnavailableReason }) => {
           const purchased = data.enrollments.some(e => e.classId === c.id && e.status === 'Confirmed')
           const appearance = courseAppearance(c.sport)
           return <article key={c.id} className={`group flex flex-col rounded-xl border border-slate-200 border-t-[3px] ${appearance.border} bg-white overflow-hidden shadow-sm transition-shadow hover:shadow-md`}>
-            <div className="flex flex-col sm:flex-row flex-1">
-            <CourseCover sport={c.sport} compact />
-            <div className="p-3 sm:p-4 space-y-3 flex-1 min-w-0">
+            <div className={`flex flex-col flex-1 ${compactCatalog ? '' : 'sm:flex-row'}`}>
+            <CourseCover sport={c.sport} compact className={compactCatalog ? 'h-24 w-full' : undefined} />
+            <div className={`p-3 space-y-3 flex-1 min-w-0 ${compactCatalog ? '' : 'sm:p-4'}`}>
               <div className="flex flex-wrap items-center justify-between gap-1.5"><span className={`rounded-md px-2 py-1 text-xs font-bold ${appearance.tag}`}>{c.sport}</span><Badge tone={purchased ? 'indigo' : canEnroll ? 'green' : 'amber'}>{purchased ? 'Đã đăng ký' : canEnroll ? `Còn ${Math.max(0, c.capacity - c.enrolled)} chỗ` : 'Chưa nhận đăng ký'}</Badge></div>
               <div><h3 className="text-lg leading-6 font-bold text-slate-900">{c.name}</h3><p className="text-xs text-slate-500 mt-1 line-clamp-1" title={c.description ?? undefined}>{LEVEL_LABEL[c.level] ?? c.level}{c.description ? ` · ${c.description}` : ''}</p></div>
               <div className="space-y-1.5 text-xs text-slate-600">
@@ -317,7 +323,7 @@ export function MemberCommerce({ memberId = null, coursesOnly = false, viewMode 
               <div className="border-t border-slate-100 pt-2"><div className="flex flex-wrap items-baseline gap-x-2"><p className={`text-2xl font-bold tracking-tight ${appearance.price}`}>{vnd(c.courseFee)}</p><span className="text-xs text-slate-500">/ toàn khóa</span></div><p className="text-[11px] text-slate-500 mt-0.5">{c.sessionPrice != null ? `${vnd(c.sessionPrice)}/buổi · ` : ''}Hạn: {formatTimestamp(c.enrollmentClosesAt)}</p></div>
             </div>
             </div>
-            {enrollmentUnavailableReason && <p className="mx-3 mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-amber-900 text-xs" role="status">{enrollmentUnavailableReason}</p>}
+            {enrollmentUnavailableReason && !(compactCatalog && purchased) && <p className="mx-3 mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-amber-900 text-xs" role="status">{enrollmentUnavailableReason}</p>}
             <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3 bg-slate-50/70">
               <button type="button" className={btnOutline + ' flex-1 !h-9 !text-xs bg-white'} onClick={() => view(c.id)}>Xem lịch & chi tiết</button>
               {purchased && !staff ? <Link className={btnPrimary + ' flex-1 !h-9 !text-xs'} to="/member/schedule?tab=courses">Khóa của tôi</Link>

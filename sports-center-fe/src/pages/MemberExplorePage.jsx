@@ -8,17 +8,17 @@ import MemberPackages from '../components/MemberPackages'
 export default function MemberExplorePage() {
   const [params, setParams] = useSearchParams()
   const type = ['pt', 'single', 'packages'].includes(params.get('type')) ? params.get('type') : 'courses'
-  return <div className="space-y-3">
+  return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h1 className="text-2xl font-bold text-slate-900">Khám phá & đăng ký</h1>
+      <div><h1 className="text-2xl font-bold text-slate-900">Bạn muốn tập gì hôm nay?</h1><p className="text-body-sm text-secondary mt-1">Chọn khóa học, tập với HLV hoặc đăng ký gói tập.</p></div>
       <Link to="/member/schedule" className="inline-flex items-center gap-1 text-primary text-body-sm font-semibold py-2"><Icon name="event_note" className="text-lg" />Lịch của tôi<Icon name="arrow_forward" className="text-base" /></Link>
     </div>
-    <div className="rounded-2xl border border-outline-variant/50 bg-white p-3 sm:p-4 shadow-sm space-y-3">
-    <nav aria-label="Hình thức tập luyện" className="flex flex-wrap gap-2 border-b border-slate-100 pb-3">
-      {[['courses', 'school', 'Khóa học nhiều tuần', 'Một lần đăng ký, trọn lịch tập trong khóa.'], ['packages', 'card_membership', 'Đăng ký gói tập', 'Gói Gym theo thời hạn, gói lớp nhóm và gói buổi PT do trung tâm mở bán.'], ['pt', 'fitness_center', 'Tập riêng với HLV', 'Chọn huấn luyện viên, giờ tập và thanh toán.']].map(([value, icon, label, description]) =>
+    <div className="space-y-4">
+    <nav aria-label="Hình thức tập luyện" className="grid grid-cols-3 gap-2 rounded-xl border border-outline-variant/40 bg-white p-2">
+      {[['courses', 'school', 'Khóa học', 'Học theo lịch cố định, đăng ký trọn khóa.'], ['pt', 'fitness_center', 'Tập với HLV', 'Chọn HLV, giờ tập và thanh toán.'], ['packages', 'card_membership', 'Gói tập', 'Các gói theo thời hạn hoặc số buổi do trung tâm mở bán.']].map(([value, icon, label, description]) =>
         <button type="button" key={value} aria-pressed={type === value} onClick={() => setParams(value === 'courses' ? {} : { type: value })}
-          title={description} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-body-sm font-semibold transition-colors ${type === value ? 'bg-primary-container text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-          <Icon name={icon} className="text-lg" /><span>{label}</span>
+          title={description} className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-3 rounded-lg text-body-sm font-semibold transition-colors ${type === value ? 'bg-primary-container text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
+          <Icon name={icon} className="text-lg sm:text-2xl shrink-0" /><span className="text-left"><span className="block">{label}</span><span className={`hidden lg:block mt-0.5 text-xs font-normal ${type === value ? 'text-white/80' : 'text-slate-500'}`}>{description}</span></span>
         </button>)}
     </nav>
     {type === 'courses' && <MemberCommerce viewMode="catalog" embedded />}

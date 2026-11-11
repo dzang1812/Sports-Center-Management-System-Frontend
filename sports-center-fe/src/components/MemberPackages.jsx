@@ -44,11 +44,11 @@ export default function MemberPackages() {
     && `${plan.name} ${plan.sportName ?? ''}`.toLocaleLowerCase('vi-VN').includes(search.trim().toLocaleLowerCase('vi-VN')))
   const { pageItems, pagination } = useClientPaged(shown)
   const bought = () => {
-    setNotice(`Đã thanh toán gói “${selected.name}” bằng số dư. Xem thời hạn sử dụng trong Gói của tôi.`)
+    setNotice(`Đã thanh toán gói “${selected.name}” bằng số dư. Xem thời hạn trong Ví & gói → Gói đã mua.`)
     setSelected(null); setReload(value => value + 1)
   }
   return <section className="space-y-4" aria-label="Đăng ký gói tập">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Gói tập hội viên</h2><p className="mt-1 text-body-sm text-slate-500">Gói tự tập theo thời hạn, gói lớp nhóm và gói buổi PT do trung tâm mở bán.</p></div><Link className={btnOutline + ' !h-9 !text-xs'} to="/member/subscription">Gói của tôi<Icon name="arrow_forward" className="text-base" /></Link></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Chọn gói tập phù hợp</h2><p className="mt-1 text-body-sm text-slate-500">Gói theo thời hạn, lớp nhóm hoặc buổi PT do trung tâm mở bán.</p></div><Link className={btnOutline + ' !h-9 !text-xs'} to="/member/wallet?tab=packages">Gói đã mua<Icon name="arrow_forward" className="text-base" /></Link></div>
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-body-sm text-emerald-900"><span>Số dư khả dụng: <b>{wallet ? money(wallet.balance) : '—'}</b></span><Link className="font-semibold hover:underline" to="/member/wallet">Nạp tiền<Icon name="arrow_forward" className="ml-1 text-sm" /></Link></div>
     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_auto]"><input aria-label="Tìm gói tập" className={inputCls} placeholder="Tìm tên gói, bộ môn…" value={search} onChange={event => setSearch(event.target.value)} /><select aria-label="Lọc loại gói tập" className={inputCls} value={type} onChange={event => setType(event.target.value)}><option value="all">Tất cả loại gói</option>{Object.entries(PLAN_TYPE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><button type="button" className={btnOutline + ' !h-11'} disabled={loading} onClick={() => setReload(value => value + 1)}><Icon name="refresh" className="text-lg" />Làm mới</button></div>
     {error && <Alert>{error}</Alert>}{walletError && <Alert type="warning">{walletError}</Alert>}{notice && <Alert type="success">{notice}</Alert>}

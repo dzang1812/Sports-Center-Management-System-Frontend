@@ -2,7 +2,6 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { AuthProvider, useAuth } from './auth'
 import AiChatWidget from './components/AiChatWidget'
 import AppLayout from './components/Layouts'
-import { MemberCommerce } from './components/commerce'
 import { InvoicePage } from './components/frontDesk'
 import { MemberSupportPage, SupportDeskPage } from './components/support'
 import ClassesPage from './pages/ClassesPage'
@@ -20,12 +19,10 @@ import ManagerSettingsPage from './pages/ManagerSettingsPage'
 import ManagerReportsPage from './pages/ManagerReportsPage'
 import ManagerPtPage from './pages/ManagerPtPage'
 import MemberExplorePage from './pages/MemberExplorePage'
-import MemberSubscriptionPage from './pages/MemberSubscriptionPage'
+import MemberWalletPage from './pages/MemberWalletPage'
 import MemberTrainingPage from './pages/MemberTrainingPage'
-import MemberCoachReviewsPage from './pages/MemberCoachReviewsPage'
 import StaffCoachReviewsPage from './pages/StaffCoachReviewsPage'
 import ManagerVouchersPage from './pages/ManagerVouchersPage'
-import MemberVouchersPage from './pages/MemberVouchersPage'
 import MyMemberSchedulePage from './pages/MyMemberSchedulePage'
 import NewsPage from './pages/NewsPage'
 import PackagesPage from './pages/PackagesPage'
@@ -49,6 +46,13 @@ function ReceptionRedirect({ to, tab }) {
   const search = new URLSearchParams(location.search)
   if (tab) search.set('tab', tab)
   return <Navigate to={`${to}${search.size ? `?${search}` : ''}`} replace />
+}
+
+function MemberRedirect({ to, tab }) {
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  params.set('tab', tab)
+  return <Navigate to={{ pathname: to, search: `?${params}`, hash: location.hash }} replace />
 }
 
 // Must be logged in. A temp password has to be changed before anything else (AUTH-03).
@@ -137,12 +141,12 @@ export default function App() {
               <Route path="/member" element={<Navigate to="/member/schedule" replace />} />
               <Route path="/member/classes" element={<MemberExplorePage />} />
               <Route path="/member/schedule" element={<MyMemberSchedulePage />} />
-              <Route path="/member/subscription" element={<MemberSubscriptionPage />} />
-              <Route path="/member/wallet" element={<MemberCommerce viewMode="wallet" />} />
+              <Route path="/member/subscription" element={<MemberRedirect to="/member/wallet" tab="packages" />} />
+              <Route path="/member/wallet" element={<MemberWalletPage />} />
               <Route path="/member/pt" element={<Navigate to="/member/classes?type=pt" replace />} />
               <Route path="/member/training" element={<MemberTrainingPage />} />
-              <Route path="/member/reviews" element={<MemberCoachReviewsPage />} />
-              <Route path="/member/vouchers" element={<MemberVouchersPage />} />
+              <Route path="/member/reviews" element={<MemberRedirect to="/member/schedule" tab="reviews" />} />
+              <Route path="/member/vouchers" element={<MemberRedirect to="/member/wallet" tab="vouchers" />} />
               <Route path="/member/support" element={<MemberSupportPage />} />
             </Route>
           </Route>

@@ -67,14 +67,34 @@ function CodeModal({ sessionId, onClose }) {
   )
 }
 
-function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
+function SelfCheckInModal({ title, endpoint, codeEndpoint, onClose, onDone }) {
   const [code, setCode] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loadingCode, setLoadingCode] = useState(false)
+  const [codeExpiry, setCodeExpiry] = useState(null)
+
+  const getCode = async () => {
+    if (loadingCode || busy) return
+    setError('')
+    setLoadingCode(true)
+    try {
+      const data = await api(codeEndpoint, { method: 'POST', notify: false })
+      setCode(data.code)
+      setCodeExpiry(data.expiresAt)
+    } catch (err) {
+      setError(err.status === 404
+        ? 'Backend chưa có tính năng tự lấy mã. Bạn có thể nhập mã từ HLV/lễ tân.'
+        : err.message)
+    } finally {
+      setLoadingCode(false)
+    }
+  }
 
   const submit = async (e) => {
     e.preventDefault()
+    if (busy || loadingCode) return
     setError('')
     setBusy(true)
     try {
@@ -92,7 +112,15 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
       {!result ? (
         <form onSubmit={submit} className="flex flex-col gap-4">
           {error && <Alert>{error}</Alert>}
-          <p className="text-body-sm text-secondary">Nhập mã hiện tại của đúng buổi từ HLV/lễ tân. Mã của buổi khác không dùng được.</p>
+          <p className="text-body-sm text-secondary">{codeEndpoint
+            ? 'Bấm lấy mã để tự điền, sau đó xác nhận check-in. Chỉ áp dụng cho buổi bạn đã đăng ký trong thời gian điểm danh.'
+            : 'Nhập mã hiện tại của đúng buổi từ HLV/lễ tân. Mã của buổi khác không dùng được.'}</p>
+          {codeEndpoint && (
+            <button type="button" className={btnOutline} disabled={loadingCode || busy} onClick={getCode}>
+              <Icon name="qr_code_2" className="text-lg" />
+              {loadingCode ? 'Đang lấy mã…' : codeExpiry ? 'Lấy lại mã check-in' : 'Tự lấy mã check-in'}
+            </button>
+          )}
           <input
             className={inputCls}
             placeholder="Nhập mã check-in"
@@ -100,12 +128,14 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
             minLength={6}
             maxLength={64}
             required
+            disabled={busy || loadingCode}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => { setCode(e.target.value); setCodeExpiry(null) }}
           />
+          {codeExpiry && <p className="text-body-sm text-secondary" role="status">Đã điền mã của buổi này. Hạn mã: {formatTimestamp(codeExpiry)}.</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-            <button type="submit" disabled={busy || !code.trim()} className={btnPrimary}>{busy ? 'Đang gửi…' : 'Check-in'}</button>
+            <button type="submit" disabled={busy || loadingCode || !code.trim()} className={btnPrimary}>{busy ? 'Đang gửi…' : 'Check-in'}</button>
           </div>
         </form>
       ) : (
@@ -152,6 +182,7 @@ export function SelfCheckInButton({ sessionId, as = 'member', className, onDone 
         <SelfCheckInModal
           title={as === 'coach' ? 'Check-in buổi dạy' : 'Check-in buổi học'}
           endpoint={endpoint}
+          codeEndpoint={as === 'member' ? `/me/class-sessions/${sessionId}/check-in-code` : null}
           onClose={() => setOpen(false)}
           onDone={onDone}
         />

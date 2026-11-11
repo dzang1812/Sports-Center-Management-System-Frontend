@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { Icon } from './ui'
 import { courseAppearance } from './courseAppearance'
 
-export default function CourseCover({ sport, compact = false }) {
+export default function CourseCover({ sport, compact = false, className }) {
   const artwork = courseAppearance(sport)
   const [failedImage, setFailedImage] = useState(null)
-  return <div className={`relative shrink-0 overflow-hidden bg-surface-container ${compact ? 'h-28 w-full sm:h-auto sm:w-28 xl:w-32' : 'h-44 sm:h-52'}`}>
+  return <div className={`relative shrink-0 overflow-hidden bg-surface-container ${className ?? (compact ? 'h-28 w-full sm:h-auto sm:w-28 xl:w-32' : 'h-44 sm:h-52')}`}>
     {artwork.src && failedImage !== artwork.src
       ? <img src={artwork.src} alt={`Bộ môn ${sport}`} loading="lazy" decoding="async"
           style={{ objectPosition: artwork.position }} onError={() => setFailedImage(artwork.src)}

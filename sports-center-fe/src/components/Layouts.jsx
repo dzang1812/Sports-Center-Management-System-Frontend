@@ -39,23 +39,19 @@ const NAV = {
     { to: '/member/classes', label: 'Khám phá', icon: 'explore' },
     { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
     { to: '/member/training', label: 'Tự tập', icon: 'fitness_center' },
-    { to: '/member/reviews', label: 'Đánh giá HLV', icon: 'reviews' },
-    { to: '/member/subscription', label: 'Gói của tôi', icon: 'card_membership' },
-    { to: '/member/wallet', label: 'Số dư', icon: 'account_balance_wallet' },
-    { to: '/member/vouchers', label: 'Ưu đãi', icon: 'confirmation_number' },
+    { to: '/member/wallet', label: 'Ví & gói', icon: 'account_balance_wallet' },
     { to: '/member/support', label: 'Hỗ trợ', icon: 'support_agent' },
-    { to: '/profile', label: 'Hồ sơ', icon: 'person' },
   ],
 }
 
-function UserChip() {
+function UserChip({ compact = false }) {
   const { auth, logout } = useAuth()
   return (
     <div className="flex items-center gap-space-sm">
       <Link to="/profile" className="flex items-center gap-space-sm p-1 rounded-lg hover:bg-surface-container-high" title="Hồ sơ cá nhân">
         <Avatar src={auth.avatarUrl} />
-        <div className="hidden sm:flex flex-col text-left">
-          <span className="font-label-md text-label-md text-on-surface leading-tight">{auth.fullName}</span>
+        <div className={`hidden sm:flex flex-col text-left ${compact ? 'max-w-24' : ''}`}>
+          <span className="font-label-md text-label-md text-on-surface leading-tight truncate">{auth.fullName}</span>
           <span className="font-label-sm text-label-sm text-on-surface-variant leading-tight">{ROLE_LABEL[auth.role]}</span>
         </div>
       </Link>
@@ -154,7 +150,7 @@ function StaffLayout() {
 function MemberLayout() {
   const { pathname } = useLocation()
   const link = ({ isActive }) =>
-    `min-w-0 shrink-0 flex items-center justify-center gap-2 px-1.5 sm:px-4 py-2 rounded-lg font-label-md text-xs sm:text-label-md whitespace-nowrap transition-all ${
+    `min-w-0 shrink-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 rounded-lg font-label-md text-[10px] sm:text-label-md whitespace-nowrap transition-all ${
       isActive ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
     }`
 
@@ -162,24 +158,24 @@ function MemberLayout() {
     <div className="min-h-screen bg-surface">
       <header className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-primary-container/15 via-surface/90 to-tertiary-container/15 backdrop-blur-xl shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b-2 border-primary-container/40">
         <div className="h-28 xl:h-16 w-full max-w-[1440px] mx-auto px-4 sm:px-6 flex flex-wrap xl:flex-nowrap items-center justify-between gap-x-3 gap-y-1 py-2 xl:py-0">
-          <div className="flex items-center gap-2 xl:order-1">
+          <div className="flex shrink-0 items-center gap-2 xl:order-1">
             <Link to="/member/classes" className="flex items-center gap-2" aria-label="FitZone — Khám phá">
               <img src="/logo.png" alt="FitZone" className="w-8 h-8 rounded-lg object-contain" />
               <span className="font-headline-md text-headline-md font-bold text-on-surface">FitZone</span>
             </Link>
-            <Link to="/member/subscription" aria-label="Xem hạng hội viên"><MemberTierBadge /></Link>
+            <Link to="/member/wallet?tab=packages" className="hidden sm:block" aria-label="Xem hạng hội viên"><MemberTierBadge /></Link>
           </div>
-          <nav aria-label="Điều hướng hội viên" className="order-3 xl:order-2 w-full xl:w-auto xl:min-w-0 flex gap-1 overflow-x-auto p-1 bg-surface-container-low rounded-xl">
+          <nav aria-label="Điều hướng hội viên" className="order-3 xl:order-2 grid w-full min-w-0 grid-cols-5 xl:flex xl:w-auto gap-1 p-1 bg-surface-container-low rounded-xl">
             {NAV.Member.map((n) => (
               <NavLink key={n.to} to={n.to} className={link}>
-                <Icon name={n.icon} className="hidden sm:inline text-[20px]" />{n.label}
+                <Icon name={n.icon} className="text-[18px] sm:text-[20px]" />{n.label}
               </NavLink>
             ))}
           </nav>
-          <div className="xl:order-3 flex items-center gap-1"><Notifications /><UserChip /></div>
+          <div className="xl:order-3 shrink-0 flex items-center gap-1"><Notifications /><UserChip compact /></div>
         </div>
       </header>
-      <main className={`pt-28 xl:pt-16 pb-10 w-full mx-auto ${pathname === '/member/schedule' ? 'max-w-[1800px] px-4 lg:px-6' : 'max-w-7xl px-4 sm:px-6 lg:px-10'}`}>
+      <main className={`pt-28 xl:pt-16 pb-10 w-full mx-auto ${pathname === '/member/schedule' ? 'max-w-[1600px] px-4 lg:px-6' : 'max-w-[1440px] px-4 sm:px-6 lg:px-8'}`}>
         <div className={pathname === '/member/classes' ? 'pt-4' : 'pt-6 sm:pt-8'}>
           <Outlet />
         </div>

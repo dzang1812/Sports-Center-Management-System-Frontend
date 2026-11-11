@@ -9,6 +9,7 @@ import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
 import MemberScheduleOverview from '../components/MemberScheduleOverview'
 import { MemberCommerce } from '../components/commerce'
 import MyTrainingFeedback from '../components/TrainingFeedback'
+import MemberCoachReviewsPage from './MemberCoachReviewsPage'
 import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
 
@@ -381,36 +382,50 @@ function AttendanceHistory() {
 export default function MyMemberSchedulePage() {
   const [params, setParams] = useSearchParams()
   const requestedTab = params.get('tab')
-  const tab = ['courses', 'attendance', 'feedback', 'mine'].includes(requestedTab) ? requestedTab : 'calendar'
+  const tab = ['courses', 'attendance', 'feedback', 'reviews', 'mine'].includes(requestedTab) ? requestedTab : 'calendar'
+  const progress = ['attendance', 'feedback', 'reviews'].includes(tab)
+  const selectTab = value => {
+    const next = new URLSearchParams(params)
+    if (value === 'calendar') next.delete('tab')
+    else next.set('tab', value)
+    setParams(next)
+  }
 
   return (
     <div className="flex flex-col gap-5 max-w-[1440px] mx-auto">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><h1 className="font-headline-xl text-headline-xl">Lịch của tôi</h1>
-        <p className="text-secondary mt-2">Xem buổi sắp tới, check-in hoặc quản lý lịch tập.</p></div>
+        <p className="text-secondary mt-1">Xem lịch, check-in và theo dõi quá trình tập luyện.</p></div>
         <Link className={btnPrimary} to="/member/classes"><Icon name="add" className="text-lg" />Đặt buổi tập mới</Link>
       </div>
 
 
       <nav aria-label="Quản lý lịch tập" className="flex flex-wrap gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['calendar', 'Lịch tập'], ['courses', 'Khóa đã đăng ký'], ['attendance', 'Điểm danh'], ['feedback', 'Kết quả & nhận xét']].map(([v, l]) => (
+        {[['calendar', 'Lịch tập'], ['courses', 'Khóa của tôi'], ['attendance', 'Tiến độ & đánh giá']].map(([v, l]) => (
           <button
             type="button"
             key={v}
-            aria-pressed={tab === v}
-            className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
-            onClick={() => setParams(v === 'calendar' ? {} : { tab: v })}
+            aria-pressed={v === 'attendance' ? progress : v === 'calendar' ? ['calendar', 'mine'].includes(tab) : tab === v}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-label-md text-body-sm transition-all ${(v === 'attendance' ? progress : v === 'calendar' ? ['calendar', 'mine'].includes(tab) : tab === v) ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+            onClick={() => selectTab(v)}
           >
             {l}
           </button>
         ))}
       </nav>
 
+      {progress && <nav aria-label="Tiến độ và đánh giá" className="flex flex-wrap gap-4 border-b border-outline-variant/40">
+        {[['attendance', 'Điểm danh'], ['feedback', 'Kết quả tập'], ['reviews', 'Đánh giá HLV']].map(([value, label]) =>
+          <button type="button" key={value} aria-pressed={tab === value} onClick={() => selectTab(value)}
+            className={`pb-3 text-body-sm font-semibold border-b-2 ${tab === value ? 'border-primary-container text-primary-container' : 'border-transparent text-secondary hover:text-on-surface'}`}>{label}</button>)}
+      </nav>}
+
       {tab === 'calendar' && <BookingSchedule presentation="member" />}
       {tab === 'courses' && <MemberCommerce viewMode="enrollments" embedded />}
       {tab === 'mine' && <BookingSchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
       {tab === 'feedback' && <MyTrainingFeedback />}
+      {tab === 'reviews' && <MemberCoachReviewsPage embedded />}
       <details className="border-t border-outline-variant/40 pt-4 text-body-sm text-secondary"><summary className="cursor-pointer w-fit">Xem thêm</summary><div className="flex flex-wrap gap-x-6 gap-y-3 pt-3">
         <Link className="text-primary hover:underline" to="/member/schedule?tab=mine">Lịch dạng danh sách</Link>
         <Link className="text-primary hover:underline" to="/member/training">Kế hoạch tập cá nhân</Link>

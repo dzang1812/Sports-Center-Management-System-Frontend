@@ -71,12 +71,12 @@ function CurrentPlanHero({ sub, onCancel }) {
   const upcoming = sub.startDate > toDateOnly()
 
   return (
-    <div className="bg-gradient-to-br from-primary-container/15 via-surface-container-lowest to-tertiary-container/10 rounded-xl p-6 shadow-md border border-primary-container/30">
+    <div className="rounded-xl bg-white p-4 sm:p-5 border border-outline-variant/50 border-l-4 border-l-primary-container shadow-sm">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
         <span className="font-label-sm text-label-sm uppercase tracking-wide text-primary font-semibold">{upcoming ? `Sắp bắt đầu · từ ${sub.startDate}` : 'Gói đang sử dụng'}</span>
         <Badge tone="green">{PLAN_TYPE_LABEL[sub.planType] ?? sub.planType}</Badge>
       </div>
-      <h2 className="font-headline-lg text-headline-lg text-on-surface mb-3">{sub.planName}</h2>
+      <h2 className="text-xl font-bold text-on-surface mb-3">{sub.planName}</h2>
 
       <div className="grid sm:grid-cols-2 gap-5">
         <div>
@@ -120,7 +120,7 @@ function CurrentPlanHero({ sub, onCancel }) {
 }
 
 
-export default function MemberSubscriptionPage() {
+export default function MemberSubscriptionPage({ embedded = false }) {
   const [subs, setSubs] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -164,30 +164,33 @@ export default function MemberSubscriptionPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {!embedded && <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-headline-xl text-headline-xl">Gói tập của tôi</h1>
           <p className="text-secondary">Tra cứu quyền lợi và lịch sử các gói tập đã mua.</p>
         </div>
-        <Link to="/member/classes" className={btnPrimary}>
+        <Link to="/member/classes?type=packages" className={btnPrimary}>
           <Icon name="add" className="text-lg" />
-          Khám phá khóa học & PT
+          Đăng ký gói tập
         </Link>
-      </div>
+      </div>}
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
 
-      <MemberTierCard />
-
       {current.length ? (
         <div className="flex flex-col gap-4">
           <h3 className="font-headline-sm text-headline-sm">Gói còn hạn ({current.length})</h3>
-          {current.map((s) => <CurrentPlanHero key={s.id} sub={s} onCancel={setCancelling} />)}
+          <div className="grid xl:grid-cols-2 gap-4">{current.map((s) => <CurrentPlanHero key={s.id} sub={s} onCancel={setCancelling} />)}</div>
         </div>
       ) : (
         <CurrentPlanHero sub={null} />
       )}
+
+      <details className="rounded-xl border border-outline-variant/40 bg-white p-4">
+        <summary className="cursor-pointer font-semibold text-body-sm">Hạng hội viên & quyền lợi</summary>
+        <div className="pt-3"><MemberTierCard /></div>
+      </details>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant/40 bg-white p-4">
