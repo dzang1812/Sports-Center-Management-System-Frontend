@@ -344,8 +344,8 @@ export default function MemberTrainingPage() {
   return (
     <div className="flex flex-col gap-4 pb-8">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Lịch tập tuần</h1>
-        <p className="text-secondary">Tự xếp bài tập cho từng ngày trong tuần từ thư viện bài tập của trung tâm.</p>
+        <h1 className="font-headline-xl text-headline-xl">Kế hoạch tự tập</h1>
+        <p className="text-secondary">Xem kế hoạch HLV giao hoặc tự sắp xếp bài tập cho từng ngày trong tuần.</p>
       </div>
       {error && <Alert>{error}</Alert>}
       {toast && <Toast onClose={() => setToast('')}>{toast}</Toast>}

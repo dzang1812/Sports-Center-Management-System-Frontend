@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { formatTimestamp } from '../dateUtils'
 import { useFlow2TimeRules } from '../flow2TimeRules'
@@ -12,10 +12,14 @@ function CodeModal({ sessionId, onClose }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [left, setLeft] = useState(0)
+  const issued = useRef(null)
 
   useEffect(() => {
     let cancelled = false
-    api(`/sessions/${sessionId}/check-in-code`, { method: 'POST' })
+    // StrictMode re-runs effects in development. Share the request for this opening.
+    if (issued.current?.sessionId !== sessionId)
+      issued.current = { sessionId, promise: api(`/sessions/${sessionId}/check-in-code`, { method: 'POST' }) }
+    issued.current.promise
       .then((d) => {
         if (cancelled) return
         setData(d)
@@ -52,6 +56,7 @@ function CodeModal({ sessionId, onClose }) {
             {!enforceTimeRules ? 'Đang bật bỏ qua thời gian check-in cho tất cả vai trò.' : expired ? 'Mã đã hết hạn — bấm lại nút Mở mã để tạo mã mới.' : `Hết hạn sau ${Math.ceil(left / 1000)}s`}
           </p>
           <p className="text-body-sm text-secondary text-center max-w-xs">Đọc mã này cho hội viên/HLV để họ nhập vào ô check-in.</p>
+          <p className="text-body-sm text-secondary text-center">Buổi #{sessionId} · Mã riêng cho buổi này. Mở lại giữ nguyên mã còn hiệu lực.</p>
           <p className="text-body-sm text-secondary">Hạn mã (giờ Việt Nam): {formatTimestamp(data.expiresAt)}</p>
         </div>
       )}
@@ -62,14 +67,34 @@ function CodeModal({ sessionId, onClose }) {
   )
 }
 
-function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
+function SelfCheckInModal({ title, endpoint, codeEndpoint, onClose, onDone }) {
   const [code, setCode] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loadingCode, setLoadingCode] = useState(false)
+  const [codeExpiry, setCodeExpiry] = useState(null)
+
+  const getCode = async () => {
+    if (loadingCode || busy) return
+    setError('')
+    setLoadingCode(true)
+    try {
+      const data = await api(codeEndpoint, { method: 'POST', notify: false })
+      setCode(data.code)
+      setCodeExpiry(data.expiresAt)
+    } catch (err) {
+      setError(err.status === 404
+        ? 'Backend chưa có tính năng tự lấy mã. Bạn có thể nhập mã từ HLV/lễ tân.'
+        : err.message)
+    } finally {
+      setLoadingCode(false)
+    }
+  }
 
   const submit = async (e) => {
     e.preventDefault()
+    if (busy || loadingCode) return
     setError('')
     setBusy(true)
     try {
@@ -87,6 +112,15 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
       {!result ? (
         <form onSubmit={submit} className="flex flex-col gap-4">
           {error && <Alert>{error}</Alert>}
+          <p className="text-body-sm text-secondary">{codeEndpoint
+            ? 'Bấm lấy mã để tự điền, sau đó xác nhận check-in. Chỉ áp dụng cho buổi bạn đã đăng ký trong thời gian điểm danh.'
+            : 'Nhập mã hiện tại của đúng buổi từ HLV/lễ tân. Mã của buổi khác không dùng được.'}</p>
+          {codeEndpoint && (
+            <button type="button" className={btnOutline} disabled={loadingCode || busy} onClick={getCode}>
+              <Icon name="qr_code_2" className="text-lg" />
+              {loadingCode ? 'Đang lấy mã…' : codeExpiry ? 'Lấy lại mã check-in' : 'Tự lấy mã check-in'}
+            </button>
+          )}
           <input
             className={inputCls}
             placeholder="Nhập mã check-in"
@@ -94,12 +128,14 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
             minLength={6}
             maxLength={64}
             required
+            disabled={busy || loadingCode}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => { setCode(e.target.value); setCodeExpiry(null) }}
           />
+          {codeExpiry && <p className="text-body-sm text-secondary" role="status">Đã điền mã của buổi này. Hạn mã: {formatTimestamp(codeExpiry)}.</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={btnOutline} onClick={onClose}>Huỷ</button>
-            <button type="submit" disabled={busy || !code.trim()} className={btnPrimary}>{busy ? 'Đang gửi…' : 'Check-in'}</button>
+            <button type="submit" disabled={busy || loadingCode || !code.trim()} className={btnPrimary}>{busy ? 'Đang gửi…' : 'Check-in'}</button>
           </div>
         </form>
       ) : (
@@ -117,7 +153,7 @@ function SelfCheckInModal({ title, endpoint, onClose, onDone }) {
   )
 }
 
-// Manager/Receptionist/assigned Coach — generates a fresh short-lived check-in code for a Scheduled session.
+// Manager/Receptionist/assigned Coach — opens the active code, renewing only after expiry.
 export function OpenCheckInCodeButton({ sessionId, className }) {
   const { enforceTimeRules } = useFlow2TimeRules()
   const [open, setOpen] = useState(false)
@@ -146,6 +182,7 @@ export function SelfCheckInButton({ sessionId, as = 'member', className, onDone 
         <SelfCheckInModal
           title={as === 'coach' ? 'Check-in buổi dạy' : 'Check-in buổi học'}
           endpoint={endpoint}
+          codeEndpoint={as === 'member' ? `/me/class-sessions/${sessionId}/check-in-code` : null}
           onClose={() => setOpen(false)}
           onDone={onDone}
         />
