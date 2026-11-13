@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { Alert, Icon, btnOutline, btnPrimary } from '../components/ui'
@@ -16,9 +16,11 @@ const STATUS_VISUAL = {
 // hardcoded in SubscriptionService.CreatePayOsLinkAsync) and /checkout/result as an alias.
 // Polls GET /api/payments/{id} a few times while Pending, since the PayOS webhook that flips
 // it to Paid/Failed can land a second or two after the browser redirect back.
+// PayOS sends no webhook on cancel, so the cancel page asks the BE to check the link status with PayOS instead.
 export default function PaymentResultPage() {
   const { auth } = useAuth()
   const [params] = useSearchParams()
+  const cancelled = useLocation().pathname === '/payment/cancel'
   const paymentId = params.get('paymentId')
   const [payment, setPayment] = useState(null)
   const [error, setError] = useState('')
@@ -27,11 +29,11 @@ export default function PaymentResultPage() {
   const load = useCallback(async () => {
     if (!paymentId) return
     try {
-      setPayment(await api(`/payments/${paymentId}`))
+      setPayment(await api(cancelled ? `/payments/${paymentId}/sync-payos` : `/payments/${paymentId}`, cancelled ? { method: 'POST' } : undefined))
     } catch (err) {
       setError(err.message)
     }
-  }, [paymentId])
+  }, [paymentId, cancelled])
 
   useEffect(() => {
     load()

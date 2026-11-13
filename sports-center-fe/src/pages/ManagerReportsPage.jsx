@@ -5,6 +5,7 @@ import { Alert, Field, Icon, btnPrimary, inputCls } from '../components/ui'
 import { addDays, toDateOnly } from '../dateUtils'
 import RevenueTrendChart from '../components/RevenueTrendChart'
 import ManagerWalletReceipts from '../components/ManagerWalletReceipts'
+import ManagerMoneyLog from '../components/ManagerMoneyLog'
 import CoachTeachingStats from '../components/CoachTeachingStats'
 
 const Stat = ({ icon, label, value }) => (
@@ -51,8 +52,10 @@ const RevenueByItem = ({ data }) => (
 
 export default function ManagerReportsPage() {
   const [params, setParams] = useSearchParams()
-  const receipts = params.get('tab') === 'receipts'
-  const teaching = params.get('tab') === 'coaches'
+  const tab = params.get('tab') ?? ''
+  const receipts = tab === 'receipts'
+  const teaching = tab === 'coaches'
+  const moneyLog = tab === 'money'
   const [refresh, setRefresh] = useState(0)
   const today = toDateOnly(new Date())
   const [range, setRange] = useState({ from: addDays(today, -29), to: today })
@@ -62,7 +65,7 @@ export default function ManagerReportsPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    if (receipts || teaching) return
+    if (receipts || teaching || moneyLog) return
     setLoading(true)
     setError('')
     try {
@@ -73,7 +76,7 @@ export default function ManagerReportsPage() {
       setError(err.message)
     }
     setLoading(false)
-  }, [range, receipts, teaching])
+  }, [range, receipts, teaching, moneyLog])
 
   useEffect(() => {
     load()
@@ -83,11 +86,11 @@ export default function ManagerReportsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-headline-xl text-headline-xl">Báo cáo & thống kê</h1>
-        <p className="text-secondary">Theo dõi doanh thu, biên nhận và số buổi giảng dạy của HLV.</p>
+        <p className="text-secondary">Theo dõi doanh thu, biên nhận, dòng tiền ví và số buổi giảng dạy của HLV.</p>
       </div>
       <nav aria-label="Báo cáo" className="flex flex-wrap gap-1 rounded-xl bg-surface-container-low p-1 w-fit">
-        {[['', 'Doanh thu dịch vụ'], ['receipts', 'Biên nhận nạp ví'], ['coaches', 'Giảng dạy HLV']].map(([value, label]) => <button type="button" key={label} aria-pressed={(teaching ? 'coaches' : receipts ? 'receipts' : '') === value}
-          className={`px-4 py-2 rounded-lg text-body-sm font-semibold ${(teaching ? 'coaches' : receipts ? 'receipts' : '') === value ? 'bg-primary-container text-white' : 'text-secondary'}`}
+        {[['', 'Doanh thu dịch vụ'], ['receipts', 'Biên nhận nạp ví'], ['money', 'Nhật ký dòng tiền'], ['coaches', 'Giảng dạy HLV']].map(([value, label]) => <button type="button" key={label} aria-pressed={tab === value}
+          className={`px-4 py-2 rounded-lg text-body-sm font-semibold ${tab === value ? 'bg-primary-container text-white' : 'text-secondary'}`}
           onClick={() => { const next = new URLSearchParams(params); if (value) next.set('tab', value); else next.delete('tab'); setParams(next) }}>{label}</button>)}
       </nav>
 
@@ -102,11 +105,12 @@ export default function ManagerReportsPage() {
           </Field>
         </div>
         <div className="flex justify-end pt-4">
-          <button type="button" className={btnPrimary} onClick={() => receipts ? setRefresh(value => value + 1) : load()}>Làm mới báo cáo</button>
+          <button type="button" className={btnPrimary} onClick={() => receipts || moneyLog ? setRefresh(value => value + 1) : load()}>Làm mới báo cáo</button>
         </div>
       </div>
 
-      {receipts ? <ManagerWalletReceipts key={`${range.from}:${range.to}`} range={range} refresh={refresh} /> : <>
+      {moneyLog ? <ManagerMoneyLog key={`${range.from}:${range.to}`} range={range} refresh={refresh} />
+        : receipts ? <ManagerWalletReceipts key={`${range.from}:${range.to}`} range={range} refresh={refresh} /> : <>
       {error && <Alert>{error}</Alert>}
 
       {report && (
