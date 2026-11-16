@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, apiUpload } from '../api'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { ROOM_STATUS_LABEL, SPORT_STATUS_LABEL } from '../labels'
+import { useClientPaged } from '../usePaged'
 
 const SPORT_STATUS_TONE = { Active: 'green', Inactive: 'slate' }
 const ROOM_STATUS_TONE = { Active: 'green', Maintenance: 'amber', Inactive: 'slate' }
@@ -163,7 +164,7 @@ function RoomForm({ room, onClose, onDone }) {
   )
 }
 
-export default function CatalogPage() {
+export default function CatalogPage({ embedded = false }) {
   const [sports, setSports] = useState([])
   const [rooms, setRooms] = useState([])
   const [error, setError] = useState('')
@@ -180,6 +181,8 @@ export default function CatalogPage() {
   const filteredRooms = rooms
     .filter((r) => roomStatus === 'all' || r.status === roomStatus)
     .filter((r) => !roomSearch.trim() || r.name.toLowerCase().includes(roomSearch.trim().toLowerCase()))
+  const sportPage = useClientPaged(filteredSports)
+  const roomPage = useClientPaged(filteredRooms)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -206,7 +209,7 @@ export default function CatalogPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-headline-xl text-headline-xl">Danh mục trung tâm</h1>
+        {embedded ? <h2 className="font-headline-md text-headline-md">Bộ môn & phòng tập</h2> : <h1 className="font-headline-xl text-headline-xl">Danh mục trung tâm</h1>}
         <p className="text-secondary">Bộ môn và phòng tập dùng để xếp lớp, đặt lịch PT.</p>
       </div>
 
@@ -239,7 +242,7 @@ export default function CatalogPage() {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {filteredSports.map((s) => (
+            {sportPage.pageItems.map((s) => (
               <tr key={s.id} className="border-t border-surface-container">
                 <td className="px-4 py-3 font-semibold">{s.name}</td>
                 <td className="px-4 py-3 text-secondary">{s.description ?? '—'}</td>
@@ -263,6 +266,7 @@ export default function CatalogPage() {
             )}
           </tbody>
         </table>
+        {sportPage.pagination}
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-sm overflow-x-auto">
@@ -290,7 +294,7 @@ export default function CatalogPage() {
             </tr>
           </thead>
           <tbody className={loading ? 'opacity-50' : ''}>
-            {filteredRooms.map((r) => (
+            {roomPage.pageItems.map((r) => (
               <tr key={r.id} className="border-t border-surface-container">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -323,6 +327,7 @@ export default function CatalogPage() {
             )}
           </tbody>
         </table>
+        {roomPage.pagination}
       </div>
 
       {modal?.type === 'sport' && <SportForm sport={modal.item} onClose={() => setModal(null)} onDone={done} />}

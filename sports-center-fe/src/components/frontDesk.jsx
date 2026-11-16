@@ -4,7 +4,7 @@ import { api, getAuth, query } from '../api'
 import { formatTimestamp } from '../dateUtils'
 import { CLASS_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL } from '../labels'
 import { Alert, Badge, Field, Icon, Modal, btnOutline, btnPrimary, inputCls } from './ui'
-import usePaged from '../usePaged'
+import usePaged, { useClientPaged } from '../usePaged'
 
 const vnd = (n) => `${Number(n ?? 0).toLocaleString('vi-VN')}đ`
 
@@ -203,6 +203,7 @@ export function ReportTrend({ range }) {
     return () => c.abort()
   }, [range, groupBy])
   const max = Math.max(1, ...rows.map((r) => Number(r.revenue)))
+  const trendPage = useClientPaged(rows) // bar scale stays global (max over every row)
   return (
     <section className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-surface-container">
@@ -224,7 +225,7 @@ export function ReportTrend({ range }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {trendPage.pageItems.map((r) => (
               <tr key={r.period} className="border-t border-surface-container">
                 <td className="px-4 py-2 text-secondary whitespace-nowrap">{r.period}</td>
                 <td className="px-4 py-2">
@@ -239,6 +240,7 @@ export function ReportTrend({ range }) {
             ))}
           </tbody>
         </table>
+        {trendPage.pagination}
       </div>
     </section>
   )
@@ -248,6 +250,7 @@ export function ClassFillReport() {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => { api('/reports/class-fill').then(setRows).catch((err) => setError(err.message)) }, [])
+  const fillPage = useClientPaged(rows)
   return (
     <section className="bg-surface-container-low rounded-xl border border-outline-variant/40 shadow-sm">
       <h2 className="font-headline-md text-headline-md px-4 py-3 border-b border-surface-container">Tình trạng đăng ký lớp</h2>
@@ -264,7 +267,7 @@ export function ClassFillReport() {
             </tr>
           </thead>
           <tbody>
-            {rows?.map((c) => {
+            {fillPage.pageItems.map((c) => {
               const pct = c.fillRate == null ? null : Math.round(c.fillRate * 100)
               return (
                 <tr key={c.classId} className="border-t border-surface-container">
@@ -288,6 +291,7 @@ export function ClassFillReport() {
             {rows && !rows.length && <tr><td colSpan={5} className="px-4 py-10 text-center text-secondary">Chưa có lớp nào.</td></tr>}
           </tbody>
         </table>
+        {fillPage.pagination}
       </div>
     </section>
   )

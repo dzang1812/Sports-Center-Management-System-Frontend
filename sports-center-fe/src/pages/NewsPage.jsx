@@ -3,19 +3,7 @@ import { NEWS_ITEMS } from '../newsItems'
 
 export default function NewsPage() {
   return (
-    <PublicShell
-      hero={
-        <div className="relative w-full h-64 sm:h-80 overflow-hidden">
-          <img src="/images/banner-news-2.jpg" alt="Tin tức & Khuyến mãi FitZone" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface via-inverse-surface/60 to-inverse-surface/20" />
-          <div className="relative h-full flex flex-col items-center justify-center text-center px-6 text-white">
-            <span className="font-label-md text-label-md uppercase tracking-wider text-tertiary-fixed mb-2">Cập nhật mới nhất</span>
-            <h1 className="font-display-md text-display-md">Tin tức &amp; Khuyến mãi</h1>
-            <p className="text-white/85 mt-2 max-w-xl">Ưu đãi, sự kiện và tin tức mới nhất từ FitZone Sports Center.</p>
-          </div>
-        </div>
-      }
-    >
+    <PublicShell banner="/images/banner-news.jpg" bannerRatio="2560 / 720" eyebrow="Cập nhật mới nhất" title="Tin tức & Khuyến mãi" subtitle="Ưu đãi, sự kiện và tin tức mới nhất từ FitZone Sports Center.">
       <div className="flex flex-col gap-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {NEWS_ITEMS.map((n) => (

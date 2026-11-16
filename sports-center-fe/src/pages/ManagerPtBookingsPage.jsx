@@ -6,7 +6,7 @@ import { Alert, Badge, Field, Pagination, btnOutline, btnPrimary, inputCls } fro
 import { addDays, fromTimeOnly, hasScheduleStarted, toDateOnly } from '../dateUtils'
 import { BOOKING_STATUS_LABEL } from '../labels'
 
-export default function ManagerPtBookingsPage() {
+export default function ManagerPtBookingsPage({ embedded = false }) {
   const [filters, setFilters] = useState({ from: toDateOnly(), to: addDays(toDateOnly(), 30), memberId: '', coachId: '', status: '' })
   const [coaches, setCoaches] = useState([])
   const [page, setPage] = useState(1)
@@ -44,12 +44,12 @@ export default function ManagerPtBookingsPage() {
     return () => { active = false; stop() }
   }, [load, stop])
   return <div className="flex flex-col gap-4">
-    <div><h1 className="font-headline-xl text-headline-xl">Lịch PT trung tâm</h1><p className="text-secondary">Quản lý lịch PT và hủy buổi do trung tâm. Quyền lợi được cập nhật sau khi xác nhận.</p></div>
+    {!embedded && <div><h1 className="font-headline-xl text-headline-xl">Lịch PT trung tâm</h1><p className="text-secondary">Quản lý lịch PT và hủy buổi do trung tâm. Quyền lợi được cập nhật sau khi xác nhận.</p></div>}
     <div className="bg-surface-container rounded-xl p-5 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="Từ ngày"><input type="date" required className={inputCls} value={filters.from} onChange={(e) => setFilter('from', e.target.value)} /></Field>
         <Field label="Đến ngày"><input type="date" required className={inputCls} value={filters.to} onChange={(e) => setFilter('to', e.target.value)} /></Field>
-        <Field label="Coach"><select className={inputCls} value={filters.coachId} onChange={(e) => setFilter('coachId', e.target.value)}><option value="">Tất cả Coach</option>{coaches.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}</select></Field>
+        <Field label="Huấn luyện viên"><select className={inputCls} value={filters.coachId} onChange={(e) => setFilter('coachId', e.target.value)}><option value="">Tất cả HLV</option>{coaches.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}</select></Field>
         <Field label="Trạng thái"><select className={inputCls} value={filters.status} onChange={(e) => setFilter('status', e.target.value)}><option value="">Tất cả</option>{Object.entries(BOOKING_STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
       </div>
       <MemberLookupField onSelect={(id) => setFilter('memberId', id)} />
@@ -59,7 +59,7 @@ export default function ManagerPtBookingsPage() {
     {notice && <Alert type="success">{notice}</Alert>}
     {loading && <p role="status">Đang tải booking PT…</p>}
     <div className="bg-surface-container-low rounded-xl overflow-x-auto border border-outline-variant/40">
-      <table className="w-full text-left"><thead><tr className="bg-surface-container text-secondary"><th className="p-3">Member / Coach</th><th className="p-3">Ngày / giờ</th><th className="p-3">Bộ môn / phòng</th><th className="p-3">Trạng thái</th><th className="p-3">Thao tác</th></tr></thead><tbody>
+      <table className="w-full text-left"><thead><tr className="bg-surface-container text-secondary"><th className="p-3">Hội viên / HLV</th><th className="p-3">Ngày / giờ</th><th className="p-3">Bộ môn / phòng</th><th className="p-3">Trạng thái</th><th className="p-3">Thao tác</th></tr></thead><tbody>
         {data.items.map((b) => <tr key={b.bookingId} className="border-t border-surface-container">
           <td className="p-3"><b>{b.member}</b><div className="text-secondary">HLV {b.coach}</div></td>
           <td className="p-3">{b.date}<div>{fromTimeOnly(b.startTime)}–{fromTimeOnly(b.endTime)}</div></td>

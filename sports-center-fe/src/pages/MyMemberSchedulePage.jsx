@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api, query } from '../api'
 import { useFlow2TimeRules } from '../flow2TimeRules'
 import { SelfCheckInButton } from '../components/classCheckIn'
-import { Alert, Badge, Field, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
+import { Alert, Badge, Field, Icon, Pagination, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import { CancelBookingModal, PtRescheduleModal } from '../components/scheduleActions'
 import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
+import MemberScheduleOverview from '../components/MemberScheduleOverview'
+import { MemberCommerce } from '../components/commerce'
+import MyTrainingFeedback from '../components/TrainingFeedback'
+import MemberCoachReviewsPage from './MemberCoachReviewsPage'
 import { addDays, fromTimeOnly, hasScheduleStarted, isPastSchedule, toDateOnly } from '../dateUtils'
 import { ATTENDANCE_STATUS_LABEL, BOOKING_STATUS_LABEL } from '../labels'
 
@@ -57,10 +62,11 @@ export function BookingSchedule({ memberId = null, onChanged, presentation = 'li
     setError('')
     if (presentation === 'list') setItems([])
     try {
+      if (!range.from || !range.to || range.from > range.to) { setItems([]); throw new Error('Chọn khoảng ngày hợp lệ: ngày kết thúc không được trước ngày bắt đầu.') }
       const path = memberId ? `/members/${memberId}/schedule` : '/me/schedule'
       const [schedule, subs] = await Promise.all([
         api(`${path}${query({ ...range, includeCancelled })}`, { signal: controller.signal }),
-        memberId || presentation === 'calendar' ? Promise.resolve(null) : api('/me/subscriptions', { signal: controller.signal }),
+        memberId || presentation !== 'list' ? Promise.resolve(null) : api('/me/subscriptions', { signal: controller.signal }),
       ])
       if (!controller.signal.aborted) { setItems(schedule); setHasLoaded(true); if (subs) setSubscriptions(subs) }
     } catch (err) {
@@ -101,7 +107,7 @@ export function BookingSchedule({ memberId = null, onChanged, presentation = 'li
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={`bg-surface-container rounded-xl shadow-sm ${presentation === 'calendar' ? 'flex flex-wrap items-end gap-4 p-3' : 'p-4'}`}>
+      {presentation !== 'member' && <div className={`bg-surface-container rounded-xl shadow-sm ${presentation === 'calendar' ? 'flex flex-wrap items-end gap-4 p-3' : 'p-4'}`}>
         <div className={presentation === 'calendar' ? 'contents' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'}>
           {presentation === 'list' && <><Field label="Từ ngày">
             <input className={inputCls} type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
@@ -139,12 +145,20 @@ export function BookingSchedule({ memberId = null, onChanged, presentation = 'li
           </button>
           <button type="button" className={btnPrimary} onClick={load} disabled={loading}>{presentation === 'calendar' ? 'Làm mới lịch' : 'Tìm kiếm'}</button>
         </div>
-      </div>
+      </div>}
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert type="success">{notice}</Alert>}
       {!memberId && presentation === 'list' && subscriptions.filter((s) => s.totalPtSessions > 0).map((s) => <p key={s.id} className="text-secondary">{s.planName}: còn <b>{s.remainingPtSessions}</b>/{s.totalPtSessions} buổi PT ({s.status}).</p>)}
-      {loading && <p role="status" className="text-secondary">Đang tải lịch…</p>}
+      {loading && presentation !== 'member' && <p role="status" className="text-secondary">Đang tải lịch…</p>}
+
+      {presentation === 'member' && <MemberScheduleOverview items={sorted} loading={loading} range={range} onRangeChange={setRange}
+        discoverTo={memberId ? `/reception/members/${memberId}?view=available` : '/member/classes'}
+        typeFilter={typeFilter} onTypeChange={setTypeFilter} includeCancelled={includeCancelled} onIncludeCancelledChange={setIncludeCancelled}
+        onRefresh={load} statusLabel={item => effectiveStatus(item, enforceTimeRules)} renderActions={renderActions}
+        calendar={hasLoaded && <CourseScheduleCalendar personal compact title="Lịch của tôi" sessions={sorted}
+          includeCancelled={includeCancelled} onIncludeCancelledChange={setIncludeCancelled} onVisibleRangeChange={showRange}
+          statusLabel={item => effectiveStatus(item, enforceTimeRules).label} renderEventActions={renderActions} />} />}
 
       {presentation === 'calendar' && hasLoaded && <div className={loading ? 'opacity-60' : ''}>
         <CourseScheduleCalendar personal title="Lịch của tôi" sessions={sorted}
@@ -214,7 +228,7 @@ export function BookingSchedule({ memberId = null, onChanged, presentation = 'li
         <PtRescheduleModal
           item={rescheduleItem}
           onClose={() => setRescheduleItem(null)}
-          onDone={(_, refreshError) => changed(`Đã đổi lịch PT thành công.${refreshError ? ` Không tải lại được khung giờ: ${refreshError}` : ''} Vui lòng kiểm tra lịch và gói tập bên dưới.`)}
+          onDone={(_, refreshError) => changed(`Đã đổi lịch PT thành công.${refreshError ? ` Không tải lại được khung giờ: ${refreshError}` : ''} Vui lòng kiểm tra lại lịch tập.`)}
         />
       )}
     </div>
@@ -366,30 +380,58 @@ function AttendanceHistory() {
 }
 
 export default function MyMemberSchedulePage() {
-  const [tab, setTab] = useState('calendar')
+  const [params, setParams] = useSearchParams()
+  const requestedTab = params.get('tab')
+  const tab = ['courses', 'attendance', 'feedback', 'reviews', 'mine'].includes(requestedTab) ? requestedTab : 'calendar'
+  const progress = ['attendance', 'feedback', 'reviews'].includes(tab)
+  const selectTab = value => {
+    const next = new URLSearchParams(params)
+    if (value === 'calendar') next.delete('tab')
+    else next.set('tab', value)
+    setParams(next)
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="font-headline-xl text-headline-xl">Lịch của tôi</h1>
-        <p className="text-secondary">Xem khóa học và PT theo ngày, giờ. Bấm một ô lịch để check-in, đổi lịch hoặc hủy theo điều kiện hiện có.</p>
+    <div className="flex flex-col gap-5 max-w-[1440px] mx-auto">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><h1 className="font-headline-xl text-headline-xl">Lịch của tôi</h1>
+        <p className="text-secondary mt-1">Xem lịch, check-in và theo dõi quá trình tập luyện.</p></div>
+        <Link className={btnPrimary} to="/member/classes"><Icon name="add" className="text-lg" />Đặt buổi tập mới</Link>
       </div>
 
-      <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
-        {[['calendar', 'Lịch tuần / tháng'], ['mine', 'Danh sách'], ['attendance', 'Điểm danh']].map(([v, l]) => (
+
+      <nav aria-label="Quản lý lịch tập" className="flex flex-wrap gap-1 p-1 bg-surface-container-low rounded-xl w-fit">
+        {[['calendar', 'Lịch tập'], ['courses', 'Khóa của tôi'], ['attendance', 'Tiến độ & đánh giá']].map(([v, l]) => (
           <button
+            type="button"
             key={v}
-            className={`px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${tab === v ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
-            onClick={() => setTab(v)}
+            aria-pressed={v === 'attendance' ? progress : v === 'calendar' ? ['calendar', 'mine'].includes(tab) : tab === v}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-label-md text-body-sm transition-all ${(v === 'attendance' ? progress : v === 'calendar' ? ['calendar', 'mine'].includes(tab) : tab === v) ? 'bg-primary-container text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+            onClick={() => selectTab(v)}
           >
             {l}
           </button>
         ))}
-      </div>
+      </nav>
 
-      {tab === 'calendar' && <BookingSchedule presentation="calendar" />}
+      {progress && <nav aria-label="Tiến độ và đánh giá" className="flex flex-wrap gap-4 border-b border-outline-variant/40">
+        {[['attendance', 'Điểm danh'], ['feedback', 'Kết quả tập'], ['reviews', 'Đánh giá HLV']].map(([value, label]) =>
+          <button type="button" key={value} aria-pressed={tab === value} onClick={() => selectTab(value)}
+            className={`pb-3 text-body-sm font-semibold border-b-2 ${tab === value ? 'border-primary-container text-primary-container' : 'border-transparent text-secondary hover:text-on-surface'}`}>{label}</button>)}
+      </nav>}
+
+      {tab === 'calendar' && <BookingSchedule presentation="member" />}
+      {tab === 'courses' && <MemberCommerce viewMode="enrollments" embedded />}
       {tab === 'mine' && <BookingSchedule />}
       {tab === 'attendance' && <AttendanceHistory />}
+      {tab === 'feedback' && <MyTrainingFeedback />}
+      {tab === 'reviews' && <MemberCoachReviewsPage embedded />}
+      <details className="border-t border-outline-variant/40 pt-4 text-body-sm text-secondary"><summary className="cursor-pointer w-fit">Xem thêm</summary><div className="flex flex-wrap gap-x-6 gap-y-3 pt-3">
+        <Link className="text-primary hover:underline" to="/member/schedule?tab=mine">Lịch dạng danh sách</Link>
+        <Link className="text-primary hover:underline" to="/member/training">Kế hoạch tập cá nhân</Link>
+        <Link className="text-primary hover:underline" to="/member/support">Yêu cầu hỗ trợ</Link>
+        <Link className="text-primary hover:underline" to="/member/classes?type=single">Lớp theo buổi</Link>
+      </div></details>
     </div>
   )
 }
