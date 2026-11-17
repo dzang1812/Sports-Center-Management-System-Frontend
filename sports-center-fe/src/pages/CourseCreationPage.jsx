@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { addDays, businessDateTimeToUtc, formatDate, formatTimestamp, fromTimeOnly, toDateOnly, toTimeOnly, weekRange } from '../dateUtils'
+import { addDays, businessDateTimeInput, businessDateTimeToUtc, formatDate, formatTimestamp, fromTimeOnly, toDateOnly, toTimeOnly, weekRange } from '../dateUtils'
 import { DAYS_OF_WEEK, DAY_OF_WEEK_LABEL, LEVEL_LABEL } from '../labels'
 import { Alert, Field, btnOutline, btnPrimary, inputCls } from '../components/ui'
 import CourseScheduleCalendar from '../components/CourseScheduleCalendar'
 
 const money = n => `${Number(n).toLocaleString('vi-VN')}đ`
-const initialStart = () => weekRange(addDays(toDateOnly(), 7))[0]
+const initialStart = () => weekRange(addDays(toDateOnly(), 14))[0]
+const enrollmentWindowMs = 7 * 24 * 60 * 60 * 1000
+const minimumCutoff = () => businessDateTimeInput(new Date(Math.ceil((Date.now() + enrollmentWindowMs) / 60000) * 60000))
 
 export default function CourseCreationPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState(() => ({ name: '', description: '', sportId: '', coachId: '', roomId: '', capacity: 10,
     level: 'Beginner', startDate: initialStart(), weeks: 4, daysOfWeek: ['Monday', 'Wednesday'],
-    startTime: '18:00', endTime: '19:00', sessionPrice: 100000, cutoff: `${initialStart()}T12:00` }))
+    startTime: '18:00', endTime: '19:00', sessionPrice: 100000, cutoff: `${addDays(initialStart(), -1)}T23:59` }))
   const [catalog, setCatalog] = useState({ sports: [], rooms: [], coaches: [] })
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState('')
@@ -50,9 +52,23 @@ export default function CourseCreationPage() {
     if (err.details?.conflicts) setPreview(p => p ? { ...p, result: { ...p.result, conflicts: err.details.conflicts } } : p)
     if (['COURSE_ENROLLMENT_CLOSED', 'COURSE_ALREADY_STARTED'].includes(err.errorCode)) setPreview(p => p ? { ...p, result: { ...p.result, canOpen: false } } : p)
   }
+  const validateCutoff = () => {
+    if (!form.cutoff || new Date(businessDateTimeToUtc(form.cutoff)).getTime() < Date.now() + enrollmentWindowMs) {
+      const message = 'Hạn chót đăng ký phải cách thời điểm tạo khóa ít nhất 7 ngày.'
+      setFields({ enrollmentClosesAt: message }); setError(message); setPreview(null)
+      return false
+    }
+    if (!form.startDate || form.startDate <= form.cutoff.slice(0, 10)) {
+      const message = 'Ngày bắt đầu phải sau ngày hạn chót đăng ký (giờ Việt Nam).'
+      setFields({ startDate: message }); setError(message); setPreview(null)
+      return false
+    }
+    return true
+  }
   const showPreview = async e => {
     e.preventDefault()
     if (pending.current) return
+    if (!validateCutoff()) return
     pending.current = true; setBusy(true); setError(''); setFields({}); setPreview(null)
     const version = ++generation.current
     const c = new AbortController(); request.current?.abort(); request.current = c
@@ -65,6 +81,7 @@ export default function CourseCreationPage() {
   }
   const save = async openRegistration => {
     if (pending.current || !preview || preview.result.conflicts.length) return
+    if (!validateCutoff()) return
     const body = { ...preview.body, openRegistration }
     const signature = JSON.stringify(body)
     if (replay.current?.signature !== signature) replay.current = { signature, key: crypto.randomUUID() }
@@ -86,13 +103,12 @@ export default function CourseCreationPage() {
     <div className="sticky top-16 z-20 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <button className={btnOutline} type="submit" form="course-creation-form" disabled={busy || !form.daysOfWeek.length}>{busy ? 'Đang xử lý…' : 'Xem trước lịch và học phí'}</button>
-        <button className={btnOutline} type="button" disabled={busy || !p || !!p.conflicts.length} aria-describedby="course-save-hint" onClick={() => save(false)}>Lưu nháp</button>
         <button className={btnPrimary} type="button" disabled={busy || !p || !!p.conflicts.length || !p.canOpen} aria-describedby="course-save-hint" onClick={() => save(true)}>Tạo khóa học và mở đăng ký</button>
       </div>
       <p id="course-save-hint" className="text-secondary" role="status">
         {!p ? 'Điền thông tin rồi bấm “Xem trước lịch và học phí” để kiểm tra lịch và bật nút tạo khóa học.'
           : p.conflicts.length ? 'Lịch đang bị trùng. Hãy sửa thông tin và xem trước lại trước khi tạo khóa học.'
-            : <>{p.sessionCount} buổi • Tổng học phí: <b>{money(p.totalFee)}</b>. {p.canOpen ? 'Bạn có thể lưu nháp hoặc tạo và mở đăng ký.' : 'Chỉ có thể lưu nháp vì hạn đăng ký hoặc buổi đầu đã qua.'} <a className="text-primary underline" href="#course-preview">Xem chi tiết lịch</a></>}
+            : <>{p.sessionCount} buổi • Tổng học phí: <b>{money(p.totalFee)}</b>. {p.canOpen ? 'Bạn có thể tạo khóa học và mở đăng ký.' : 'Chưa thể tạo khóa học vì hạn đăng ký hoặc buổi đầu đã qua.'} <a className="text-primary underline" href="#course-preview">Xem chi tiết lịch</a></>}
       </p>
     </div>
     {error && <Alert>{error}</Alert>}
@@ -112,12 +128,11 @@ export default function CourseCreationPage() {
         </section>
         <section className="rounded-xl bg-surface-container-lowest p-5 space-y-4">
           <h2 className="font-headline-md text-headline-md">Lịch lặp hàng tuần</h2>
-          <div className="grid sm:grid-cols-2 gap-4">{input('startDate', 'Ngày bắt đầu khoảng lịch', 'date')}{input('weeks', 'Số tuần', 'number', { min: 1, max: 52, step: 1 })}</div>
-          <p className="text-secondary">N tuần là khoảng từ ngày bắt đầu đến trước ngày bắt đầu + 7×N. Không bỏ ngày; K thứ mỗi tuần sẽ có N×K buổi.</p>
+          <div className="grid sm:grid-cols-2 gap-4">{input('startDate', 'Ngày bắt đầu khoảng lịch', 'date', { min: form.cutoff ? addDays(form.cutoff.slice(0, 10), 1) : undefined })}{input('weeks', 'Số tuần', 'number', { min: 1, max: 52, step: 1 })}</div>
           <div><span className="font-semibold">Các thứ trong tuần</span><div className="flex flex-wrap gap-4 mt-2">{DAYS_OF_WEEK.map(day => <label key={day} className="flex gap-2 items-center"><input type="checkbox" checked={form.daysOfWeek.includes(day)} onChange={() => change('daysOfWeek', DAYS_OF_WEEK.filter(d => d === day ? !form.daysOfWeek.includes(d) : form.daysOfWeek.includes(d)))} />{DAY_OF_WEEK_LABEL[day]}</label>)}</div>{fields.daysOfWeek && <p className="text-error">{fields.daysOfWeek}</p>}</div>
           <div className="grid sm:grid-cols-2 gap-4">{input('startTime', 'Giờ bắt đầu', 'time')}{input('endTime', 'Giờ kết thúc', 'time')}</div>
         </section>
-        <section className="rounded-xl bg-surface-container-lowest p-5 space-y-4"><h2 className="font-headline-md text-headline-md">Học phí và đăng ký</h2><div className="grid sm:grid-cols-2 gap-4">{input('sessionPrice', 'Giá một buổi (VND)', 'number', { min: 1, max: 1000000000, step: 1 })}<Field label="Hạn chót đăng ký (giờ Việt Nam)" error={fields.enrollmentClosesAt}><input className={inputCls} type="datetime-local" required value={form.cutoff} onChange={set('cutoff')} /></Field></div></section>
+        <section className="rounded-xl bg-surface-container-lowest p-5 space-y-4"><h2 className="font-headline-md text-headline-md">Học phí và đăng ký</h2><div className="grid sm:grid-cols-2 gap-4">{input('sessionPrice', 'Giá một buổi (VND)', 'number', { min: 1, max: 1000000000, step: 1 })}<Field label="Hạn chót đăng ký (giờ Việt Nam)" error={fields.enrollmentClosesAt}><input className={inputCls} type="datetime-local" required min={minimumCutoff()} max={form.startDate ? `${addDays(form.startDate, -1)}T23:59` : undefined} onFocus={event => { event.currentTarget.min = minimumCutoff() }} value={form.cutoff} onChange={set('cutoff')} /></Field></div></section>
         <button className={btnOutline} type="submit" disabled={!form.daysOfWeek.length}>{busy ? 'Đang kiểm tra…' : 'Xem trước lịch và học phí'}</button>
       </fieldset>
     </form>
@@ -126,7 +141,7 @@ export default function CourseCreationPage() {
       <p>{money(p.sessionPrice)}/buổi • Tổng học phí: <b>{money(p.totalFee)}</b></p>
       <p>Buổi đầu: {formatDate(p.firstSession.date)} {fromTimeOnly(p.firstSession.startTime)} • Buổi cuối: {formatDate(p.lastSession.date)} {fromTimeOnly(p.lastSession.startTime)}</p>
       <p>Hạn đăng ký: {formatTimestamp(p.enrollmentClosesAt)}. Xem trước không giữ chỗ; khi lưu hệ thống kiểm tra lại toàn bộ lịch.</p>
-      {!p.canOpen && <Alert>Hạn đăng ký hoặc buổi đầu đã qua. Hãy sửa ngày lịch và hạn trên form trước khi lưu. Nháp có hạn đã qua sẽ không được mở đăng ký theo quy định hiện tại.</Alert>}
+      {!p.canOpen && <Alert>Hạn đăng ký hoặc buổi đầu đã qua. Hãy sửa ngày lịch và hạn trên form trước khi tạo khóa học.</Alert>}
       {p.conflicts.length > 0 && <Alert><p>Trùng tài nguyên, chưa thể lưu:</p>{p.conflicts.map((c, i) => <p key={i}>{formatDate(c.date)} {fromTimeOnly(c.startTime)}–{fromTimeOnly(c.endTime)}: {c.resource === 'Room' ? 'Phòng' : 'HLV'} #{c.resourceId}</p>)}</Alert>}
       <CourseScheduleCalendar title={form.name.trim() || 'Xem trước khóa học'} sessions={p.sessions} />
     </section>}
