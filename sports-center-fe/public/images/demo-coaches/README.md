@@ -28,3 +28,36 @@ Yêu cầu chung: Ảnh chụp chân dung chuyên nghiệp mang phong cách ản
 - Tệp: sports-center-fe/public/images/demo-coaches/coach-gym4-avatar-ai-demo.png
 - Yêu cầu riêng: Chân dung nam huấn luyện viên thể lực Việt Nam hư cấu khoảng 39 tuổi, tóc vuốt sau hơi bạc, không râu, áo thể thao xanh lá đậm; nền tạ ấm và cây mờ, ánh sáng ban ngày.
 - Địa chỉ ảnh đã lưu: https://res.cloudinary.com/drt2pna10/image/upload/v1794909964/sports-center/thsrkqvzfk9etpqxu5s1.png
+
+
+## Bổ sung ngày 18/11/2026
+
+Tạo bằng Imagegen tích hợp. Bốn chân dung hư cấu do AI tạo, mỗi Coach một ảnh riêng; đã cập nhật qua API và kiểm tra Member xem được.
+
+### HLV Gym Văn Năm
+
+- Tài khoản: coach.gym5@sportscenter.demo
+- Tệp: coach-gym5-avatar-ai-demo.png
+- Ảnh đã lưu: https://res.cloudinary.com/drt2pna10/image/upload/v1794993987/sports-center/msuyeklvvcud6hdutynt.png
+- Yêu cầu tạo ảnh: Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Gym trainer around 30, short textured black hair, clean-shaven, athletic build, cobalt blue athletic crewneck, modern weights gym background.
+
+### HLV Gym Văn Sáu
+
+- Tài khoản: coach.gym6@sportscenter.demo
+- Tệp: coach-gym6-avatar-ai-demo.png
+- Ảnh đã lưu: https://res.cloudinary.com/drt2pna10/image/upload/v1794994013/sports-center/r46id1w7cuouh0bnqpcl.png
+- Yêu cầu tạo ảnh: Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Gym strength trainer around 38, neatly combed short hair, subtle stubble, strong build, burgundy athletic polo shirt, softly blurred resistance machines background.
+
+### HLV Yoga Văn Hai
+
+- Tài khoản: coach.yoga2@sportscenter.demo
+- Tệp: coach-yoga2-avatar-ai-demo.png
+- Ảnh đã lưu: https://res.cloudinary.com/drt2pna10/image/upload/v1794994017/sports-center/ljnpu1kwl9ylqoabxazo.png
+- Yêu cầu tạo ảnh: Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Yoga instructor around 29, medium-length black hair tied into a tidy small bun, clean-shaven, calm smile, sage green fitted sports t-shirt, bright serene yoga studio with blurred mats and plants.
+
+### HLV Yoga Văn Ba
+
+- Tài khoản: coach.yoga3@sportscenter.demo
+- Tệp: coach-yoga3-avatar-ai-demo.png
+- Ảnh đã lưu: https://res.cloudinary.com/drt2pna10/image/upload/v1794994022/sports-center/jacvbttkfbtmvd0zr5ho.png
+- Yêu cầu tạo ảnh: Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Yoga instructor around 42, short side-part black hair with a little gray, clean-shaven, warm smile, sand beige athletic t-shirt, softly blurred yoga studio with wood and daylight.
