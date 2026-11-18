@@ -100,7 +100,7 @@ function SelfCheckInModal({ title, endpoint, codeEndpoint, onClose, onDone }) {
     try {
       const res = await api(endpoint, { method: 'POST', body: { code: code.trim() } })
       setResult(res)
-      onDone?.()
+      onDone?.(res)
     } catch (err) {
       setError(err.message)
     }
@@ -113,7 +113,7 @@ function SelfCheckInModal({ title, endpoint, codeEndpoint, onClose, onDone }) {
         <form onSubmit={submit} className="flex flex-col gap-4">
           {error && <Alert>{error}</Alert>}
           <p className="text-body-sm text-secondary">{codeEndpoint
-            ? 'Bấm lấy mã để tự điền, sau đó xác nhận check-in. Chỉ áp dụng cho buổi bạn đã đăng ký trong thời gian điểm danh.'
+            ? 'Bấm lấy mã để tự điền, sau đó xác nhận check-in cho đúng buổi trong thời gian điểm danh.'
             : 'Nhập mã hiện tại của đúng buổi từ HLV/lễ tân. Mã của buổi khác không dùng được.'}</p>
           {codeEndpoint && (
             <button type="button" className={btnOutline} disabled={loadingCode || busy} onClick={getCode}>
@@ -182,7 +182,7 @@ export function SelfCheckInButton({ sessionId, as = 'member', className, onDone 
         <SelfCheckInModal
           title={as === 'coach' ? 'Check-in buổi dạy' : 'Check-in buổi học'}
           endpoint={endpoint}
-          codeEndpoint={as === 'member' ? `/me/class-sessions/${sessionId}/check-in-code` : null}
+          codeEndpoint={as === 'coach' ? `/sessions/${sessionId}/check-in-code` : `/me/class-sessions/${sessionId}/check-in-code`}
           onClose={() => setOpen(false)}
           onDone={onDone}
         />

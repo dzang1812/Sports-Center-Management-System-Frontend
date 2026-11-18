@@ -22,7 +22,7 @@ const PT_MARKS = [
 
 // Class roster is read-only (self check-in is the only way to mark it — see FE-01 in the handoff doc);
 // PT roster is still manually graded by the Coach. Shown inline under the schedule, not as a popup.
-function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
+function RosterPanel({ item, onClose, onDone, onCancel, onMessage, onSelfCheckIn }) {
   const panel = useRef(null)
   useEffect(() => {
     panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -75,6 +75,16 @@ function RosterPanel({ item, onClose, onDone, onCancel, onMessage }) {
         </div>
         <button type="button" aria-label="Đóng" className="text-secondary hover:text-on-surface shrink-0" onClick={onClose}><Icon name="close" /></button>
       </div>
+      {isClass && (
+        <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-surface-container">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">Điểm danh của bạn</span>
+            <Badge tone={CHECK_IN_STATE_TONE[item.coachAttendanceStatus] ?? 'slate'}>{CHECK_IN_STATE_LABEL[item.coachAttendanceStatus] ?? 'Chưa check-in'}</Badge>
+            {item.coachCheckedInAt && <span className="text-body-sm text-secondary">{formatTimestamp(item.coachCheckedInAt)}</span>}
+          </div>
+          {item.status === 'Scheduled' && <SelfCheckInButton sessionId={item.referenceId} as="coach" className={btnOutline + ' !h-9'} onDone={onSelfCheckIn} />}
+        </div>
+      )}
       {error && <Alert>{error}</Alert>}
       <div className={`flex flex-col gap-2 ${loading ? 'opacity-50' : ''}`}>
         {roster.map((r) => (
@@ -199,7 +209,7 @@ function ListView({ setRosterItem }) {
                 <td className="px-4 py-3 text-secondary">{it.date} • {fromTimeOnly(it.startTime)}-{fromTimeOnly(it.endTime)}</td>
                 <td className="px-4 py-3 text-secondary">{it.room ?? '—'}</td>
                 <td className="px-4 py-3 text-secondary">{it.participantCount}</td>
-                <td className="px-4 py-3"><Badge tone={SESSION_STATUS_TONE[it.status]}>{SESSION_STATUS_LABEL[it.status]}</Badge></td>
+                <td className="px-4 py-3"><div className="flex flex-col items-start gap-1"><Badge tone={SESSION_STATUS_TONE[it.status]}>{SESSION_STATUS_LABEL[it.status]}</Badge>{it.type === 'Class' && it.coachAttendanceStatus && <Badge tone={CHECK_IN_STATE_TONE[it.coachAttendanceStatus]}>{ATTENDANCE_STATUS_LABEL[it.coachAttendanceStatus]}</Badge>}</div></td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center gap-2 justify-end">
                     <button className={btnOutline + ' !h-9'} onClick={() => setRosterItem(it)}>
@@ -302,7 +312,10 @@ export default function CoachSessionsPage() {
       <CoachTeachingStats refresh={reloadKey} />
       {view === 'week' ? <WeekView key={reloadKey} setRosterItem={setRosterItem} /> : <ListView key={reloadKey} setRosterItem={setRosterItem} />}
 
-      {rosterItem && <RosterPanel key={`${rosterItem.type}-${rosterItem.referenceId}`} item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} onMessage={setMessageItem} />}
+      {rosterItem && <RosterPanel key={`${rosterItem.type}-${rosterItem.referenceId}`} item={rosterItem} onClose={() => setRosterItem(null)} onDone={() => { setRosterItem(null); setReloadKey((k) => k + 1) }} onCancel={(item) => { setRosterItem(null); setCancelItem({ ...item, bookingId: item.referenceId }) }} onMessage={setMessageItem} onSelfCheckIn={result => {
+        setRosterItem(current => current?.type === 'Class' && current.referenceId === result.sessionId ? { ...current, coachAttendanceStatus: result.status, coachCheckedInAt: result.checkedInAt } : current)
+        setReloadKey(k => k + 1)
+      }} />}
       {messageItem && <CoachMessageModal item={messageItem} onClose={() => setMessageItem(null)} />}
       {cancelItem && <CancelBookingModal item={cancelItem} kind="coach" onClose={() => setCancelItem(null)} onDone={() => { setCancelItem(null); setReloadKey((k) => k + 1) }} />}
     </div>
