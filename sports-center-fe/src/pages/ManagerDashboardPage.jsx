@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, query } from '../api'
-import { Alert, Badge, Icon, btnOutline, btnPrimary } from '../components/ui'
+import { Alert, Icon, btnOutline, btnPrimary } from '../components/ui'
 import RevenueTrendChart from '../components/RevenueTrendChart'
-import { addDays, fromTimeOnly, toDateOnly } from '../dateUtils'
+import { toDateOnly } from '../dateUtils'
 
 const Stat = ({ icon, label, value }) => (
   <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm flex items-start justify-between">
@@ -27,63 +27,6 @@ const QuickLink = ({ to, icon, label, description }) => (
   </Link>
 )
 
-const FILL_STATUS = (ratio) => (ratio >= 1 ? { label: 'Hết chỗ', tone: 'red', bar: 'bg-error' } : { label: 'Sắp đầy', tone: 'amber', bar: 'bg-amber-500' })
-
-// Real data from GET /sessions (remainingSeats/capacity already in the DTO) — just filters client-side
-// across today and the next two calendar days.
-function FillingClassesTable() {
-  const [rows, setRows] = useState(null)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    const today = toDateOnly(new Date())
-    api(`/sessions${query({ from: today, to: addDays(today, 2), pageSize: 50 })}`)
-      .then(({ items }) => {
-        const filling = items
-          .filter((s) => s.status === 'Scheduled' && s.capacity > 0 && (s.capacity - s.remainingSeats) / s.capacity >= 0.7)
-          .sort((a, b) => (b.capacity - b.remainingSeats) / b.capacity - (a.capacity - a.remainingSeats) / a.capacity)
-          .slice(0, 5)
-        setRows(filling)
-      })
-      .catch((err) => setError(err.message))
-  }, [])
-
-  return (
-    <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm">
-      <h2 className="font-headline-md text-headline-md text-on-surface mb-1">Buổi sắp đầy chỗ</h2>
-      <p className="text-body-sm text-secondary mb-4">Đã đặt từ 70% chỗ, trong hôm nay và 2 ngày tiếp theo.</p>
-      {error && <Alert>{error}</Alert>}
-      {rows && !rows.length && <p className="text-secondary text-body-sm py-4">Chưa có buổi nào gần đầy chỗ trong khoảng này.</p>}
-      {rows && rows.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {rows.map((s) => {
-            const ratio = (s.capacity - s.remainingSeats) / s.capacity
-            const status = FILL_STATUS(ratio)
-            return (
-              <div key={s.id} className="flex items-center justify-between gap-4 py-2 border-b border-surface-container last:border-0">
-                <div className="min-w-0">
-                  <div className="font-semibold truncate">{s.className}</div>
-                  <div className="text-body-sm text-secondary">
-                    {s.date} • {fromTimeOnly(s.startTime)} • {s.room} • HLV {s.coach ?? '—'}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0 w-40">
-                  <div className="flex-1 h-2 rounded-full bg-surface-container overflow-hidden">
-                    <div className={`h-2 rounded-full ${status.bar}`} style={{ width: `${Math.min(100, ratio * 100)}%` }} />
-                  </div>
-                  <Badge tone={status.tone}>{status.label}</Badge>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Real KPI cards from GET /api/reports/revenue (month-to-date), plus a real 6-month trend and a
-// near-capacity classes table built from GET /sessions — no invented numbers anywhere on this page.
 export default function ManagerDashboardPage() {
   const [report, setReport] = useState(null)
   const [courses, setCourses] = useState(null)
@@ -126,13 +69,6 @@ export default function ManagerDashboardPage() {
         <QuickLink to="/manager/users" icon="group" label="Hội viên & nhân sự" description="Tìm kiếm và quản lý tài khoản" />
         <QuickLink to="/manager/settings" icon="category" label="Bộ môn & phòng" description="Cấu hình dịch vụ và không gian" />
       </div></section>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <section className="rounded-xl bg-white shadow-sm p-5 space-y-4"><div className="flex items-center justify-between gap-3"><h2 className="font-headline-md text-headline-md">Khóa cần hoàn thiện</h2><Link className="text-primary text-body-sm" to="/manager/courses">Xem tất cả</Link></div><p className="text-body-sm text-secondary">Các khóa đang ở trạng thái bản nháp, chưa mở đăng ký.</p>
-          {drafts.slice(0, 4).map(({ course }) => <Link key={course.id} className="flex items-center justify-between gap-3 rounded-xl border border-outline-variant/50 p-3 hover:bg-surface-container-low" to={`/manager/courses?courseId=${course.id}`}><span><b>{course.name}</b><span className="block text-secondary text-body-sm">{course.expectedSessions} buổi · {course.sport}</span></span><Icon name="arrow_forward" className="text-primary text-lg" /></Link>)}
-          {courses && !drafts.length && <p className="text-body-sm text-secondary">Không có khóa bản nháp cần hoàn thiện.</p>}
-        </section>
-        <FillingClassesTable key={revision} />
-      </div>
       <details className="rounded-xl border border-outline-variant/50 bg-white p-4" onToggle={event => setTrendOpen(event.currentTarget.open)}><summary className="cursor-pointer font-semibold">Xem xu hướng doanh thu 6 tháng</summary>{trendOpen && <div className="mt-4"><RevenueTrendChart key={revision} /><Link className="inline-block mt-3 text-primary text-body-sm font-semibold" to="/manager/reports">Mở báo cáo chi tiết →</Link></div>}</details>
     </div>
   )

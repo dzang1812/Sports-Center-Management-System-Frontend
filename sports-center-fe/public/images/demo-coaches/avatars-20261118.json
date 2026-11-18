@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-18",
+  "tool": "Built-in imagegen",
+  "description": "Fictional AI-generated Coach demo avatars",
+  "records": [
+    {
+      "email": "coach.gym5@sportscenter.demo",
+      "id": 84,
+      "name": "HLV Gym Văn Năm",
+      "file": "coach-gym5-avatar-ai-demo.png",
+      "url": "https://res.cloudinary.com/drt2pna10/image/upload/v1794993987/sports-center/msuyeklvvcud6hdutynt.png",
+      "prompt": "Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Gym trainer around 30, short textured black hair, clean-shaven, athletic build, cobalt blue athletic crewneck, modern weights gym background.",
+      "verified": true
+    },
+    {
+      "email": "coach.gym6@sportscenter.demo",
+      "id": 85,
+      "name": "HLV Gym Văn Sáu",
+      "file": "coach-gym6-avatar-ai-demo.png",
+      "url": "https://res.cloudinary.com/drt2pna10/image/upload/v1794994013/sports-center/r46id1w7cuouh0bnqpcl.png",
+      "prompt": "Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Gym strength trainer around 38, neatly combed short hair, subtle stubble, strong build, burgundy athletic polo shirt, softly blurred resistance machines background.",
+      "verified": true
+    },
+    {
+      "email": "coach.yoga2@sportscenter.demo",
+      "id": 86,
+      "name": "HLV Yoga Văn Hai",
+      "file": "coach-yoga2-avatar-ai-demo.png",
+      "url": "https://res.cloudinary.com/drt2pna10/image/upload/v1794994017/sports-center/ljnpu1kwl9ylqoabxazo.png",
+      "prompt": "Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Yoga instructor around 29, medium-length black hair tied into a tidy small bun, clean-shaven, calm smile, sage green fitted sports t-shirt, bright serene yoga studio with blurred mats and plants.",
+      "verified": true
+    },
+    {
+      "email": "coach.yoga3@sportscenter.demo",
+      "id": 87,
+      "name": "HLV Yoga Văn Ba",
+      "file": "coach-yoga3-avatar-ai-demo.png",
+      "url": "https://res.cloudinary.com/drt2pna10/image/upload/v1794994022/sports-center/jacvbttkfbtmvd0zr5ho.png",
+      "prompt": "Use case: photorealistic-natural. Asset type: square avatar portrait for a fictional demo sports center Coach account. Professional realistic head-and-shoulders photography, one adult Vietnamese trainer, entire head centered with generous room for circular crop, natural skin texture, clean professional athletic clothing. Soft natural lighting, inviting confident expression, subtly blurred relevant training studio background. No text, logo, watermark, collage, extra people or before/after imagery. Male Yoga instructor around 42, short side-part black hair with a little gray, clean-shaven, warm smile, sand beige athletic t-shirt, softly blurred yoga studio with wood and daylight.",
+      "verified": true
+    }
+  ]
+}

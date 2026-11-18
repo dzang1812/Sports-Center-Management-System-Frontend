@@ -87,7 +87,7 @@ function UserForm({ user, onClose, onDone }) {
           <input className={inputCls} type="email" required disabled={editing} value={form.email} onChange={set('email')} />
         </Field>
         <Field label="Họ và tên">
-          <input className={inputCls} required value={form.fullName} onChange={set('fullName')} />
+          <input className={inputCls} required maxLength={100} value={form.fullName} onChange={set('fullName')} />
         </Field>
         <Field label="Số điện thoại">
           <input className={inputCls} type="tel" value={form.phone} onChange={set('phone')} />
