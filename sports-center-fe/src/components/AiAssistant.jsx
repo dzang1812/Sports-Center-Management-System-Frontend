@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, apiForm } from '../api'
 import AiText from './AiText'
@@ -202,7 +202,16 @@ export function AiMediaModal({ onClose }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [preview, setPreview] = useState('')
   const t = MEDIA_TABS[tab]
+
+  // Show the chosen photo or video before it is sent.
+  useEffect(() => {
+    if (!file) { setPreview(''); return }
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
 
   const analyze = async () => {
     const form = new FormData()
@@ -244,6 +253,9 @@ export function AiMediaModal({ onClose }) {
           accept={t.kind === 'video' ? 'video/mp4,video/quicktime' : 'image/jpeg,image/png,image/webp'}
           onChange={(e) => { setFile(e.target.files[0] ?? null); setResult(null) }}
         />
+        {preview && (t.kind === 'video'
+          ? <video src={preview} controls className="w-full max-h-72 rounded-lg bg-black" />
+          : <img src={preview} alt="Ảnh đã chọn" className="w-full max-h-72 object-contain rounded-lg bg-surface-container" />)}
         <button className={btnPrimary} onClick={analyze} disabled={!file || busy}>
           {busy ? 'AI đang phân tích…' : 'Phân tích'}
         </button>

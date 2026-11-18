@@ -38,7 +38,7 @@ const NAV = {
   Member: [
     { to: '/member/classes', label: 'Khám phá', icon: 'explore' },
     { to: '/member/schedule', label: 'Lịch của tôi', icon: 'event_note' },
-    { to: '/member/training', label: 'Tự tập', icon: 'fitness_center' },
+    { to: '/member/training', label: 'Giáo Án', icon: 'fitness_center' },
     { to: '/member/wallet', label: 'Ví & gói', icon: 'account_balance_wallet' },
     { to: '/member/support', label: 'Hỗ trợ', icon: 'support_agent' },
   ],
