@@ -323,6 +323,19 @@ export default function MemberTrainingPage() {
     }
   }
 
+  // Copies the coach's plan into the member's own plans and makes it the active one.
+  const useCoachPlan = async () => {
+    setError('')
+    try {
+      const copy = await api(`/member/training-plans/${coachPlan.id}/use`, { method: 'POST' })
+      await load()
+      setDraft(toDraft(copy))
+      setToast('Đã dùng giáo án này làm lịch tập của bạn')
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   const showDetail = async (id) => {
     try {
       const all = await api('/exercises')
@@ -383,7 +396,8 @@ export default function MemberTrainingPage() {
           {coachPlan.goal && <p className="text-body-sm"><b>Mục tiêu:</b> {coachPlan.goal}</p>}
           {coachPlan.description && <p className="text-body-sm text-secondary whitespace-pre-line">{coachPlan.description}</p>}
           {(coachPlan.startDate || coachPlan.endDate) && <p className="text-body-sm text-secondary">Áp dụng {coachPlan.startDate ? `từ ${formatDate(coachPlan.startDate)}` : ''}{coachPlan.endDate ? ` đến ${formatDate(coachPlan.endDate)}` : ''}</p>}
-          <p className="text-body-sm text-secondary">Kế hoạch do huấn luyện viên lập nên bạn chỉ xem được. Muốn điều chỉnh, hãy trao đổi với HLV.</p>
+          <p className="text-body-sm text-secondary">Kế hoạch do huấn luyện viên lập nên bản gốc chỉ xem được. Bấm "Dùng giáo án này" để áp dụng: bạn sẽ có một bản riêng đang dùng, có thể chỉnh sửa.</p>
+          <div className="pt-1"><button className={btnPrimary} onClick={useCoachPlan}>Dùng giáo án này</button></div>
         </section>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
